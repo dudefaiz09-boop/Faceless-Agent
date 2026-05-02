@@ -1,5 +1,13 @@
 import admin from 'firebase-admin';
-import firebaseConfig from '../firebase-applet-config.json' assert { type: 'json' };
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const configPath = path.join(__dirname, '../firebase-applet-config.json');
+const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -18,6 +26,7 @@ const TEST_USERS = [
     claims: {
       roles: ['student'],
       isAdmin: false,
+      classId: '10A',
       permissions: { submitAssignments: true, viewOwnRecords: true }
     }
   },
@@ -28,6 +37,7 @@ const TEST_USERS = [
     claims: {
       roles: ['student'],
       isAdmin: false,
+      classId: '10B',
       permissions: { submitAssignments: true, viewOwnRecords: true }
     }
   },
@@ -118,6 +128,7 @@ async function setup() {
         displayName: user.displayName,
         roles: user.claims.roles,
         isAdmin: user.claims.isAdmin,
+        classId: (user.claims as any).classId || null,
         permissions: user.claims.permissions,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });

@@ -53,6 +53,7 @@ async function startServer() {
           uid: decodedToken.uid,
           roles: decodedToken.roles || [],
           isAdmin: decodedToken.isAdmin || false,
+          classId: decodedToken.classId || null,
           permissions: decodedToken.permissions || {}
         };
       } catch (error) {
@@ -62,13 +63,88 @@ async function startServer() {
     next();
   });
 
-  // Permission Check Helper
+  // Improved Permission Check Helper
   const checkPermission = (perm: string) => (req: any, res: any, next: any) => {
     const user = req.user;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    if (user.isAdmin && user.permissions[perm]) return next();
-    res.status(403).json({ error: 'Forbidden: Missing permission ' + perm });
+    
+    // Allow if user is Admin OR has the specific permission
+    if (user.isAdmin || (user.permissions && user.permissions[perm])) {
+      return next();
+    }
+    
+    res.status(403).json({ 
+      error: 'Forbidden', 
+      message: `Missing required permission: ${perm}`,
+      userRole: user.roles
+    });
   };
+
+  // --- Protected API Routes ---
+
+  // Announcements
+  app.get('/api/announcements', async (req, res) => {
+    try {
+      const user = (req as any).user;
+      let query: admin.firestore.Query = admin.firestore().collection('announcements');
+
+      if (user && user.roles.includes('student')) {
+        const studentClasses = ['all'];
+        if (user.classId) studentClasses.push(user.classId);
+        query = query.where('targetClasses', 'array-contains-any', studentClasses);
+      }
+
+      const snapshot = await query.orderBy('createdAt', 'desc').limit(50).get();
+      const announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.json(announcements);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/announcements', checkPermission('manageAnnouncements'), async (req, res) => {
+    try {
+      const { title, content, targetClasses, visibility } = req.body;
+      const docRef = await admin.firestore().collection('announcements').add({
+        title,
+        content,
+        targetClasses: targetClasses || ['all'],
+        visibility: visibility || 'school',
+        authorId: (req as any).user.uid,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.status(201).json({ id: docRef.id, success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  // Attendance
+  app.get('/api/attendance', checkPermission('manageAttendance'), async (req, res) => {
+    try {
+      const snapshot = await admin.firestore().collection('attendance').limit(100).get();
+      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  // Users Management (Staff/Admin only)
+  app.get('/api/users', checkPermission('manageStudents'), async (req, res) => {
+    try {
+      const { type } = req.query;
+      let query: admin.firestore.Query = admin.firestore().collection('users');
+      if (type) {
+        query = query.where('roles', 'array-contains', type);
+      }
+      const snapshot = await query.limit(100).get();
+      const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
 
   // Example API route: Set User Permissions (Financial Admin only)
   app.post('/api/roles', checkPermission('financialOps'), async (req, res) => {

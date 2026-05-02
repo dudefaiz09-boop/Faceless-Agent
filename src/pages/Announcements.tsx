@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, where } from 'firebase/firestore';
 import { useAuth, handleFirestoreError, OperationType } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Trash2, Send, X, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Send, X, AlertCircle, Users } from 'lucide-react';
 
 interface Announcement {
   id: string;
   title: string;
   content: string;
   authorId: string;
+  targetClasses: string[];
+  visibility: string;
   createdAt: any;
 }
 
 export const AnnouncementsPage = () => {
-  const { role, isAdmin, user } = useAuth();
+  const { roles, isAdmin, user, classId } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -22,10 +24,24 @@ export const AnnouncementsPage = () => {
   // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [targetClassesInput, setTargetClassesInput] = useState('all');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    let q;
+    const isStudent = roles.includes('student');
+    
+    if (isStudent) {
+      const studentTargets = ['all'];
+      if (classId) studentTargets.push(classId);
+      q = query(
+        collection(db, 'announcements'), 
+        where('targetClasses', 'array-contains-any', studentTargets),
+        orderBy('createdAt', 'desc')
+      );
+    } else {
+      q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -39,7 +55,7 @@ export const AnnouncementsPage = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [roles, classId]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,15 +63,19 @@ export const AnnouncementsPage = () => {
 
     setSubmitting(true);
     try {
+      const targetClasses = targetClassesInput.split(',').map(s => s.trim()).filter(s => s !== '');
       await addDoc(collection(db, 'announcements'), {
         title,
         content,
+        targetClasses: targetClasses.length > 0 ? targetClasses : ['all'],
+        visibility: targetClasses.includes('all') ? 'school' : 'class',
         authorId: user?.uid,
         createdAt: serverTimestamp(),
       });
       setIsModalOpen(false);
       setTitle('');
       setContent('');
+      setTargetClassesInput('all');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'announcements');
     } finally {
@@ -117,8 +137,19 @@ export const AnnouncementsPage = () => {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{ann.title}</h2>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{ann.title}</h2>
+                      {ann.targetClasses && (
+                        <div className="flex gap-1">
+                          {ann.targetClasses.map(tag => (
+                            <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                       {ann.createdAt?.toDate().toLocaleDateString(undefined, { dateStyle: 'long' })}
                     </p>
                   </div>
@@ -189,6 +220,20 @@ export const AnnouncementsPage = () => {
                     placeholder="Provide the details here. You can use markdown."
                     className="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all resize-none placeholder:text-slate-400"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                    <Users size={14} />
+                    Target Classes
+                  </label>
+                  <input 
+                    value={targetClassesInput}
+                    onChange={(e) => setTargetClassesInput(e.target.value)}
+                    placeholder="e.g. all, 10A, 9B"
+                    className="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all placeholder:text-slate-400"
+                  />
+                  <p className="text-[10px] text-slate-400 font-medium">Use 'all' for school-wide, or comma-separated class IDs.</p>
                 </div>
                 
                 <button 

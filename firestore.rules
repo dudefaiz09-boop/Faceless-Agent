@@ -29,6 +29,14 @@ service cloud.firestore {
       return isSignedIn() && getClaims().permissions[permission] == true;
     }
 
+    function existing() {
+      return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
     // USERS
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || can('manageStudents') || can('manageTeachers'));
@@ -42,10 +50,24 @@ service cloud.firestore {
 
     // ANNOUNCEMENTS
     match /announcements/{announcementId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.targetClasses.hasAny(['all']) || 
+        (request.auth.token.classId != null && resource.data.targetClasses.hasAny([request.auth.token.classId])) ||
+        hasRole('teacher') || hasRole('principal') || hasRole('staff')
+      );
       allow create: if can('manageAnnouncements');
-      allow update: if can('manageAnnouncements') && existing().authorId == request.auth.uid;
-      allow delete: if can('financialOps') || (can('manageAnnouncements') && existing().authorId == request.auth.uid);
+      allow update: if can('manageAnnouncements') && resource.data.authorId == request.auth.uid;
+      allow delete: if can('financialOps') || (can('manageAnnouncements') && resource.data.authorId == request.auth.uid);
+    }
+
+    // ASSIGNMENTS
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn();
+      allow write: if can('manageAssignments');
+      
+      match /submissions/{userId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || can('manageAssignments'));
+      }
     }
 
     // ATTENDANCE

@@ -45,6 +45,7 @@ interface AuthContextType {
   role: string | null; // Keep for legacy, but use roles/permissions
   roles: string[];
   permissions: Record<string, boolean>;
+  classId: string | null;
   loading: boolean;
   isAdmin: boolean;
 }
@@ -54,6 +55,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   roles: [],
   permissions: {},
+  classId: null,
   loading: true,
   isAdmin: false,
 });
@@ -64,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [classId, setClassId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -77,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (claims.roles) {
             setRoles(claims.roles);
             setPermissions(claims.permissions || {});
+            setClassId(claims.classId || null);
           } else {
             // Fallback to Firestore if claims are missing (initial setup)
             const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -84,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const data = userDoc.data();
               setRoles(data.roles || []);
               setPermissions(data.permissions || {});
+              setClassId(data.classId || null);
             }
           }
         } catch (error) {
@@ -92,6 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setRoles([]);
         setPermissions({});
+        setClassId(null);
       }
       setLoading(false);
     });
@@ -104,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: roles[0] || null,
     roles,
     permissions,
+    classId,
     loading,
     isAdmin: !!permissions.manageStudents || !!permissions.financialOps, // Flexible admin check
   };
