@@ -51,6 +51,7 @@ interface AuthContextType {
   isTeacher: boolean;
   isStudent: boolean;
   canManageAttendance: boolean;
+  canManageAssignments: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -64,6 +65,7 @@ const AuthContext = createContext<AuthContextType>({
   isTeacher: false,
   isStudent: false,
   canManageAttendance: false,
+  canManageAssignments: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -122,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isTeacher: roles.includes('teacher'),
     isStudent: roles.includes('student'),
     canManageAttendance: !!permissions.manageAttendance,
+    canManageAssignments: !!permissions.manageAssignments,
   };
 
   return (

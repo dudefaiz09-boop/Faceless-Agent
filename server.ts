@@ -218,6 +218,121 @@ async function startServer() {
     }
   });
 
+  app.get('/api/assignments/:classId', async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const snapshot = await admin.firestore()
+        .collection('assignments')
+        .where('classId', '==', classId)
+        .get();
+      
+      const assignments = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+      res.json(assignments);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/assignments/create', checkPermission('manageAssignments'), async (req, res) => {
+    try {
+      const { title, description, dueDate, classId, attachments } = req.body;
+      const docRef = await admin.firestore().collection('assignments').add({
+        title,
+        description,
+        dueDate,
+        classId,
+        attachments: attachments || [],
+        createdBy: (req as any).user.uid,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.status(201).json({ id: docRef.id, success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  // Submissions
+  app.post('/api/assignments/submit', async (req, res) => {
+    try {
+      const { assignmentId, content, fileUrl } = req.body;
+      const user = (req as any).user;
+      
+      const docId = `${assignmentId}_${user.uid}`;
+      await admin.firestore().collection('submissions').doc(docId).set({
+        assignmentId,
+        studentId: user.uid,
+        studentName: user.displayName || 'Student',
+        content,
+        fileUrl: fileUrl || null,
+        status: 'submitted',
+        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+        grade: null,
+        feedback: null
+      }, { merge: true });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/assignments/submissions/:assignmentId', checkPermission('manageAssignments'), async (req, res) => {
+    try {
+      const { assignmentId } = req.params;
+      const snapshot = await admin.firestore()
+        .collection('submissions')
+        .where('assignmentId', '==', assignmentId)
+        .get();
+      
+      const submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.json(submissions);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/assignments/grade', checkPermission('manageAssignments'), async (req, res) => {
+    try {
+      const { assignmentId, studentId, grade, feedback } = req.body;
+      const docId = `${assignmentId}_${studentId}`;
+      
+      await admin.firestore().collection('submissions').doc(docId).update({
+        grade,
+        feedback,
+        status: 'graded',
+        gradedAt: admin.firestore.FieldValue.serverTimestamp(),
+        gradedBy: (req as any).user.uid
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/assignments/history/:studentId', async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const user = (req as any).user;
+
+      if (!user.isAdmin && !user.permissions.manageAssignments && user.uid !== studentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const snapshot = await admin.firestore()
+        .collection('submissions')
+        .where('studentId', '==', studentId)
+        .get();
+      
+      const history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   // Users Management (Staff/Admin only)
   app.get('/api/users', checkPermission('manageStudents'), async (req, res) => {
     try {

@@ -74,5 +74,20 @@ STUDENT_A_UID="GmUxe7Jf19c0hFlNVuqoCbfiFj63" # From Firestore search
 echo "History for Student A:"
 curl -s -X GET "${LOCAL_URL}/api/attendance/history/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.[] | {date, status}'
 
+# 5. Assignment Tests
+echo "📝 Testing Assignment Creation..."
+CREATE_RESP=$(curl -s -X POST "${LOCAL_URL}/api/assignments/create" \
+  -H "Authorization: Bearer ${TEACHER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Math Quiz","description":"Algebra 101","dueDate":"2026-06-01","classId":"10A"}')
+ASSIGNMENT_ID=$(echo $CREATE_RESP | jq -r '.id')
+echo "Created Assignment ID: $ASSIGNMENT_ID"
+
+echo "🧑‍🎓 Testing Assignment Submission..."
+test_endpoint "Submit Assignment" "$STUDENT_A_TOKEN" "POST" "/api/assignments/submit" "{\"assignmentId\":\"$ASSIGNMENT_ID\",\"content\":\"The answer is X=5\"}"
+
+echo "🧑‍🏫 Testing Assignment Grading..."
+test_endpoint "Grade Submission" "$TEACHER_TOKEN" "POST" "/api/assignments/grade" "{\"assignmentId\":\"$ASSIGNMENT_ID\",\"studentId\":\"$STUDENT_A_UID\",\"grade\":\"A+\",\"feedback\":\"Great work!\"}"
+
 echo "-----------------------------------"
 echo "✅ Smoke tests completed."

@@ -63,11 +63,18 @@ service cloud.firestore {
     // ASSIGNMENTS
     match /assignments/{assignmentId} {
       allow read: if isSignedIn();
-      allow write: if can('manageAssignments');
-      
-      match /submissions/{userId} {
-        allow read, write: if isSignedIn() && (request.auth.uid == userId || can('manageAssignments'));
-      }
+      allow create: if can('manageAssignments');
+      allow update, delete: if can('manageAssignments') && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /submissions/{submissionId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        can('manageAssignments')
+      );
+      allow create: if hasRole('student');
+      allow update: if (resource.data.studentId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'fileUrl'])) ||
+                     can('manageAssignments');
     }
 
     // ATTENDANCE
