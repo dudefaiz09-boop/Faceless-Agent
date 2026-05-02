@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   User as UserIcon, Shield, Search, Plus, 
   Upload, History, X, Save, Trash2, 
-  Filter, GraduationCap, Users, Clock
+  Filter, GraduationCap, Users, Clock, MoreVertical
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { apiFetch } from '../lib/api';

@@ -387,6 +387,10 @@ const AppContent = () => {
           </RoleGuard>
         } />
         <Route path="/all-users" element={
+          <RoleGuard allowedRoles={['admin']}>
+            <UsersPage type="all" />
+          </RoleGuard>
+        } />
       </Routes>
     </Layout>
   );

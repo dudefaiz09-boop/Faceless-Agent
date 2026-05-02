@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   CreditCard, Upload, Download, History, 
   AlertCircle, CheckCircle2, TrendingUp, Users,
-  ArrowRight, Filter, DollarSign, Calendar,
+  ArrowRight, Filter, DollarSign, Calendar, Search,
   PieChart as PieChartIcon, FileText, Send
 } from 'lucide-react';
 import { cn } from '../lib/utils';
