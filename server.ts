@@ -8,13 +8,30 @@ import admin from 'firebase-admin';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const firebaseConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'firebase-applet-config.json'), 'utf8'));
+let firebaseConfig;
+try {
+  const configPath = path.join(__dirname, 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } else {
+    console.error('Firebase config file not found at:', configPath);
+    process.exit(1);
+  }
+} catch (error) {
+  console.error('Error loading Firebase config:', error);
+  process.exit(1);
+}
 
 // Initialize Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+    console.log('Firebase Admin initialized successfully');
+  }
+} catch (error) {
+  console.error('Error initializing Firebase Admin:', error);
 }
 
 const db = admin.firestore();
@@ -66,8 +83,23 @@ async function startServer() {
   });
 
   // Health check
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', project: firebaseConfig.projectId });
+  app.get('/api/health', async (req, res) => {
+    try {
+      // Basic check to see if Firestore is responsive
+      await admin.firestore().listCollections();
+      res.json({ 
+        status: 'ok', 
+        project: firebaseConfig.projectId,
+        environment: process.env.NODE_ENV || 'development',
+        uptime: process.uptime()
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Database connection failed',
+        error: (error as Error).message 
+      });
+    }
   });
 
   // Vite integration
