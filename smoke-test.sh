@@ -137,5 +137,23 @@ test_endpoint "Pay Fee" "$STUDENT_A_TOKEN" "POST" "/api/fees/pay" "{\"feeId\":\"
 echo "🧑‍🎓 Testing Student A Payment History..."
 curl -s -X GET "${LOCAL_URL}/api/fees/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.payments[] | {amount, status}'
 
+# 9. Performance Tests
+echo "📝 Testing Performance Record Upload..."
+PERF_RESP=$(curl -s -X POST "${LOCAL_URL}/api/performance/upload" \
+  -H "Authorization: Bearer ${TEACHER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"records\":[{\"studentId\":\"$STUDENT_A_UID\",\"subject\":\"Mathematics\",\"term\":\"Term 1\",\"score\":88,\"grade\":\"A\",\"classId\":\"10A\"}]}")
+echo "Upload Response: $PERF_RESP"
+
+echo "🧑‍🎓 Testing Performance Retrieval and AI Suggestions..."
+STUDENT_PERF=$(curl -s -X GET "${LOCAL_URL}/api/performance/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}")
+echo "Performance Records: $STUDENT_PERF"
+
+AI_TIPS=$(curl -s -X POST "${LOCAL_URL}/api/performance/ai-suggestions" \
+  -H "Authorization: Bearer ${STUDENT_A_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"studentId\":\"$STUDENT_A_UID\",\"records\":$STUDENT_PERF}")
+echo "AI Study Tips: $AI_TIPS"
+
 echo "-----------------------------------"
 echo "✅ Smoke tests completed."

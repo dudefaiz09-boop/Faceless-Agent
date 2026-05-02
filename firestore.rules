@@ -120,6 +120,23 @@ service cloud.firestore {
       allow update: if can('manageLibrary');
     }
 
+    // PERFORMANCE
+    match /performance/{recordId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        can('managePerformance')
+      );
+      allow write: if can('managePerformance');
+    }
+
+    match /aiSuggestions/{suggestionId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        can('managePerformance')
+      );
+      allow write: if can('managePerformance');
+    }
+
     // CHAT
     match /conversations/{conversationId} {
       allow read: if isSignedIn() && request.auth.uid in resource.data.participants;

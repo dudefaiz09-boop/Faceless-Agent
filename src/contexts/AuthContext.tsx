@@ -54,6 +54,7 @@ interface AuthContextType {
   canManageAssignments: boolean;
   canManageLibrary: boolean;
   canManageFees: boolean;
+  canManagePerformance: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -70,6 +71,7 @@ const AuthContext = createContext<AuthContextType>({
   canManageAssignments: false,
   canManageLibrary: false,
   canManageFees: false,
+  canManagePerformance: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -131,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     canManageAssignments: !!permissions.manageAssignments,
     canManageLibrary: !!permissions.manageLibrary,
     canManageFees: !!permissions.manageFees,
+    canManagePerformance: !!permissions.managePerformance,
   };
 
   return (

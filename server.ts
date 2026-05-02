@@ -699,6 +699,108 @@ async function startServer() {
     }
   });
 
+  app.get('/api/performance/:studentId', async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const user = (req as any).user;
+
+      if (!user.isAdmin && !user.permissions.managePerformance && user.uid !== studentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const snapshot = await admin.firestore()
+        .collection('performance')
+        .where('studentId', '==', studentId)
+        .get();
+      
+      const records = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const dateA = a.uploadedAt?.toDate?.() || new Date(0);
+          const dateB = b.uploadedAt?.toDate?.() || new Date(0);
+          return dateB - dateA;
+        });
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/performance/upload', checkPermission('managePerformance'), async (req, res) => {
+    try {
+      const { records } = req.body; // { studentId, subject, term, score, grade, classId }
+      const batch = admin.firestore().batch();
+      const uploadedBy = (req as any).user.uid;
+      const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+      for (const record of records) {
+        const docRef = admin.firestore().collection('performance').doc();
+        batch.set(docRef, {
+          ...record,
+          uploadedBy,
+          uploadedAt: timestamp
+        });
+      }
+
+      await batch.commit();
+      res.status(201).json({ success: true, count: records.length });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/performance/report/:classId', checkPermission('managePerformance'), async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const snapshot = await admin.firestore()
+        .collection('performance')
+        .where('classId', '==', classId)
+        .get();
+      
+      const records = snapshot.docs.map(doc => doc.data());
+      
+      // Calculate averages per subject
+      const subjectStats: Record<string, { total: number, count: number }> = {};
+      records.forEach(r => {
+        if (!subjectStats[r.subject]) subjectStats[r.subject] = { total: 0, count: 0 };
+        subjectStats[r.subject].total += (r.score || 0);
+        subjectStats[r.subject].count++;
+      });
+
+      const analytics = Object.entries(subjectStats).map(([subject, stat]) => ({
+        subject,
+        average: Math.round(stat.total / stat.count)
+      }));
+
+      res.json({ classId, analytics, totalRecords: records.length });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/performance/ai-suggestions', async (req, res) => {
+    try {
+      const { studentId, records } = req.body;
+      const user = (req as any).user;
+
+      if (!user.isAdmin && !user.permissions.managePerformance && user.uid !== studentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      // Placeholder for Gemini API integration
+      // In a real implementation, we would format 'records' and prompt Gemini.
+      const suggestions = [
+        "Consistent effort in Math, but consider focusing more on Algebra fundamentals.",
+        "Your Science scores are improving! Great job on the last practical.",
+        "Based on your trends, participating in more group discussions could boost your Language Arts score."
+      ];
+
+      res.json({ suggestions, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   // Health check
   app.get('/api/health', async (req, res) => {
     try {
