@@ -72,7 +72,11 @@ service cloud.firestore {
 
     // ATTENDANCE
     match /attendance/{attendanceId} {
-      allow read: if isSignedIn() && (request.auth.uid == resource.data.studentId || can('manageAttendance'));
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.studentId || 
+        hasRole('teacher') || hasRole('principal') || hasRole('staff') ||
+        can('manageAttendance')
+      );
       allow write: if can('manageAttendance');
     }
 

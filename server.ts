@@ -94,8 +94,14 @@ async function startServer() {
         query = query.where('targetClasses', 'array-contains-any', studentClasses);
       }
 
-      const snapshot = await query.orderBy('createdAt', 'desc').limit(50).get();
-      const announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const snapshot = await query.get();
+      const announcements = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const dateA = a.createdAt?.toDate?.() || new Date(0);
+          const dateB = b.createdAt?.toDate?.() || new Date(0);
+          return dateB - dateA;
+        });
       res.json(announcements);
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
@@ -122,9 +128,91 @@ async function startServer() {
   // Attendance
   app.get('/api/attendance', checkPermission('manageAttendance'), async (req, res) => {
     try {
-      const snapshot = await admin.firestore().collection('attendance').limit(100).get();
+      const { classId, date } = req.query;
+      let query: admin.firestore.Query = admin.firestore().collection('attendance');
+      
+      if (classId) query = query.where('classId', '==', classId);
+      if (date) query = query.where('date', '==', date);
+      
+      const snapshot = await query.limit(100).get();
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       res.json(records);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/attendance/mark', checkPermission('manageAttendance'), async (req, res) => {
+    try {
+      const { classId, date, records } = req.body; // records: [{studentId, status}]
+      const batch = admin.firestore().batch();
+      const markedBy = (req as any).user.uid;
+      const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+      for (const record of records) {
+        const docId = `${classId}_${record.studentId}_${date}`;
+        const docRef = admin.firestore().collection('attendance').doc(docId);
+        batch.set(docRef, {
+          classId,
+          studentId: record.studentId,
+          date,
+          status: record.status,
+          markedBy,
+          updatedAt: timestamp
+        }, { merge: true });
+      }
+
+      await batch.commit();
+      res.json({ success: true, count: records.length });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/attendance/history/:studentId', async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const user = (req as any).user;
+
+      // Ensure student can only see their own history, or staff can see any
+      if (!user.isAdmin && !user.permissions.manageAttendance && user.uid !== studentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const snapshot = await admin.firestore()
+        .collection('attendance')
+        .where('studentId', '==', studentId)
+        .get();
+
+      const history = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => b.date.localeCompare(a.date));
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/attendance/report/:classId', checkPermission('manageAttendance'), async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const snapshot = await admin.firestore()
+        .collection('attendance')
+        .where('classId', '==', classId)
+        .get();
+
+      const records = snapshot.docs.map(doc => doc.data());
+      
+      // Basic analytics
+      const stats: Record<string, { present: number, absent: number, late: number, total: number }> = {};
+      
+      records.forEach(r => {
+        if (!stats[r.studentId]) stats[r.studentId] = { present: 0, absent: 0, late: 0, total: 0 };
+        stats[r.studentId][r.status as 'present' | 'absent' | 'late']++;
+        stats[r.studentId].total++;
+      });
+
+      res.json({ classId, stats });
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }

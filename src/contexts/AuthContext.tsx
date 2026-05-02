@@ -48,6 +48,9 @@ interface AuthContextType {
   classId: string | null;
   loading: boolean;
   isAdmin: boolean;
+  isTeacher: boolean;
+  isStudent: boolean;
+  canManageAttendance: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -58,6 +61,9 @@ const AuthContext = createContext<AuthContextType>({
   classId: null,
   loading: true,
   isAdmin: false,
+  isTeacher: false,
+  isStudent: false,
+  canManageAttendance: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -112,7 +118,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     permissions,
     classId,
     loading,
-    isAdmin: !!permissions.manageStudents || !!permissions.financialOps, // Flexible admin check
+    isAdmin: !!permissions.manageStudents || !!permissions.financialOps,
+    isTeacher: roles.includes('teacher'),
+    isStudent: roles.includes('student'),
+    canManageAttendance: !!permissions.manageAttendance,
   };
 
   return (

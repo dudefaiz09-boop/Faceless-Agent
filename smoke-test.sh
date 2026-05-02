@@ -65,5 +65,14 @@ STUDENT_B_TOKEN=$(get_token "student.b@educonnect.test" "Test@1234")
 echo "Announcements for Student B:"
 curl -s -X GET "${LOCAL_URL}/api/announcements" -H "Authorization: Bearer ${STUDENT_B_TOKEN}" | jq -c '.[] | {title, targetClasses}'
 
+# 4. Attendance Tests
+echo "📝 Testing Attendance Marking..."
+test_endpoint "Mark Attendance for 10A" "$TEACHER_TOKEN" "POST" "/api/attendance/mark" '{"classId":"10A","date":"2026-05-02","records":[{"studentId":"GmUxe7Jf19c0hFlNVuqoCbfiFj63","status":"present"}]}'
+
+echo "🧑‍🎓 Testing Student A Attendance History..."
+STUDENT_A_UID="GmUxe7Jf19c0hFlNVuqoCbfiFj63" # From Firestore search
+echo "History for Student A:"
+curl -s -X GET "${LOCAL_URL}/api/attendance/history/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.[] | {date, status}'
+
 echo "-----------------------------------"
 echo "✅ Smoke tests completed."
