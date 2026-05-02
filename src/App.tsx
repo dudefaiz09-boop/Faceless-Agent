@@ -25,6 +25,8 @@ import { RoleGuard } from './components/RoleGuard';
 import { AnnouncementsPage } from './pages/Announcements';
 import { AttendancePage } from './pages/Attendance';
 import { UsersPage } from './pages/Users';
+import { AssignmentsPage } from './pages/Assignments';
+import { ChatPage } from './pages/Chat';
 
 // --- Components ---
 
@@ -364,8 +366,8 @@ const AppContent = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/attendance" element={<AttendancePage />} />
-        <Route path="/assignments" element={<PlaceholderPage title="Assignments" />} />
-        <Route path="/chat" element={<PlaceholderPage title="Chat" />} />
+        <Route path="/assignments" element={<AssignmentsPage />} />
+        <Route path="/chat" element={<ChatPage />} />
         <Route path="/library" element={<PlaceholderPage title="Library" />} />
         <Route path="/fees" element={<PlaceholderPage title="Fees" />} />
         <Route path="/performance" element={<PlaceholderPage title="Performance" />} />

@@ -89,5 +89,18 @@ test_endpoint "Submit Assignment" "$STUDENT_A_TOKEN" "POST" "/api/assignments/su
 echo "🧑‍🏫 Testing Assignment Grading..."
 test_endpoint "Grade Submission" "$TEACHER_TOKEN" "POST" "/api/assignments/grade" "{\"assignmentId\":\"$ASSIGNMENT_ID\",\"studentId\":\"$STUDENT_A_UID\",\"grade\":\"A+\",\"feedback\":\"Great work!\"}"
 
+# 6. Chat Tests
+echo "📝 Testing Chat Messaging..."
+CHAT_RESP=$(curl -s -X POST "${LOCAL_URL}/api/chat/send" \
+  -H "Authorization: Bearer ${TEACHER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"recipientId\":\"$STUDENT_A_UID\",\"text\":\"Hello Student A!\",\"type\":\"direct\"}")
+CONV_ID=$(echo $CHAT_RESP | jq -r '.conversationId')
+echo "Conversation ID: $CONV_ID"
+
+echo "🧑‍🎓 Testing Student A Message Retrieval..."
+echo "Messages for Student A:"
+curl -s -X GET "${LOCAL_URL}/api/chat/messages/${CONV_ID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.[] | {senderName, text}'
+
 echo "-----------------------------------"
 echo "✅ Smoke tests completed."

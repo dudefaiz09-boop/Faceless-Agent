@@ -361,6 +361,118 @@ async function startServer() {
     }
   });
 
+  app.get('/api/chat/conversations', async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const snapshot = await admin.firestore()
+        .collection('conversations')
+        .where('participants', 'array-contains', user.uid)
+        .get();
+      
+      const conversations = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const dateA = a.updatedAt?.toDate?.() || new Date(0);
+          const dateB = b.updatedAt?.toDate?.() || new Date(0);
+          return dateB - dateA;
+        });
+      res.json(conversations);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/chat/send', async (req, res) => {
+    try {
+      const { recipientId, text, type, groupName } = req.body;
+      const sender = (req as any).user;
+      const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+      let conversationId;
+      if (type === 'group') {
+        // Create or find group conversation
+        const docRef = await admin.firestore().collection('conversations').add({
+          name: groupName,
+          type: 'group',
+          participants: [sender.uid, ...(req.body.participants || [])],
+          lastMessage: text,
+          updatedAt: timestamp
+        });
+        conversationId = docRef.id;
+      } else {
+        // Direct message: find or create
+        const participants = [sender.uid, recipientId].sort();
+        const convQuery = await admin.firestore()
+          .collection('conversations')
+          .where('type', '==', 'direct')
+          .where('participants', '==', participants)
+          .get();
+        
+        if (convQuery.empty) {
+          const docRef = await admin.firestore().collection('conversations').add({
+            type: 'direct',
+            participants,
+            lastMessage: text,
+            updatedAt: timestamp
+          });
+          conversationId = docRef.id;
+        } else {
+          conversationId = convQuery.docs[0].id;
+          await admin.firestore().collection('conversations').doc(conversationId).update({
+            lastMessage: text,
+            updatedAt: timestamp
+          });
+        }
+      }
+
+      const msgRef = await admin.firestore()
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .add({
+          senderId: sender.uid,
+          senderName: sender.displayName || 'User',
+          text,
+          sentAt: timestamp,
+          readBy: [sender.uid]
+        });
+
+      res.status(201).json({ conversationId, messageId: msgRef.id, success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/chat/messages/:conversationId', async (req, res) => {
+    try {
+      const { conversationId } = req.params;
+      const user = (req as any).user;
+
+      // Security check: is user a participant?
+      const convDoc = await admin.firestore().collection('conversations').doc(conversationId).get();
+      if (!convDoc.exists || !convDoc.data()?.participants.includes(user.uid)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const snapshot = await admin.firestore()
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .get();
+
+      const messages = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const dateA = a.sentAt?.toDate?.() || new Date(0);
+          const dateB = b.sentAt?.toDate?.() || new Date(0);
+          return dateA - dateB;
+        });
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   // Health check
   app.get('/api/health', async (req, res) => {
     try {
