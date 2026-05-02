@@ -102,5 +102,22 @@ echo "🧑‍🎓 Testing Student A Message Retrieval..."
 echo "Messages for Student A:"
 curl -s -X GET "${LOCAL_URL}/api/chat/messages/${CONV_ID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.[] | {senderName, text}'
 
+# 7. Library Tests
+echo "📝 Testing Library Upload..."
+PRINCIPAL_TOKEN=$(get_token "principal@educonnect.test" "Principal@1234")
+LIB_RESP=$(curl -s -X POST "${LOCAL_URL}/api/library/upload" \
+  -H "Authorization: Bearer ${PRINCIPAL_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Physics 101","subject":"Science","grade":"10","fileUrl":"https://example.com/physics.pdf","tags":["physics","intro"]}')
+RESOURCE_ID=$(echo $LIB_RESP | jq -r '.id')
+echo "Uploaded Resource ID: $RESOURCE_ID"
+
+echo "🧑‍🎓 Testing Book Borrowing..."
+test_endpoint "Borrow Book" "$STUDENT_A_TOKEN" "POST" "/api/library/borrow" "{\"resourceId\":\"$RESOURCE_ID\"}"
+
+echo "🧑‍🎓 Testing Student A Borrow History..."
+echo "History for Student A:"
+curl -s -X GET "${LOCAL_URL}/api/library/borrow/history/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.[] | {resourceId, status}'
+
 echo "-----------------------------------"
 echo "✅ Smoke tests completed."

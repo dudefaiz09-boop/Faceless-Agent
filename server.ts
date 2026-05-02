@@ -473,6 +473,106 @@ async function startServer() {
     }
   });
 
+  app.get('/api/library/resources', async (req, res) => {
+    try {
+      const { subject, grade } = req.query;
+      let query: admin.firestore.Query = admin.firestore().collection('library');
+      
+      if (subject) query = query.where('subject', '==', subject);
+      if (grade) query = query.where('grade', '==', grade);
+      
+      const snapshot = await query.get();
+      const resources = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const dateA = a.uploadedAt?.toDate?.() || new Date(0);
+          const dateB = b.uploadedAt?.toDate?.() || new Date(0);
+          return dateB - dateA;
+        });
+      res.json(resources);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/library/upload', checkPermission('manageLibrary'), async (req, res) => {
+    try {
+      const { title, subject, grade, fileUrl, tags } = req.body;
+      const docRef = await admin.firestore().collection('library').add({
+        title,
+        subject,
+        grade: grade || 'all',
+        fileUrl,
+        tags: tags || [],
+        uploadedBy: (req as any).user.uid,
+        uploadedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.status(201).json({ id: docRef.id, success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/library/borrow', async (req, res) => {
+    try {
+      const { resourceId } = req.body;
+      const user = (req as any).user;
+      
+      const docRef = await admin.firestore().collection('borrowRecords').add({
+        resourceId,
+        studentId: user.uid,
+        studentName: user.displayName || 'Student',
+        borrowedAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'borrowed',
+        returnedAt: null
+      });
+      
+      res.status(201).json({ id: docRef.id, success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/library/borrow/history/:studentId', async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const user = (req as any).user;
+
+      if (!user.isAdmin && !user.permissions.manageLibrary && user.uid !== studentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const snapshot = await admin.firestore()
+        .collection('borrowRecords')
+        .where('studentId', '==', studentId)
+        .get();
+      
+      const history = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const dateA = a.borrowedAt?.toDate?.() || new Date(0);
+          const dateB = b.borrowedAt?.toDate?.() || new Date(0);
+          return dateB - dateA;
+        });
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/library/return', checkPermission('manageLibrary'), async (req, res) => {
+    try {
+      const { recordId } = req.body;
+      await admin.firestore().collection('borrowRecords').doc(recordId).update({
+        status: 'returned',
+        returnedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   // Health check
   app.get('/api/health', async (req, res) => {
     try {

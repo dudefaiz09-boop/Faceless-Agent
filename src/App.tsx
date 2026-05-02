@@ -27,6 +27,7 @@ import { AttendancePage } from './pages/Attendance';
 import { UsersPage } from './pages/Users';
 import { AssignmentsPage } from './pages/Assignments';
 import { ChatPage } from './pages/Chat';
+import { LibraryPage } from './pages/Library';
 
 // --- Components ---
 
@@ -368,7 +369,7 @@ const AppContent = () => {
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/assignments" element={<AssignmentsPage />} />
         <Route path="/chat" element={<ChatPage />} />
-        <Route path="/library" element={<PlaceholderPage title="Library" />} />
+        <Route path="/library" element={<LibraryPage />} />
         <Route path="/fees" element={<PlaceholderPage title="Fees" />} />
         <Route path="/performance" element={<PlaceholderPage title="Performance" />} />
         <Route path="/students" element={

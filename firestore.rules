@@ -87,6 +87,21 @@ service cloud.firestore {
       allow write: if can('manageAttendance');
     }
 
+    // LIBRARY
+    match /library/{resourceId} {
+      allow read: if isSignedIn();
+      allow write: if can('manageLibrary');
+    }
+
+    match /borrowRecords/{recordId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        can('manageLibrary')
+      );
+      allow create: if hasRole('student');
+      allow update: if can('manageLibrary');
+    }
+
     // CHAT
     match /conversations/{conversationId} {
       allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
