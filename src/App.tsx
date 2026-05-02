@@ -28,6 +28,7 @@ import { UsersPage } from './pages/Users';
 import { AssignmentsPage } from './pages/Assignments';
 import { ChatPage } from './pages/Chat';
 import { LibraryPage } from './pages/Library';
+import { FeesPage } from './pages/Fees';
 
 // --- Components ---
 
@@ -370,7 +371,7 @@ const AppContent = () => {
         <Route path="/assignments" element={<AssignmentsPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/library" element={<LibraryPage />} />
-        <Route path="/fees" element={<PlaceholderPage title="Fees" />} />
+        <Route path="/fees" element={<FeesPage />} />
         <Route path="/performance" element={<PlaceholderPage title="Performance" />} />
         <Route path="/students" element={
           <RoleGuard allowedRoles={['teacher', 'staff', 'admin']}>

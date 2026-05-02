@@ -573,6 +573,132 @@ async function startServer() {
     }
   });
 
+  // Fees
+  app.get('/api/fees/:studentId', async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const user = (req as any).user;
+
+      if (!user.isAdmin && !user.permissions.manageFees && user.uid !== studentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const feeSnapshot = await admin.firestore()
+        .collection('fees')
+        .where('studentId', '==', studentId)
+        .get();
+      
+      const paymentSnapshot = await admin.firestore()
+        .collection('payments')
+        .where('studentId', '==', studentId)
+        .get();
+
+      const fees = feeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const payments = paymentSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => {
+          const dateA = a.paidAt?.toDate?.() || new Date(0);
+          const dateB = b.paidAt?.toDate?.() || new Date(0);
+          return dateB - dateA;
+        });
+      
+      res.json({ fees, payments });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/fees/upload', checkPermission('manageFees'), async (req, res) => {
+    try {
+      const { records } = req.body; // Array of { studentId, amountDue, dueDate, classId }
+      const batch = admin.firestore().batch();
+      const uploadedBy = (req as any).user.uid;
+      const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+      for (const record of records) {
+        const docRef = admin.firestore().collection('fees').doc();
+        batch.set(docRef, {
+          ...record,
+          amountPaid: 0,
+          status: 'pending',
+          uploadedBy,
+          uploadedAt: timestamp
+        });
+      }
+
+      await batch.commit();
+      res.status(201).json({ success: true, count: records.length });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post('/api/fees/pay', async (req, res) => {
+    try {
+      const { feeId, amount, method } = req.body;
+      const user = (req as any).user;
+      
+      const feeRef = admin.firestore().collection('fees').doc(feeId);
+      const feeDoc = await feeRef.get();
+      
+      if (!feeDoc.exists) return res.status(404).json({ error: 'Fee record not found' });
+      
+      const feeData = feeDoc.data();
+      const newAmountPaid = (feeData?.amountPaid || 0) + amount;
+      const status = newAmountPaid >= feeData?.amountDue ? 'paid' : 'partial';
+
+      const batch = admin.firestore().batch();
+      
+      // Update fee status
+      batch.update(feeRef, {
+        amountPaid: newAmountPaid,
+        status,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Record payment
+      const paymentRef = admin.firestore().collection('payments').doc();
+      batch.set(paymentRef, {
+        feeId,
+        studentId: user.uid,
+        studentName: user.displayName || 'Student',
+        amount,
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        method: method || 'online',
+        receiptUrl: `https://example.com/receipts/${paymentRef.id}.pdf`
+      });
+
+      await batch.commit();
+      res.json({ success: true, status });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/fees/report/:classId', checkPermission('manageFees'), async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const snapshot = await admin.firestore()
+        .collection('fees')
+        .where('classId', '==', classId)
+        .get();
+      
+      const records = snapshot.docs.map(doc => doc.data());
+      const totalDue = records.reduce((sum, r) => sum + (r.amountDue || 0), 0);
+      const totalPaid = records.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+
+      res.json({ 
+        classId, 
+        totalDue, 
+        totalPaid, 
+        pending: totalDue - totalPaid,
+        records 
+      });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   // Health check
   app.get('/api/health', async (req, res) => {
     try {

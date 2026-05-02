@@ -119,5 +119,23 @@ echo "🧑‍🎓 Testing Student A Borrow History..."
 echo "History for Student A:"
 curl -s -X GET "${LOCAL_URL}/api/library/borrow/history/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.[] | {resourceId, status}'
 
+# 8. Fees Tests
+echo "📝 Testing Fee Record Upload..."
+FEE_RESP=$(curl -s -X POST "${LOCAL_URL}/api/fees/upload" \
+  -H "Authorization: Bearer ${PRINCIPAL_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"records\":[{\"studentId\":\"$STUDENT_A_UID\",\"amountDue\":1000,\"dueDate\":\"2026-06-30\",\"classId\":\"10A\"}]}")
+echo "Upload Response: $FEE_RESP"
+
+echo "🧑‍🎓 Testing Fee Retrieval and Payment..."
+STUDENT_DATA=$(curl -s -X GET "${LOCAL_URL}/api/fees/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}")
+FEE_ID=$(echo $STUDENT_DATA | jq -r '.fees[0].id')
+echo "Fee ID for payment: $FEE_ID"
+
+test_endpoint "Pay Fee" "$STUDENT_A_TOKEN" "POST" "/api/fees/pay" "{\"feeId\":\"$FEE_ID\",\"amount\":1000,\"method\":\"online\"}"
+
+echo "🧑‍🎓 Testing Student A Payment History..."
+curl -s -X GET "${LOCAL_URL}/api/fees/${STUDENT_A_UID}" -H "Authorization: Bearer ${STUDENT_A_TOKEN}" | jq -c '.payments[] | {amount, status}'
+
 echo "-----------------------------------"
 echo "✅ Smoke tests completed."

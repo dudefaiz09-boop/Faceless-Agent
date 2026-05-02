@@ -87,6 +87,24 @@ service cloud.firestore {
       allow write: if can('manageAttendance');
     }
 
+    // FEES
+    match /fees/{feeId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        can('manageFees')
+      );
+      allow write: if can('manageFees');
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        can('manageFees')
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if false; // Payments are immutable
+    }
+
     // LIBRARY
     match /library/{resourceId} {
       allow read: if isSignedIn();
