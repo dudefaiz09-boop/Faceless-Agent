@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { apiFetch } from '../lib/api';
+import { useDebounce } from '../lib/hooks';
 
 interface TeacherProfile {
   uid: string;
@@ -33,6 +34,7 @@ export const TeachersPage = () => {
   const { user: currentUser, isAdmin, role: currentUserRole } = useAuth();
   const [teachers, setTeachers] = useState<TeacherProfile[]>([]);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [loading, setLoading] = useState(true);
   
   // Modals
@@ -161,9 +163,9 @@ export const TeachersPage = () => {
   };
 
   const filtered = teachers.filter(t => 
-    t.displayName?.toLowerCase().includes(search.toLowerCase()) || 
-    t.email?.toLowerCase().includes(search.toLowerCase()) ||
-    t.subjects?.some(s => s.toLowerCase().includes(search.toLowerCase()))
+    t.displayName?.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+    t.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    t.subjects?.some(s => s.toLowerCase().includes(debouncedSearch.toLowerCase()))
   );
 
   return (

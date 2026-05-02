@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { apiFetch } from '../lib/api';
+import { useDebounce } from '../lib/hooks';
 
 interface StudentProfile {
   uid: string;
@@ -34,6 +35,7 @@ export const StudentsPage = () => {
   const { user: currentUser, isAdmin, isTeacher } = useAuth();
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState('all');
   
@@ -154,8 +156,8 @@ export const StudentsPage = () => {
   };
 
   const filtered = students.filter(s => {
-    const matchesSearch = s.displayName?.toLowerCase().includes(search.toLowerCase()) || 
-                         s.email?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = s.displayName?.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+                         s.email?.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesClass = selectedClass === 'all' || s.classId === selectedClass;
     return matchesSearch && matchesClass;
   });

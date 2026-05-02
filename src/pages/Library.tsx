@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
+import { useDebounce } from '../lib/hooks';
 
 interface LibraryResource {
   id: string;
@@ -40,6 +41,7 @@ export const LibraryPage = () => {
   
   // Search & Filter
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
@@ -129,8 +131,8 @@ export const LibraryPage = () => {
   const subjects = ['All', ...new Set(resources.map(r => r.subject))];
   
   const filteredResources = resources.filter(r => {
-    const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || 
-                          r.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
+    const matchesSearch = r.title.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+                          r.tags.some(t => t.toLowerCase().includes(debouncedSearch.toLowerCase()));
     const matchesSubject = selectedSubject === 'All' || r.subject === selectedSubject;
     return matchesSearch && matchesSubject;
   });

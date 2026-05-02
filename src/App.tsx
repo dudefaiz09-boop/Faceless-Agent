@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { auth } from './lib/firebase';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -22,16 +22,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { RoleGuard } from './components/RoleGuard';
 
-import { AnnouncementsPage } from './pages/Announcements';
-import { AttendancePage } from './pages/Attendance';
-import { UsersPage } from './pages/Users';
-import { StudentsPage } from './pages/Students';
-import { TeachersPage } from './pages/Teachers';
-import { AssignmentsPage } from './pages/Assignments';
-import { ChatPage } from './pages/Chat';
-import { LibraryPage } from './pages/Library';
-import { FeesPage } from './pages/Fees';
-import { PerformancePage } from './pages/Performance';
+// --- Lazy loaded pages ---
+const AnnouncementsPage = lazy(() => import('./pages/Announcements').then(m => ({ default: m.AnnouncementsPage })));
+const AttendancePage = lazy(() => import('./pages/Attendance').then(m => ({ default: m.AttendancePage })));
+const UsersPage = lazy(() => import('./pages/Users').then(m => ({ default: m.UsersPage })));
+const StudentsPage = lazy(() => import('./pages/Students').then(m => ({ default: m.StudentsPage })));
+const TeachersPage = lazy(() => import('./pages/Teachers').then(m => ({ default: m.TeachersPage })));
+const AssignmentsPage = lazy(() => import('./pages/Assignments').then(m => ({ default: m.AssignmentsPage })));
+const ChatPage = lazy(() => import('./pages/Chat').then(m => ({ default: m.ChatPage })));
+const LibraryPage = lazy(() => import('./pages/Library').then(m => ({ default: m.LibraryPage })));
+const FeesPage = lazy(() => import('./pages/Fees').then(m => ({ default: m.FeesPage })));
+const PerformancePage = lazy(() => import('./pages/Performance').then(m => ({ default: m.PerformancePage })));
 
 // --- Components ---
 
@@ -367,31 +368,38 @@ const AppContent = () => {
 
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/announcements" element={<AnnouncementsPage />} />
-        <Route path="/attendance" element={<AttendancePage />} />
-        <Route path="/assignments" element={<AssignmentsPage />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/library" element={<LibraryPage />} />
-        <Route path="/fees" element={<FeesPage />} />
-        <Route path="/performance" element={<PerformancePage />} />
-        <Route path="/students" element={
-          <RoleGuard allowedRoles={['teacher', 'staff', 'admin']}>
-            <StudentsPage />
-          </RoleGuard>
-        } />
-        <Route path="/teachers" element={
-          <RoleGuard allowedRoles={['staff', 'admin']}>
-            <TeachersPage />
-          </RoleGuard>
-        } />
-        <Route path="/all-users" element={
-          <RoleGuard allowedRoles={['admin']}>
-            <UsersPage type="all" />
-          </RoleGuard>
-        } />
-      </Routes>
+      <Suspense fallback={
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Loading Module...</p>
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
+          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/assignments" element={<AssignmentsPage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/fees" element={<FeesPage />} />
+          <Route path="/performance" element={<PerformancePage />} />
+          <Route path="/students" element={
+            <RoleGuard allowedRoles={['teacher', 'staff', 'admin']}>
+              <StudentsPage />
+            </RoleGuard>
+          } />
+          <Route path="/teachers" element={
+            <RoleGuard allowedRoles={['staff', 'admin']}>
+              <TeachersPage />
+            </RoleGuard>
+          } />
+          <Route path="/all-users" element={
+            <RoleGuard allowedRoles={['admin']}>
+              <UsersPage type="all" />
+            </RoleGuard>
+          } />
+        </Routes>
+      </Suspense>
     </Layout>
   );
 };

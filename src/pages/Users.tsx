@@ -5,6 +5,7 @@ import { useAuth, handleFirestoreError, OperationType } from '../contexts/AuthCo
 import { motion } from 'motion/react';
 import { User as UserIcon, Shield, Search, MoreVertical, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useDebounce } from '../lib/hooks';
 
 interface UserProfile {
   uid: string;
@@ -17,6 +18,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const { role: currentUserRole, user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,8 +65,8 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   };
 
   const filtered = users.filter(u => 
-    u.displayName?.toLowerCase().includes(search.toLowerCase()) || 
-    u.email?.toLowerCase().includes(search.toLowerCase())
+    u.displayName?.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+    u.email?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   return (

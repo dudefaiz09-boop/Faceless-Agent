@@ -11,9 +11,10 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
+import { useDebounce } from '../lib/hooks';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell 
+  Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
 
 interface AttendanceRecord {
@@ -47,6 +48,7 @@ export const AttendancePage = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [dailyRecords, setDailyRecords] = useState<Record<string, 'present' | 'absent' | 'late'>>({});
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [saving, setSaving] = useState(false);
 
   // History state
@@ -151,11 +153,10 @@ export const AttendancePage = () => {
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    s.displayName?.toLowerCase().includes(search.toLowerCase()) || 
-    s.email?.toLowerCase().includes(search.toLowerCase())
+  const filteredStudents = students.filter(s =>
+    s.displayName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    s.email?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
-
   const stats = [
     { name: 'Present', value: Object.values(dailyRecords).filter(v => v === 'present').length, color: '#10b981' },
     { name: 'Absent', value: Object.values(dailyRecords).filter(v => v === 'absent').length, color: '#ef4444' },

@@ -4,6 +4,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import admin from 'firebase-admin';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +43,24 @@ async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
+  // Security and Performance Middleware
+  app.use(helmet({
+    contentSecurityPolicy: false, // Disabled for Vite/Dev flexibility
+    crossOriginEmbedderPolicy: false
+  }));
+  app.use(compression());
   app.use(express.json());
+
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Apply rate limiter to all /api routes
+  app.use('/api/', limiter);
 
   // API Middleware for auth and permissions
   app.use(async (req, res, next) => {
@@ -83,7 +103,7 @@ async function startServer() {
   // --- Protected API Routes ---
 
   // Announcements
-  app.get('/api/announcements', async (req, res) => {
+  app.get('/api/announcements', async (req, res, next) => {
     try {
       const user = (req as any).user;
       let query: admin.firestore.Query = admin.firestore().collection('announcements');
@@ -104,29 +124,37 @@ async function startServer() {
         });
       res.json(announcements);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/announcements', checkPermission('manageAnnouncements'), async (req, res) => {
+  app.post('/api/announcements', checkPermission('manageAnnouncements'), async (req, res, next) => {
     try {
       const { title, content, targetClasses, visibility } = req.body;
       const docRef = await admin.firestore().collection('announcements').add({
         title,
         content,
         targetClasses: targetClasses || ['all'],
-        visibility: visibility || 'school',
+        visibility: visibility || 'public',
         authorId: (req as any).user.uid,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
+
+      await admin.firestore().collection('auditLogs').add({
+        action: 'create_announcement',
+        performedBy: (req as any).user.uid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: `Created announcement: ${title}`
+      });
+
       res.status(201).json({ id: docRef.id, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Attendance
-  app.get('/api/attendance', checkPermission('manageAttendance'), async (req, res) => {
+  app.get('/api/attendance', checkPermission('manageAttendance'), async (req, res, next) => {
     try {
       const { classId, date } = req.query;
       let query: admin.firestore.Query = admin.firestore().collection('attendance');
@@ -138,11 +166,11 @@ async function startServer() {
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       res.json(records);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/attendance/mark', checkPermission('manageAttendance'), async (req, res) => {
+  app.post('/api/attendance/mark', checkPermission('manageAttendance'), async (req, res, next) => {
     try {
       const { classId, date, records } = req.body; // records: [{studentId, status}]
       const batch = admin.firestore().batch();
@@ -163,13 +191,21 @@ async function startServer() {
       }
 
       await batch.commit();
+
+      await admin.firestore().collection('auditLogs').add({
+        action: 'mark_attendance',
+        performedBy: markedBy,
+        timestamp,
+        details: `Marked attendance for class ${classId} on ${date} (${records.length} records)`
+      });
+
       res.json({ success: true, count: records.length });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/attendance/history/:studentId', async (req, res) => {
+  app.get('/api/attendance/history/:studentId', async (req, res, next) => {
     try {
       const { studentId } = req.params;
       const user = (req as any).user;
@@ -189,11 +225,11 @@ async function startServer() {
         .sort((a: any, b: any) => b.date.localeCompare(a.date));
       res.json(history);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/attendance/report/:classId', checkPermission('manageAttendance'), async (req, res) => {
+  app.get('/api/attendance/report/:classId', checkPermission('manageAttendance'), async (req, res, next) => {
     try {
       const { classId } = req.params;
       const snapshot = await admin.firestore()
@@ -214,11 +250,11 @@ async function startServer() {
 
       res.json({ classId, stats });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/assignments/:classId', async (req, res) => {
+  app.get('/api/assignments/:classId', async (req, res, next) => {
     try {
       const { classId } = req.params;
       const snapshot = await admin.firestore()
@@ -231,11 +267,11 @@ async function startServer() {
         .sort((a: any, b: any) => (a.dueDate || '').localeCompare(b.dueDate || ''));
       res.json(assignments);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/assignments/create', checkPermission('manageAssignments'), async (req, res) => {
+  app.post('/api/assignments/create', checkPermission('manageAssignments'), async (req, res, next) => {
     try {
       const { title, description, dueDate, classId, attachments } = req.body;
       const docRef = await admin.firestore().collection('assignments').add({
@@ -247,14 +283,22 @@ async function startServer() {
         createdBy: (req as any).user.uid,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
+
+      await admin.firestore().collection('auditLogs').add({
+        action: 'create_assignment',
+        performedBy: (req as any).user.uid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: `Created assignment: ${title} for class ${classId}`
+      });
+
       res.status(201).json({ id: docRef.id, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Submissions
-  app.post('/api/assignments/submit', async (req, res) => {
+  app.post('/api/assignments/submit', async (req, res, next) => {
     try {
       const { assignmentId, content, fileUrl } = req.body;
       const user = (req as any).user;
@@ -274,11 +318,11 @@ async function startServer() {
       
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/assignments/submissions/:assignmentId', checkPermission('manageAssignments'), async (req, res) => {
+  app.get('/api/assignments/submissions/:assignmentId', checkPermission('manageAssignments'), async (req, res, next) => {
     try {
       const { assignmentId } = req.params;
       const snapshot = await admin.firestore()
@@ -289,11 +333,11 @@ async function startServer() {
       const submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       res.json(submissions);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/assignments/grade', checkPermission('manageAssignments'), async (req, res) => {
+  app.post('/api/assignments/grade', checkPermission('manageAssignments'), async (req, res, next) => {
     try {
       const { assignmentId, studentId, grade, feedback } = req.body;
       const docId = `${assignmentId}_${studentId}`;
@@ -308,11 +352,11 @@ async function startServer() {
       
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/assignments/history/:studentId', async (req, res) => {
+  app.get('/api/assignments/history/:studentId', async (req, res, next) => {
     try {
       const { studentId } = req.params;
       const user = (req as any).user;
@@ -329,12 +373,12 @@ async function startServer() {
       const history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       res.json(history);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Users Management (Staff/Admin only)
-  app.get('/api/users', checkPermission('manageStudents'), async (req, res) => {
+  app.get('/api/users', checkPermission('manageStudents'), async (req, res, next) => {
     try {
       const { type } = req.query;
       let query: admin.firestore.Query = admin.firestore().collection('users');
@@ -345,12 +389,12 @@ async function startServer() {
       const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       res.json(users);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Student Management APIs
-  app.post('/api/students/create', checkPermission('manageStudents'), async (req, res) => {
+  app.post('/api/students/create', checkPermission('manageStudents'), async (req, res, next) => {
     try {
       const { email, password, displayName, classId, section, linkedParentIds } = req.body;
       const creator = (req as any).user;
@@ -397,11 +441,11 @@ async function startServer() {
 
       res.status(201).json({ uid: userRecord.uid, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.put('/api/students/:uid', checkPermission('manageStudents'), async (req, res) => {
+  app.put('/api/students/:uid', checkPermission('manageStudents'), async (req, res, next) => {
     try {
       const { uid } = req.params;
       const { displayName, classId, section, linkedParentIds, roles } = req.body;
@@ -429,11 +473,11 @@ async function startServer() {
 
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.delete('/api/students/:uid', checkPermission('manageStudents'), async (req, res) => {
+  app.delete('/api/students/:uid', checkPermission('manageStudents'), async (req, res, next) => {
     try {
       const { uid } = req.params;
       const deleter = (req as any).user;
@@ -452,11 +496,11 @@ async function startServer() {
 
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/students/bulk-import', checkPermission('manageStudents'), async (req, res) => {
+  app.post('/api/students/bulk-import', checkPermission('manageStudents'), async (req, res, next) => {
     try {
       const { students } = req.body; // Array of student objects
       const creator = (req as any).user;
@@ -507,12 +551,12 @@ async function startServer() {
 
       res.json({ results, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Teacher Management APIs
-  app.post('/api/teachers/create', checkPermission('manageTeachers'), async (req, res) => {
+  app.post('/api/teachers/create', checkPermission('manageTeachers'), async (req, res, next) => {
     try {
       const { email, password, displayName, subjects, classes } = req.body;
       const creator = (req as any).user;
@@ -559,11 +603,11 @@ async function startServer() {
 
       res.status(201).json({ uid: userRecord.uid, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.put('/api/teachers/:uid', checkPermission('manageTeachers'), async (req, res) => {
+  app.put('/api/teachers/:uid', checkPermission('manageTeachers'), async (req, res, next) => {
     try {
       const { uid } = req.params;
       const { displayName, subjects, classes, roles } = req.body;
@@ -589,11 +633,11 @@ async function startServer() {
 
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.delete('/api/teachers/:uid', checkPermission('manageTeachers'), async (req, res) => {
+  app.delete('/api/teachers/:uid', checkPermission('manageTeachers'), async (req, res, next) => {
     try {
       const { uid } = req.params;
       const deleter = (req as any).user;
@@ -611,11 +655,11 @@ async function startServer() {
 
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/teachers/bulk-import', checkPermission('manageTeachers'), async (req, res) => {
+  app.post('/api/teachers/bulk-import', checkPermission('manageTeachers'), async (req, res, next) => {
     try {
       const { teachers } = req.body;
       const creator = (req as any).user;
@@ -669,23 +713,23 @@ async function startServer() {
 
       res.json({ results, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Example API route: Set User Permissions (Financial Admin only)
-  app.post('/api/roles', checkPermission('financialOps'), async (req, res) => {
+  app.post('/api/roles', checkPermission('financialOps'), async (req, res, next) => {
     const { uid, roles, isAdmin, permissions } = req.body;
     try {
       await admin.auth().setCustomUserClaims(uid, { roles, isAdmin, permissions });
       await admin.firestore().collection('users').doc(uid).update({ roles, isAdmin, permissions });
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/chat/conversations', async (req, res) => {
+  app.get('/api/chat/conversations', async (req, res, next) => {
     try {
       const user = (req as any).user;
       const snapshot = await admin.firestore()
@@ -702,11 +746,11 @@ async function startServer() {
         });
       res.json(conversations);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/chat/send', async (req, res) => {
+  app.post('/api/chat/send', async (req, res, next) => {
     try {
       const { recipientId, text, type, groupName } = req.body;
       const sender = (req as any).user;
@@ -763,11 +807,11 @@ async function startServer() {
 
       res.status(201).json({ conversationId, messageId: msgRef.id, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/chat/messages/:conversationId', async (req, res) => {
+  app.get('/api/chat/messages/:conversationId', async (req, res, next) => {
     try {
       const { conversationId } = req.params;
       const user = (req as any).user;
@@ -793,11 +837,11 @@ async function startServer() {
         });
       res.json(messages);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/library/resources', async (req, res) => {
+  app.get('/api/library/resources', async (req, res, next) => {
     try {
       const { subject, grade } = req.query;
       let query: admin.firestore.Query = admin.firestore().collection('library');
@@ -815,11 +859,11 @@ async function startServer() {
         });
       res.json(resources);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/library/upload', checkPermission('manageLibrary'), async (req, res) => {
+  app.post('/api/library/upload', checkPermission('manageLibrary'), async (req, res, next) => {
     try {
       const { title, subject, grade, fileUrl, tags } = req.body;
       const docRef = await admin.firestore().collection('library').add({
@@ -833,11 +877,11 @@ async function startServer() {
       });
       res.status(201).json({ id: docRef.id, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/library/borrow', async (req, res) => {
+  app.post('/api/library/borrow', async (req, res, next) => {
     try {
       const { resourceId } = req.body;
       const user = (req as any).user;
@@ -853,11 +897,11 @@ async function startServer() {
       
       res.status(201).json({ id: docRef.id, success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/library/borrow/history/:studentId', async (req, res) => {
+  app.get('/api/library/borrow/history/:studentId', async (req, res, next) => {
     try {
       const { studentId } = req.params;
       const user = (req as any).user;
@@ -880,11 +924,11 @@ async function startServer() {
         });
       res.json(history);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/library/return', checkPermission('manageLibrary'), async (req, res) => {
+  app.post('/api/library/return', checkPermission('manageLibrary'), async (req, res, next) => {
     try {
       const { recordId } = req.body;
       await admin.firestore().collection('borrowRecords').doc(recordId).update({
@@ -893,12 +937,12 @@ async function startServer() {
       });
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Fees
-  app.get('/api/fees/:studentId', async (req, res) => {
+  app.get('/api/fees/:studentId', async (req, res, next) => {
     try {
       const { studentId } = req.params;
       const user = (req as any).user;
@@ -928,36 +972,33 @@ async function startServer() {
       
       res.json({ fees, payments });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/fees/upload', checkPermission('manageFees'), async (req, res) => {
+  app.post('/api/fees/upload', checkPermission('manageFees'), async (req, res, next) => {
     try {
       const { records } = req.body; // Array of { studentId, amountDue, dueDate, classId }
       const batch = admin.firestore().batch();
       const uploadedBy = (req as any).user.uid;
       const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
-      for (const record of records) {
-        const docRef = admin.firestore().collection('fees').doc();
-        batch.set(docRef, {
-          ...record,
-          amountPaid: 0,
-          status: 'pending',
-          uploadedBy,
-          uploadedAt: timestamp
-        });
-      }
-
       await batch.commit();
+
+      await admin.firestore().collection('auditLogs').add({
+        action: 'upload_fees',
+        performedBy: uploadedBy,
+        timestamp,
+        details: `Uploaded ${records.length} fee records`
+      });
+
       res.status(201).json({ success: true, count: records.length });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/fees/pay', async (req, res) => {
+  app.post('/api/fees/pay', async (req, res, next) => {
     try {
       const { feeId, amount, method } = req.body;
       const user = (req as any).user;
@@ -993,13 +1034,21 @@ async function startServer() {
       });
 
       await batch.commit();
+
+      await admin.firestore().collection('auditLogs').add({
+        action: 'pay_fee',
+        performedBy: user.uid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: `Paid ${amount} for fee record ${feeId}`
+      });
+
       res.json({ success: true, status });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/fees/report/:classId', checkPermission('manageFees'), async (req, res) => {
+  app.get('/api/fees/report/:classId', checkPermission('manageFees'), async (req, res, next) => {
     try {
       const { classId } = req.params;
       const snapshot = await admin.firestore()
@@ -1019,11 +1068,11 @@ async function startServer() {
         records 
       });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/performance/:studentId', async (req, res) => {
+  app.get('/api/performance/:studentId', async (req, res, next) => {
     try {
       const { studentId } = req.params;
       const user = (req as any).user;
@@ -1046,11 +1095,11 @@ async function startServer() {
         });
       res.json(records);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/performance/upload', checkPermission('managePerformance'), async (req, res) => {
+  app.post('/api/performance/upload', checkPermission('managePerformance'), async (req, res, next) => {
     try {
       const { records } = req.body; // { studentId, subject, term, score, grade, classId }
       const batch = admin.firestore().batch();
@@ -1069,11 +1118,11 @@ async function startServer() {
       await batch.commit();
       res.status(201).json({ success: true, count: records.length });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.get('/api/performance/report/:classId', checkPermission('managePerformance'), async (req, res) => {
+  app.get('/api/performance/report/:classId', checkPermission('managePerformance'), async (req, res, next) => {
     try {
       const { classId } = req.params;
       const snapshot = await admin.firestore()
@@ -1098,11 +1147,11 @@ async function startServer() {
 
       res.json({ classId, analytics, totalRecords: records.length });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-  app.post('/api/performance/ai-suggestions', async (req, res) => {
+  app.post('/api/performance/ai-suggestions', async (req, res, next) => {
     try {
       const { studentId, records } = req.body;
       const user = (req as any).user;
@@ -1121,12 +1170,12 @@ async function startServer() {
 
       res.json({ suggestions, generatedAt: new Date().toISOString() });
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
   // Health check
-  app.get('/api/health', async (req, res) => {
+  app.get('/api/health', async (req, res, next) => {
     try {
       // Basic check to see if Firestore is responsive
       await admin.firestore().listCollections();
@@ -1159,6 +1208,17 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Global Error Handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('Centralized Error Log:', err);
+    const status = err.status || 500;
+    const message = err.message || 'Internal Server Error';
+    res.status(status).json({
+      error: message,
+      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+    });
+  });
 
   app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
