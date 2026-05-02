@@ -96,6 +96,11 @@ async function setup() {
       try {
         userRecord = await auth.getUserByEmail(user.email);
         console.log(`Updating existing user: ${user.email}`);
+        await auth.updateUser(userRecord.uid, {
+          password: user.password,
+          displayName: user.displayName,
+          emailVerified: true,
+        });
       } catch (err) {
         userRecord = await auth.createUser({
           email: user.email,

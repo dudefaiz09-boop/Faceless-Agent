@@ -159,7 +159,14 @@ const LoginPage = () => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
-      setError('Invalid email or password. Please try again.');
+      console.error('Login error:', err);
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('Email/Password sign-in is disabled in Firebase Console.');
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError('Invalid email or password. Please try again.');
+      } else {
+        setError(err.message || 'An unexpected error occurred.');
+      }
     } finally {
       setSigningIn(false);
     }
