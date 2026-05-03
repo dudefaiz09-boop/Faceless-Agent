@@ -32,6 +32,12 @@ interface Submission {
   submittedAt: any;
   grade: string | null;
   feedback: string | null;
+  aiScore: number | null;
+  aiFeedback: string | null;
+  teacherScore: string | null;
+  teacherFeedback: string | null;
+  checkedByAI: boolean;
+  recheckedByTeacher: boolean;
 }
 
 export const AssignmentsPage = () => {
@@ -57,6 +63,8 @@ export const AssignmentsPage = () => {
   
   // Student Submission Form
   const [submissionContent, setSubmissionContent] = useState('');
+  const [submissionFileUrl, setSubmissionFileUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<Record<string, Submission>>({});
 
   useEffect(() => {
@@ -117,11 +125,14 @@ export const AssignmentsPage = () => {
   const handleGrade = async () => {
     if (!gradingState || !selectedAssignment) return;
     try {
-      await apiFetch('/api/assignments/grade', {
+      // Use recheck endpoint if it's a teacher override
+      await apiFetch('/api/assignments/recheck', {
         method: 'POST',
         body: JSON.stringify({
           assignmentId: selectedAssignment.id,
-          ...gradingState
+          studentId: gradingState.studentId,
+          teacherScore: gradingState.grade,
+          teacherFeedback: gradingState.feedback
         })
       });
       setGradingState(null);
@@ -132,19 +143,24 @@ export const AssignmentsPage = () => {
   };
 
   const submitAssignment = async (assignmentId: string) => {
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/assignments/submit', {
         method: 'POST',
         body: JSON.stringify({
           assignmentId,
-          content: submissionContent
+          content: submissionContent,
+          fileUrl: submissionFileUrl
         })
       });
       setSubmissionContent('');
+      setSubmissionFileUrl('');
       setSelectedAssignment(null);
       loadMyHistory();
     } catch (error) {
       alert('Submission failed');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -265,31 +281,78 @@ export const AssignmentsPage = () => {
                         <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
                           <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">My Submission</p>
                           <p className="text-sm text-emerald-800">{mySubmissions[selectedAssignment.id].content}</p>
+                          {mySubmissions[selectedAssignment.id].fileUrl && (
+                            <a href={mySubmissions[selectedAssignment.id].fileUrl!} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-blue-600 font-bold mt-2">
+                              <ExternalLink size={12} /> View Attached File
+                            </a>
+                          )}
                         </div>
-                        {mySubmissions[selectedAssignment.id].grade && (
-                          <div className="bg-blue-600 p-6 rounded-2xl text-white">
-                             <p className="text-xs font-bold uppercase opacity-60 mb-1">Grade Received</p>
-                             <p className="text-3xl font-black mb-2">{mySubmissions[selectedAssignment.id].grade}</p>
+                        
+                        {mySubmissions[selectedAssignment.id].checkedByAI && (
+                          <div className={cn(
+                            "p-6 rounded-2xl border",
+                            mySubmissions[selectedAssignment.id].recheckedByTeacher ? "bg-indigo-600 text-white border-indigo-700" : "bg-blue-600 text-white border-blue-700"
+                          )}>
+                             <div className="flex justify-between items-start mb-4">
+                               <div>
+                                 <p className="text-xs font-bold uppercase opacity-60 mb-1">
+                                   {mySubmissions[selectedAssignment.id].recheckedByTeacher ? "Final Teacher Grade" : "AI Suggested Grade"}
+                                 </p>
+                                 <p className="text-3xl font-black">{mySubmissions[selectedAssignment.id].grade}</p>
+                               </div>
+                               {mySubmissions[selectedAssignment.id].recheckedByTeacher && (
+                                 <span className="bg-white/20 px-2 py-1 rounded-lg text-[10px] font-bold uppercase backdrop-blur-sm">Verified</span>
+                               )}
+                             </div>
                              <p className="text-sm font-medium italic opacity-90">"{mySubmissions[selectedAssignment.id].feedback}"</p>
+                             
+                             {!mySubmissions[selectedAssignment.id].recheckedByTeacher && (
+                               <p className="text-[10px] mt-4 opacity-50 flex items-center gap-1">
+                                 <AlertCircle size={10} /> Pending teacher verification
+                               </p>
+                             )}
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-4">
-                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Your Answer</label>
-                         <textarea 
-                           rows={5}
-                           placeholder="Type your submission here..."
-                           value={submissionContent}
-                           onChange={(e) => setSubmissionContent(e.target.value)}
-                           className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                         />
+                         <div className="space-y-2">
+                           <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Your Answer</label>
+                           <textarea 
+                             rows={5}
+                             placeholder="Type your submission here..."
+                             value={submissionContent}
+                             disabled={isSubmitting}
+                             onChange={(e) => setSubmissionContent(e.target.value)}
+                             className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl focus:ring-2 focus:ring-blue-100 outline-none transition-all disabled:opacity-50"
+                           />
+                         </div>
+                         
+                         <div className="space-y-2">
+                           <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">File/Image URL (Optional)</label>
+                           <div className="relative">
+                             <input 
+                               type="url"
+                               placeholder="https://example.com/homework.jpg"
+                               value={submissionFileUrl}
+                               disabled={isSubmitting}
+                               onChange={(e) => setSubmissionFileUrl(e.target.value)}
+                               className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-50" 
+                             />
+                             <UploadCloud size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                           </div>
+                         </div>
+
                          <button 
                            onClick={() => submitAssignment(selectedAssignment.id)}
-                           className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                           disabled={isSubmitting || !submissionContent}
+                           className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
                          >
-                           <Send size={18} />
-                           Submit Work
+                           {isSubmitting ? (
+                             <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Analyzing with AI...</>
+                           ) : (
+                             <><Send size={18} /> Submit Work</>
+                           )}
                          </button>
                       </div>
                     )}
@@ -308,7 +371,21 @@ export const AssignmentsPage = () => {
                         submissions.map(sub => (
                           <div key={sub.studentId} className="bg-slate-50 p-4 rounded-2xl space-y-3">
                             <div className="flex items-center justify-between">
-                               <p className="font-bold text-slate-900 text-sm">{sub.studentName}</p>
+                               <div>
+                                 <p className="font-bold text-slate-900 text-sm">{sub.studentName}</p>
+                                 <div className="flex gap-1 mt-1">
+                                   {sub.checkedByAI && (
+                                     <span className="bg-blue-100 text-blue-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                       AI Score: {sub.aiScore}
+                                     </span>
+                                   )}
+                                   {sub.recheckedByTeacher && (
+                                     <span className="bg-indigo-100 text-indigo-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md">
+                                       Verified
+                                     </span>
+                                   )}
+                                 </div>
+                               </div>
                                <span className={cn(
                                  "text-[10px] font-black uppercase px-2 py-0.5 rounded-full",
                                  sub.status === 'graded' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
@@ -320,27 +397,37 @@ export const AssignmentsPage = () => {
                             
                             {gradingState?.studentId === sub.studentId ? (
                               <div className="pt-2 space-y-2">
-                                <input 
-                                  placeholder="Grade (e.g. A+)"
-                                  className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none"
-                                  onChange={(e) => setGradingState({...gradingState, grade: e.target.value})}
-                                />
-                                <input 
-                                  placeholder="Feedback..."
-                                  className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none"
-                                  onChange={(e) => setGradingState({...gradingState, feedback: e.target.value})}
-                                />
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Score (suggested: {sub.aiScore})</label>
+                                  <input 
+                                    placeholder="e.g. 8.5"
+                                    defaultValue={sub.grade || ""}
+                                    className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100"
+                                    onChange={(e) => setGradingState({...gradingState, grade: e.target.value})}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Feedback</label>
+                                  <textarea 
+                                    rows={2}
+                                    placeholder="Enter final feedback..."
+                                    defaultValue={sub.feedback || ""}
+                                    className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100"
+                                    onChange={(e) => setGradingState({...gradingState, feedback: e.target.value})}
+                                  />
+                                </div>
                                 <div className="flex gap-2">
-                                  <button onClick={handleGrade} className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-xs font-bold">Save</button>
+                                  <button onClick={handleGrade} className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-xs font-bold shadow-sm">Save & Verify</button>
                                   <button onClick={() => setGradingState(null)} className="px-4 bg-slate-200 py-2 rounded-xl text-xs font-bold text-slate-500">Cancel</button>
                                 </div>
                               </div>
                             ) : (
                               <button 
-                                onClick={() => setGradingState({studentId: sub.studentId, grade: sub.grade || '', feedback: sub.feedback || ''})}
-                                className="w-full text-xs font-bold text-blue-600 hover:text-blue-700 text-left flex items-center gap-1"
+                                onClick={() => setGradingState({studentId: sub.studentId, grade: sub.grade || sub.aiScore?.toString() || '', feedback: sub.feedback || sub.aiFeedback || ''})}
+                                className="w-full text-xs font-bold text-blue-600 hover:text-blue-700 text-left flex items-center gap-1 group/btn"
                               >
-                                {sub.status === 'graded' ? 'Edit Grade' : 'Grade Submission'} <ChevronRight size={12} />
+                                {sub.recheckedByTeacher ? 'Edit Final Grade' : sub.checkedByAI ? 'Review AI Suggestions' : 'Grade Submission'} 
+                                <ChevronRight size={12} className="group-hover/btn:translate-x-0.5 transition-transform" />
                               </button>
                             )}
                           </div>

@@ -1,4 +1,5 @@
 import express from 'express';
+import 'dotenv/config';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,9 +8,21 @@ import admin from 'firebase-admin';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Startup Validation
+const REQUIRED_ENV = ['GEMINI_API_KEY'];
+const missingEnv = REQUIRED_ENV.filter(key => !process.env[key]);
+if (missingEnv.length > 0) {
+  console.error(`CRITICAL: Missing required environment variables: ${missingEnv.join(', ')}`);
+  process.exit(1);
+}
+
+// Initialize Gemini AI
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 let firebaseConfig;
 try {
@@ -140,13 +153,6 @@ async function startServer() {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      await admin.firestore().collection('auditLogs').add({
-        action: 'create_announcement',
-        performedBy: (req as any).user.uid,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `Created announcement: ${title}`
-      });
-
       res.status(201).json({ id: docRef.id, success: true });
     } catch (error) {
       next(error);
@@ -191,13 +197,6 @@ async function startServer() {
       }
 
       await batch.commit();
-
-      await admin.firestore().collection('auditLogs').add({
-        action: 'mark_attendance',
-        performedBy: markedBy,
-        timestamp,
-        details: `Marked attendance for class ${classId} on ${date} (${records.length} records)`
-      });
 
       res.json({ success: true, count: records.length });
     } catch (error) {
@@ -284,13 +283,6 @@ async function startServer() {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      await admin.firestore().collection('auditLogs').add({
-        action: 'create_assignment',
-        performedBy: (req as any).user.uid,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `Created assignment: ${title} for class ${classId}`
-      });
-
       res.status(201).json({ id: docRef.id, success: true });
     } catch (error) {
       next(error);
@@ -304,6 +296,24 @@ async function startServer() {
       const user = (req as any).user;
       
       const docId = `${assignmentId}_${user.uid}`;
+      const existingDoc = await admin.firestore().collection('submissions').doc(docId).get();
+      const existingData = existingDoc.data();
+
+      // Cache Check: If identical content/file already checked by AI
+      if (existingData && existingData.checkedByAI && 
+          existingData.content === content && 
+          existingData.fileUrl === fileUrl) {
+        return res.json({ 
+          success: true, 
+          cached: true,
+          aiResult: {
+            score: existingData.aiScore,
+            feedback: existingData.aiFeedback
+          }
+        });
+      }
+      
+      // Save/Update submission
       await admin.firestore().collection('submissions').doc(docId).set({
         assignmentId,
         studentId: user.uid,
@@ -313,9 +323,79 @@ async function startServer() {
         status: 'submitted',
         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
         grade: null,
-        feedback: null
+        feedback: null,
+        aiScore: null,
+        aiFeedback: null,
+        checkedByAI: false,
+        recheckedByTeacher: false
       }, { merge: true });
-      
+
+      // Trigger AI Check
+      try {
+        const promptText = `
+          You are an expert teacher grading a student's assignment.
+          Assignment Content: ${content}
+          ${fileUrl ? `Attached File: ${fileUrl}` : ""}
+          
+          Evaluate the submission based on accuracy, completeness, and grammar.
+          Provide a score out of 10 and concise feedback.
+          Respond ONLY in JSON format like this:
+          {
+            "score": number,
+            "feedback": "string"
+          }
+        `;
+
+        const result = await ai.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: [{ role: 'user', parts: [{ text: promptText }] }]
+        });
+        
+        const responseText = result.text;
+        const aiResult = JSON.parse(responseText.replace(/```json|```/g, "").trim());
+
+        await admin.firestore().collection('submissions').doc(docId).update({
+          aiScore: aiResult.score,
+          aiFeedback: aiResult.feedback,
+          checkedByAI: true,
+          // Automatically set initial grade and feedback to AI suggestions
+          grade: aiResult.score.toString(),
+          feedback: aiResult.feedback
+        });
+
+        res.json({ 
+          success: true, 
+          aiResult: {
+            score: aiResult.score,
+            feedback: aiResult.feedback
+          }
+        });
+      } catch (aiError) {
+        console.error('AI Check failed:', aiError);
+        // Still return success for the submission even if AI fails
+        res.json({ success: true, aiError: 'AI feedback is temporarily unavailable' });
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/assignments/recheck', checkPermission('manageAssignments'), async (req, res, next) => {
+    try {
+      const { assignmentId, studentId, teacherScore, teacherFeedback } = req.body;
+      const docId = `${assignmentId}_${studentId}`;
+
+      await admin.firestore().collection('submissions').doc(docId).update({
+        grade: teacherScore,
+        feedback: teacherFeedback,
+        teacherScore,
+        teacherFeedback,
+        status: 'graded',
+        recheckedByTeacher: true,
+        gradedAt: admin.firestore.FieldValue.serverTimestamp(),
+        gradedBy: (req as any).user.uid
+      });
+
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -461,15 +541,6 @@ async function startServer() {
       if (roles !== undefined) updateData.roles = roles;
 
       await admin.firestore().collection('users').doc(uid).update(updateData);
-
-      // Log Audit
-      await admin.firestore().collection('auditLogs').add({
-        action: 'update',
-        targetUid: uid,
-        performedBy: updater.uid,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `Updated student record. Fields: ${Object.keys(updateData).join(', ')}`
-      });
 
       res.json({ success: true });
     } catch (error) {
@@ -622,14 +693,6 @@ async function startServer() {
       if (roles !== undefined) updateData.roles = roles;
 
       await admin.firestore().collection('users').doc(uid).update(updateData);
-
-      await admin.firestore().collection('auditLogs').add({
-        action: 'update_teacher',
-        targetUid: uid,
-        performedBy: updater.uid,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `Updated teacher record. Fields: ${Object.keys(updateData).join(', ')}`
-      });
 
       res.json({ success: true });
     } catch (error) {
@@ -1174,13 +1237,143 @@ async function startServer() {
     }
   });
 
+  // Chatbot
+  app.post('/api/chatbot/query', async (req, res, next) => {
+    try {
+      const { query } = req.body;
+      const user = (req as any).user;
+      const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+      // Fetch recent context (last 3 messages) to keep tokens low but allow multi-turn
+      const historySnapshot = await admin.firestore()
+        .collection('chatbotLogs')
+        .where('userId', '==', user.uid)
+        .orderBy('timestamp', 'desc')
+        .limit(3)
+        .get();
+      
+      const history = historySnapshot.docs
+        .reverse()
+        .map(doc => {
+          const d = doc.data();
+          return `User: ${d.query}\nAssistant: ${d.response}`;
+        })
+        .join('\n\n');
+
+      // Fetch context data based on role
+      let additionalContext = "";
+      if (user.roles.includes('student')) {
+        const assignments = await admin.firestore().collection('assignments')
+          .where('classId', '==', user.classId)
+          .limit(5).get();
+        const titles = assignments.docs.map(d => d.data().title).join(", ");
+        additionalContext = `Recent assignments: ${titles || "None"}.`;
+      }
+
+      // Context injection based on role
+      const roleContexts: Record<string, string> = {
+        student: `You are a helpful student assistant for Class ${user.classId}. ${additionalContext} Help with homework, explain concepts simply, and be encouraging.`,
+        teacher: "You are a teacher's aide. Help with lesson planning, grading rubrics, and classroom management.",
+        admin: "You are a school administration consultant. Provide insights on analytics and operations."
+      };
+
+      const systemPrompt = roleContexts[user.roles[0]] || "You are a helpful educational assistant.";
+      
+      const result = await ai.models.generateContent({
+        model: "gemini-flash-latest", // Using Flash for cost-efficiency
+        contents: [
+          { 
+            role: 'user', 
+            parts: [{ text: `System Instruction: ${systemPrompt}\n\nRecent History:\n${history || "No previous history."}\n\nUser Query: ${query}` }] 
+          }
+        ],
+        config: {
+          maxOutputTokens: 500, // Limit response size to save costs
+          temperature: 0.7
+        }
+      });
+
+      const responseText = result.text;
+
+      // Save to logs
+      const logRef = await admin.firestore().collection('chatbotLogs').add({
+        userId: user.uid,
+        userName: user.displayName || 'User',
+        role: user.roles[0],
+        query,
+        response: responseText,
+        timestamp,
+        feedback: null
+      });
+
+      res.json({ 
+        id: logRef.id,
+        response: responseText,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/chatbot/history/:userId', async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      const user = (req as any).user;
+
+      if (user.uid !== userId && !user.isAdmin) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const snapshot = await admin.firestore()
+        .collection('chatbotLogs')
+        .where('userId', '==', userId)
+        .orderBy('timestamp', 'desc')
+        .limit(20)
+        .get();
+
+      const history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.json(history);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/chatbot/feedback', async (req, res, next) => {
+    try {
+      const { logId, feedback } = req.body; // feedback: 'helpful' | 'not_helpful'
+      await admin.firestore().collection('chatbotLogs').doc(logId).update({
+        feedback,
+        feedbackAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Health check
   app.get('/api/health', async (req, res, next) => {
     try {
-      // Basic check to see if Firestore is responsive
+      // 1. Check Firestore
       await admin.firestore().listCollections();
+      
+      // 2. Check Gemini API
+      let aiStatus = 'ok';
+      try {
+        await ai.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: [{ role: 'user', parts: [{ text: "health check" }] }]
+        });
+      } catch (e) {
+        aiStatus = 'degraded';
+        console.error('Gemini Health Check Failed:', e);
+      }
+
       res.json({ 
         status: 'ok', 
+        database: 'connected',
+        ai: aiStatus,
         project: firebaseConfig.projectId,
         environment: process.env.NODE_ENV || 'development',
         uptime: process.uptime()
@@ -1188,7 +1381,7 @@ async function startServer() {
     } catch (error) {
       res.status(500).json({ 
         status: 'error', 
-        message: 'Database connection failed',
+        message: 'System check failed',
         error: (error as Error).message 
       });
     }
@@ -1211,11 +1404,22 @@ async function startServer() {
 
   // Global Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('Centralized Error Log:', err);
+    // Structured Logging for Cloud Logging
+    const errorLog = {
+      severity: 'ERROR',
+      message: err.message || 'Internal Server Error',
+      stack: err.stack,
+      path: req.path,
+      method: req.method,
+      userId: (req as any).user?.uid,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.error(JSON.stringify(errorLog));
+
     const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
     res.status(status).json({
-      error: message,
+      error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message,
       ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
     });
   });

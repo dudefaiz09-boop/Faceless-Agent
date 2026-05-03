@@ -16,7 +16,8 @@ import {
   LogOut, 
   Menu, 
   X,
-  GraduationCap
+  GraduationCap,
+  Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -33,6 +34,7 @@ const ChatPage = lazy(() => import('./pages/Chat').then(m => ({ default: m.ChatP
 const LibraryPage = lazy(() => import('./pages/Library').then(m => ({ default: m.LibraryPage })));
 const FeesPage = lazy(() => import('./pages/Fees').then(m => ({ default: m.FeesPage })));
 const PerformancePage = lazy(() => import('./pages/Performance').then(m => ({ default: m.PerformancePage })));
+const ChatbotPage = lazy(() => import('./pages/Chatbot').then(m => ({ default: m.ChatbotPage })));
 
 // --- Components ---
 
@@ -58,6 +60,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const menuItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
+    { to: '/chatbot', icon: Bot, label: 'AI Assistant', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
     { to: '/announcements', icon: Bell, label: 'Announcements', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
     { to: '/attendance', icon: Calendar, label: 'Attendance', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
     { to: '/assignments', icon: BookOpen, label: 'Assignments', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
@@ -190,9 +193,9 @@ const LoginPage = () => {
         <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-lg rotate-3">
           <GraduationCap size={32} />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Staging Portal</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">EduConnect Portal</h1>
         <p className="text-slate-500 mb-8 leading-relaxed">
-          Sign in with your staging credentials to access the EduConnect system.
+          Sign in to your account to access the EduConnect system.
         </p>
         
         <form onSubmit={handleLogin} className="space-y-4 text-left">
@@ -204,7 +207,7 @@ const LoginPage = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-100 outline-none transition-all text-sm"
-              placeholder="principal@educonnect.test"
+              placeholder="user@educonnect.app"
             />
           </div>
           <div className="space-y-1">
@@ -231,14 +234,14 @@ const LoginPage = () => {
             disabled={signingIn}
             className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-[0.98] mt-4 disabled:opacity-50"
           >
-            {signingIn ? 'Checking credentials...' : 'Enter System'}
+            {signingIn ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
 
         <div className="mt-8 pt-8 border-t border-slate-50">
-          <p className="text-[10px] text-slate-400 uppercase leading-relaxed">
-            Staging environment. Use test accounts only. <br/> 
-            Unauthorized access is strictly prohibited.
+          <p className="text-[10px] text-slate-400 uppercase leading-relaxed font-bold tracking-widest">
+            &copy; 2026 EduConnect Academy <br/> 
+            Secure Academic Management System
           </p>
         </div>
       </motion.div>
@@ -376,6 +379,7 @@ const AppContent = () => {
       }>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/chatbot" element={<ChatbotPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/assignments" element={<AssignmentsPage />} />

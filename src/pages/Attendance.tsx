@@ -97,7 +97,9 @@ export const AttendancePage = () => {
   const loadHistory = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch(`/api/attendance/history/${user?.uid}`);
+      const data = await apiFetch(`/api/attendance/history/${user?.uid}`, {
+        cacheTTL: 5 * 60 * 1000 // 5 minutes cache for history
+      });
       setHistory(data);
     } catch (error) {
       console.error(error);
@@ -109,7 +111,9 @@ export const AttendancePage = () => {
   const loadReports = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch(`/api/attendance/report/${selectedClass}`);
+      const data = await apiFetch(`/api/attendance/report/${selectedClass}`, {
+        cacheTTL: 60 * 1000 // 1 minute cache for reports
+      });
       setReportData(data);
     } catch (error) {
       console.error(error);

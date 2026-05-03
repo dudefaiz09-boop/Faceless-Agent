@@ -148,6 +148,12 @@ service cloud.firestore {
       allow write: if can('managePerformance');
     }
 
+    match /chatbotLogs/{logId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || can('manageStudents'));
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['feedback', 'feedbackAt']);
+    }
+
     // CHAT
     match /conversations/{conversationId} {
       allow read: if isSignedIn() && request.auth.uid in resource.data.participants;

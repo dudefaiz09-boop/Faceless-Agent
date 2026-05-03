@@ -64,7 +64,9 @@ export const LibraryPage = () => {
   const loadResources = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch('/api/library/resources');
+      const data = await apiFetch('/api/library/resources', {
+        cacheTTL: 5 * 60 * 1000 // 5 minutes cache
+      });
       setResources(data);
     } catch (error) {
       console.error(error);

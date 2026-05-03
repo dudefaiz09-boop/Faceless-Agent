@@ -50,7 +50,9 @@ export const PerformancePage = () => {
   const loadStudentPerformance = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch(`/api/performance/${user?.uid}`);
+      const data = await apiFetch(`/api/performance/${user?.uid}`, {
+        cacheTTL: 5 * 60 * 1000 // 5 minutes cache
+      });
       setRecords(data);
       
       // Generate AI suggestions
