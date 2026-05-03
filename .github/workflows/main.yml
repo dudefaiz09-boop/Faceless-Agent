@@ -70,13 +70,13 @@ jobs:
           
           echo "Server is up! Running smoke tests..."
           bash smoke-test.sh
+
+          # Cleanup
+          kill $(jobs -p) || true
         env:
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PORT: 8080
-          
-          # Cleanup
-          kill $(jobs -p) || true
 
       - name: Build & Deploy to Cloud Run
         run: |
