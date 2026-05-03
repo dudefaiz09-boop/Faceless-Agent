@@ -50,6 +50,7 @@ try {
 const db = admin.firestore();
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Security and Performance Middleware
 app.use(helmet({
@@ -167,6 +168,7 @@ app.post('/api/attendance/mark', checkPermission('manageAttendance'), async (req
       batch.set(docRef, {
         classId, studentId: record.studentId, date, status: record.status, markedBy, updatedAt: timestamp
       }, { merge: true });
+    }
     await batch.commit();
     res.json({ success: true, count: records.length });
   } catch (error) {
