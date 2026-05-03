@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-API_KEY="${FIREBASE_API_KEY:-AIzaSyAMBaqtdxkZ1MUKwLrA7k_JzDA4eLwPpxQ}"
+API_KEY="${FIREBASE_API_KEY:-YOUR_FIREBASE_API_KEY_HERE}"
 LOCAL_URL="http://localhost:3000"
 
 echo "🔍 Starting EduConnect Smoke Tests..."
