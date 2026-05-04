@@ -13,19 +13,18 @@ react {
     //   The root of your project, i.e. where "package.json" lives. Default is '..'
     root = file("../../")
     
-    autolink {
-        autolinkInputFile = file("${project.rootProject.buildDir}/generated/autolinking/autolinking.json")
-    }
+    // Trigger autolinking
+    autolinkLibrariesWithApp()
 }
 
 android {
     namespace "com.educonnect.app"
-    compileSdkVersion 34
+    compileSdkVersion rootProject.ext.compileSdkVersion
 
     defaultConfig {
         applicationId "com.educonnect.app"
-        minSdkVersion 23
-        targetSdkVersion 34
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
     }
