@@ -122,6 +122,10 @@ jobs:
           mkdir -p mobile/android/app
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > mobile/android/app/google-services.json
 
+      - name: Create Firebase Config
+        run: |
+          echo '${{ secrets.FIREBASE_APPLET_CONFIG }}' > mobile/firebase-applet-config.json
+
       - name: Install Mobile Dependencies
         run: |
           cd mobile && npm install
