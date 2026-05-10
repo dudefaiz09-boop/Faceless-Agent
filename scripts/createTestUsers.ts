@@ -1,4 +1,6 @@
-import admin from 'firebase-admin';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -9,14 +11,14 @@ const __dirname = path.dirname(__filename);
 const configPath = path.join(__dirname, '../firebase-applet-config.json');
 const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-if (!admin.apps.length) {
-  admin.initializeApp({
+if (!getApps().length) {
+  initializeApp({
     projectId: firebaseConfig.projectId,
   });
 }
 
-const auth = admin.auth();
-const db = admin.firestore();
+const auth = getAuth();
+const db = getFirestore();
 
 const TEST_USERS = [
   {
@@ -130,7 +132,7 @@ async function setup() {
         isAdmin: user.claims.isAdmin,
         classId: (user.claims as any).classId || null,
         permissions: user.claims.permissions,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
       
       console.log(`✅ Success for ${user.email}`);
