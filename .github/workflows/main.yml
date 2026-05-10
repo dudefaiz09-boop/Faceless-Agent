@@ -66,9 +66,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build Web App
+        run: pnpm turbo build --filter @educonnect/web
+        env:
+          VITE_FIREBASE_API_KEY: "AIzaSyAMBaqtdxkZ1MUKwLrA7k_JzDA4eLwPpxQ"
+          VITE_FIREBASE_PROJECT_ID: "gen-lang-client-0979500227"
+          VITE_FIREBASE_AUTH_DOMAIN: "gen-lang-client-0979500227.firebaseapp.com"
+          VITE_FIREBASE_STORAGE_BUCKET: "gen-lang-client-0979500227.firebasestorage.app"
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "902823826580"
+          VITE_FIREBASE_APP_ID: "1:902823826580:web:7ceea548ed1fd62252d081"
+
       - name: Deploy to Firebase
         run: |
           pnpm exec firebase deploy --project production --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Build and Deploy to Cloud Run
         run: |
