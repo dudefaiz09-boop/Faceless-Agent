@@ -37,10 +37,16 @@ def findNodeModules(String dependency) {
 allprojects {
     repositories {
         maven {
-            url(findNodeModules("react-native/android"))
+            url("$rootDir/../node_modules/react-native/android")
         }
         maven {
-            url(findNodeModules("jsc-android/dist"))
+            url("$rootDir/../../../node_modules/react-native/android")
+        }
+        maven {
+            url("$rootDir/../node_modules/jsc-android/dist")
+        }
+        maven {
+            url("$rootDir/../../../node_modules/jsc-android/dist")
         }
         mavenCentral {
             content {
