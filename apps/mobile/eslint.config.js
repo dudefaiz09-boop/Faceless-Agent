@@ -10,7 +10,7 @@ import globals from "globals";
 export default [
   js.configs.recommended,
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["**/*.{js,jsx,ts,tsx,cjs}"],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -36,7 +36,10 @@ export default [
       ...reactNativePlugin.configs.all.rules,
       "react/react-in-jsx-scope": "off",
       "@typescript-eslint/no-explicit-any": "warn",
-      "react-native/no-raw-text": "off", // Often noisy in RN
+      "@typescript-eslint/no-require-imports": "off",
+      "react-native/no-raw-text": "off",
+      "react-native/no-color-literals": "off",
+      "react-native/sort-styles": "off",
     },
     settings: {
       react: { version: "detect" },
