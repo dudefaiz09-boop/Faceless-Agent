@@ -41,10 +41,10 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2.1.1
 
       - name: Create Firebase Config
-        env:
-          FIREBASE_APPLET_CONFIG: ${{ secrets.FIREBASE_APPLET_CONFIG }}
         run: |
-          echo "$FIREBASE_APPLET_CONFIG" > firebase-applet-config.json
+          cat <<EOF > firebase-applet-config.json
+          ${{ secrets.FIREBASE_APPLET_CONFIG }}
+          EOF
 
       - name: Install Dependencies
         run: npm install

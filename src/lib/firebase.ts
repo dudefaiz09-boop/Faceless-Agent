@@ -2,74 +2,51 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
-// In AI Studio environments, the config might be provided as a single stringified JSON
-// In other environments, individual VITE_ environment variables might be used.
-let config: any = {};
-
-try {
-  // Priority 1: Individual environment variables (Standard for Vite)
-  config = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
-    firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
-  };
-
-  // Priority 2: Fallback to a stringified JSON if provided
-  if (!config.apiKey && import.meta.env.VITE_FIREBASE_CONFIG_JSON) {
-    config = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG_JSON);
-  }
-} catch (e) {
-  console.error("Failed to parse Firebase configuration", e);
-}
-
 let app;
 let auth: any;
 let db: any;
 
+// Use VITE_ prefix for client-side injection via Vite
+const viteConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+};
+
+let finalConfig: any = { ...viteConfig };
+
+// Fallback to a stringified JSON if provided
+if (!finalConfig.apiKey && import.meta.env.VITE_FIREBASE_CONFIG_JSON) {
+  try {
+    const jsonConfig = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG_JSON);
+    finalConfig = { ...jsonConfig };
+  } catch (e) {
+    console.error("VITE_FIREBASE_CONFIG_JSON parse failed:", e);
+  }
+}
+
+// Final fallback: Use project ID from env if missing
+if (!finalConfig.projectId) {
+  finalConfig.projectId = import.meta.env.VITE_PROJECT_ID || 'gen-lang-client-0979500227';
+}
+
 try {
-  // Use VITE_ prefix for client-side injection via Vite
-  config = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
-  };
-
-  // Fallback to a stringified JSON if provided (Standard for AI Studio environments)
-  if (!config.apiKey && import.meta.env.VITE_FIREBASE_CONFIG_JSON) {
-    try {
-      config = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG_JSON);
-    } catch (parseError) {
-      console.error("VITE_FIREBASE_CONFIG_JSON parse failed:", parseError);
-    }
+  if (!finalConfig.apiKey) {
+    console.warn("CRITICAL: Firebase API Key is missing. Initializing with partial config.");
   }
-
-  // Final fallback: Use project project ID from env if others are missing
-  if (!config.projectId) {
-    config.projectId = import.meta.env.VITE_PROJECT_ID || 'gen-lang-client-0979500227';
-  }
-
-  console.log("Firebase config detected for project:", config.projectId);
-
-  if (!config.apiKey) {
-    console.warn("CRITICAL: Firebase API Key is missing. Login will fail.");
-  }
-
-  app = initializeApp(config);
+  app = initializeApp(finalConfig);
   auth = getAuth(app);
   db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)');
 } catch (e) {
-  console.error("Firebase Auth initialization failed:", e);
-  // Re-throw to allow global error boundary to catch it or let it fail naturally
-  throw e;
+  console.error("Firebase initialization failed:", e);
+  // Re-initialize with placeholder to prevent top-level undefined exports
+  app = initializeApp({ apiKey: "mock", projectId: finalConfig.projectId });
+  auth = getAuth(app);
+  db = getFirestore(app);
 }
 
 export { auth, db };
