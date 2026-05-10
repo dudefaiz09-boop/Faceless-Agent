@@ -38,7 +38,10 @@ jobs:
         env:
           VITE_FIREBASE_API_KEY: "AIzaSyAMBaqtdxkZ1MUKwLrA7k_JzDA4eLwPpxQ"
           VITE_FIREBASE_PROJECT_ID: "gen-lang-client-0979500227"
-          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: "gen-lang-client-0979500227.firebaseapp.com"
+          VITE_FIREBASE_STORAGE_BUCKET: "gen-lang-client-0979500227.firebasestorage.app"
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "902823826580"
+          VITE_FIREBASE_APP_ID: "1:902823826580:web:7ceea548ed1fd62252d081"
 
       - name: Turbo Test
         run: pnpm turbo test
