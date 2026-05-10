@@ -1,0 +1,9 @@
+{
+  "name": "@educonnect/logger",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "dependencies": {
+    "pino": "^10.3.1"
+  }
+}

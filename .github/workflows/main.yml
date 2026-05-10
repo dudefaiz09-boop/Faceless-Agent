@@ -1,40 +1,61 @@
-name: Production Deployment Pipeline
+name: Enterprise Platform CI/CD
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 env:
   PROJECT_ID: "gen-lang-client-0979500227"
   REGION: "us-central1"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
 
 jobs:
-  # --- Stage 1: Validation ---
-  validate:
+  # --- Stage 1: Continuous Integration ---
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-      - name: Install & Lint
-        run: |
-          npm install
-          npm run lint
+          node-version: 22
+          cache: 'pnpm'
 
-  # --- Stage 2: Build & Deploy ---
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Turbo Lint
+        run: pnpm turbo lint
+
+      - name: Turbo Build
+        run: pnpm turbo build
+        env:
+          VITE_FIREBASE_API_KEY: "AIzaSyAMBaqtdxkZ1MUKwLrA7k_JzDA4eLwPpxQ"
+          VITE_FIREBASE_PROJECT_ID: "gen-lang-client-0979500227"
+          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Turbo Test
+        run: pnpm turbo test
+
+  # --- Stage 2: Continuous Deployment (Main Branch Only) ---
   deploy:
-    needs: validate
+    needs: ci
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
     steps:
       - uses: actions/checkout@v4
-
-      # 1. AUTHENTICATE
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
@@ -43,47 +64,10 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
 
-      # 2. BUILD FRONTEND (Correct build-time variable injection)
-      - name: 'Build Frontend'
-        env:
-          VITE_FIREBASE_API_KEY: "AIzaSyAMBaqtdxkZ1MUKwLrA7k_JzDA4eLwPpxQ"
-          VITE_FIREBASE_PROJECT_ID: "gen-lang-client-0979500227"
-          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Deploy to Firebase
         run: |
-          npm install
-          npm run build
-
-      # 3. SEED DATABASE
-      - name: 'Seed Database'
-        env:
-          GCP_PROJECT: "gen-lang-client-0979500227"
-        run: npm run seed
-
-      # 4. DEPLOY BACKEND (Cloud Run)
-      - name: 'Deploy to Cloud Run'
-        run: |
-          gcloud run deploy educonnect-app \
-            --source . \
-            --project ${{ env.PROJECT_ID }} \
-            --region ${{ env.REGION }} \
-            --set-env-vars NODE_ENV=production,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},VITE_FIREBASE_PROJECT_ID=${{ env.PROJECT_ID }} \
-            --labels commit-sha=${{ github.sha }} \
-            --allow-unauthenticated \
-            --quiet
-
-      # 5. DEPLOY FRONTEND (Firebase Hosting) - Optional if Cloud Run serves static files
-      - name: 'Deploy to Firebase Hosting'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        continue-on-error: true
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.GCP_CREDENTIALS }}'
-          channelId: live
-          projectId: ${{ env.PROJECT_ID }}
-
-  # --- Mobile Job (Disabled for speed) ---
-  mobile:
-    if: false
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Mobile deployment is currently disabled."
+          pnpm exec firebase deploy --project production --non-interactive --token "${{ secrets.FIREBASE_TOKEN }}"
+        # Alternative: use WIF auth instead of token
