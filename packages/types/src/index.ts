@@ -24,7 +24,7 @@ export interface Announcement {
   authorId: string;
   targetClasses: string[];
   visibility: 'public' | 'private';
-  createdAt: FirebaseFirestore.Timestamp | any;
+  createdAt: any; // Simplified to any for monorepo portability
 }
 
 export interface AttendanceRecord {
@@ -34,5 +34,5 @@ export interface AttendanceRecord {
   date: string;
   status: 'present' | 'absent' | 'late';
   markedBy: string;
-  updatedAt: FirebaseFirestore.Timestamp | any;
+  updatedAt: any; // Simplified to any for monorepo portability
 }
