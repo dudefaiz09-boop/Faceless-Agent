@@ -53,7 +53,7 @@ jobs:
         run: npm run build
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          VITE_FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_APPLET_CONFIG }}
 
       - name: Run Linting
         run: npm run lint
