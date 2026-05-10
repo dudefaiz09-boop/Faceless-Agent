@@ -43,6 +43,8 @@ jobs:
       - name: Link root node_modules for React Native
         run: |
           mkdir -p apps/mobile/node_modules
+          # Symlink for paths relative to apps/mobile
+          ln -sfn ../../node_modules apps/node_modules
           # Symlink critical RN dependencies that hardcode paths
           ln -sfn ../../../node_modules/react-native apps/mobile/node_modules/react-native
           ln -sfn ../../../node_modules/@react-native apps/mobile/node_modules/@react-native
