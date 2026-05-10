@@ -1,6 +1,7 @@
 {
   "name": "educonnect-monorepo",
   "private": true,
+  "type": "module",
   "version": "1.0.0",
   "description": "EduConnect Enterprise Monorepo",
   "scripts": {
@@ -13,10 +14,17 @@
     "setup": "pnpm install"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@google/genai": "^2.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "firebase-admin": "^13.9.0",
+    "globals": "^17.6.0",
     "prettier": "^3.8.3",
     "tsx": "^4.21.0",
     "turbo": "^2.4.4",
