@@ -40,6 +40,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Link root node_modules for React Native
+        run: |
+          mkdir -p apps/mobile/node_modules
+          # Symlink critical RN dependencies that hardcode paths
+          ln -sfn ../../../node_modules/react-native apps/mobile/node_modules/react-native
+          ln -sfn ../../../node_modules/@react-native apps/mobile/node_modules/@react-native
+          ln -sfn ../../../node_modules/jsc-android apps/mobile/node_modules/jsc-android
+
       - name: Build with Gradle
         run: |
           cd apps/mobile/android
