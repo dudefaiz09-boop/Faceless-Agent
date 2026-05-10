@@ -1,49 +1,26 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+/**
+ * Database Seeding Script
+ * 
+ * This script uses the Google Cloud Application Default Credentials (ADC)
+ * or the service account key provided via environment variables.
+ */
 
-const configPath = path.join(__dirname, '../firebase-applet-config.json');
-let firebaseConfig: any = {};
-
-try {
-  if (fs.existsSync(configPath)) {
-    const rawConfig = fs.readFileSync(configPath, 'utf8');
-    try {
-      firebaseConfig = JSON.parse(rawConfig);
-    } catch (parseError) {
-      console.warn('⚠️ Warning: firebase-applet-config.json is malformed JSON. Trying to fix common issues...');
-      // Try to fix common issues like single quotes or unquoted keys
-      try {
-        const fixedJSON = rawConfig
-          .replace(/'/g, '"') // Replace single quotes with double quotes
-          .replace(/(\w+):/g, '"$1":'); // Quote unquoted keys
-        firebaseConfig = JSON.parse(fixedJSON);
-        console.log('✅ Recovered JSON successfully.');
-      } catch (e) {
-        console.error('❌ Failed to recover JSON configuration.');
-      }
-    }
-  }
-} catch (error) {
-  console.error('Error reading Firebase config file:', error);
-}
+const projectId = process.env.GCP_PROJECT || 'gen-lang-client-0979500227';
 
 if (!getApps().length) {
-  const projectId = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || firebaseConfig.projectId || 'gen-lang-client-0979500227';
   initializeApp({
     projectId: projectId,
   });
-  console.log(`🚀 Using project: ${projectId}`);
 }
 
 const auth = getAuth();
 const db = getFirestore();
+
+console.log(`🚀 Starting Database Seeding for project: ${projectId}`);
 
 const TEST_USERS = [
   {
@@ -125,8 +102,6 @@ const TEST_USERS = [
 ];
 
 async function setup() {
-  console.log('🚀 Starting Staging Account Creation...');
-  
   for (const user of TEST_USERS) {
     try {
       let userRecord;
@@ -160,12 +135,12 @@ async function setup() {
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
       
-      console.log(`✅ Success for ${user.email}`);
-    } catch (error) {
-      console.error(`❌ Failed for ${user.email}:`, error);
+      console.log(`✅ Success: ${user.email}`);
+    } catch (error: any) {
+      console.error(`❌ Failed: ${user.email} - ${error.message}`);
     }
   }
-  console.log('🏁 Staging Setup Finished.');
+  console.log('🏁 Seeding Finished.');
   process.exit(0);
 }
 
