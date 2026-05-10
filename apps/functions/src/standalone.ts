@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { env } from './src/lib/config.js'; // Trigger early validation
+import { env } from './lib/config.js'; // Trigger early validation
 import app from './app.js';
 
 // The 'env' import above validates GEMINI_API_KEY and other essentials.
