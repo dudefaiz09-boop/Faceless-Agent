@@ -21,11 +21,19 @@ let finalConfig: any = { ...viteConfig };
 
 // Fallback to a stringified JSON if provided
 if (!finalConfig.apiKey && import.meta.env.VITE_FIREBASE_CONFIG_JSON) {
+  const rawJSON = import.meta.env.VITE_FIREBASE_CONFIG_JSON;
   try {
-    const jsonConfig = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG_JSON);
-    finalConfig = { ...jsonConfig };
+    finalConfig = JSON.parse(rawJSON);
   } catch (e) {
-    console.error("VITE_FIREBASE_CONFIG_JSON parse failed:", e);
+    console.warn("VITE_FIREBASE_CONFIG_JSON is malformed. Attempting recovery...");
+    try {
+      const fixedJSON = rawJSON
+        .replace(/'/g, '"')
+        .replace(/(\w+):/g, '"$1":');
+      finalConfig = JSON.parse(fixedJSON);
+    } catch (recoveryError) {
+      console.error("Firebase config recovery failed.");
+    }
   }
 }
 

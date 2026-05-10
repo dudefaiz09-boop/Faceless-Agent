@@ -9,10 +9,33 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const configPath = path.join(__dirname, '../firebase-applet-config.json');
-const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+let firebaseConfig: any = {};
+
+try {
+  if (fs.existsSync(configPath)) {
+    const rawConfig = fs.readFileSync(configPath, 'utf8');
+    try {
+      firebaseConfig = JSON.parse(rawConfig);
+    } catch (parseError) {
+      console.warn('⚠️ Warning: firebase-applet-config.json is malformed JSON. Trying to fix common issues...');
+      // Try to fix common issues like single quotes or unquoted keys
+      try {
+        const fixedJSON = rawConfig
+          .replace(/'/g, '"') // Replace single quotes with double quotes
+          .replace(/(\w+):/g, '"$1":'); // Quote unquoted keys
+        firebaseConfig = JSON.parse(fixedJSON);
+        console.log('✅ Recovered JSON successfully.');
+      } catch (e) {
+        console.error('❌ Failed to recover JSON configuration.');
+      }
+    }
+  }
+} catch (error) {
+  console.error('Error reading Firebase config file:', error);
+}
 
 if (!getApps().length) {
-  const projectId = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || firebaseConfig.projectId;
+  const projectId = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || firebaseConfig.projectId || 'gen-lang-client-0979500227';
   initializeApp({
     projectId: projectId,
   });
