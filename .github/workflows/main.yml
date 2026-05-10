@@ -106,9 +106,9 @@ jobs:
             --allow-unauthenticated \
             --quiet
 
-  # --- Mobile (React Native) Job ---
+  # --- Mobile (React Native) Job --- (TEMPORARILY DISABLED)
   mobile-distribute:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    if: false # "!contains(github.event.head_commit.message, 'skip ci')"
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: "--max-old-space-size=3072"

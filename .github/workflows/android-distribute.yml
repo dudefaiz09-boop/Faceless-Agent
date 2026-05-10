@@ -2,7 +2,7 @@ name: Android Distribute
 
 on:
   push:
-    branches: [ main ]
+    branches: [ disabled ]
     paths:
       - 'mobile/**'
 

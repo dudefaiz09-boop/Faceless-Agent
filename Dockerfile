@@ -22,7 +22,8 @@ RUN npm install --only=production --legacy-peer-deps
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/src/server ./src/server
-COPY --from=builder /app/firebase-applet-config.json ./
+# Use wildcard to make copy optional
+COPY --from=builder /app/firebase-applet-config.jso[n] ./
 COPY --from=builder /app/tsconfig.json ./
 
 # Expose port
