@@ -5,6 +5,7 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
+RUN touch firebase-applet-config.json
 
 # Stage 2: Production runtime
 FROM node:20-slim
@@ -22,8 +23,7 @@ RUN npm install --only=production --legacy-peer-deps
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/src/server ./src/server
-# Use wildcard to make copy optional
-COPY --from=builder /app/firebase-applet-config.jso[n] ./
+COPY --from=builder /app/firebase-applet-config.json ./
 COPY --from=builder /app/tsconfig.json ./
 
 # Expose port
