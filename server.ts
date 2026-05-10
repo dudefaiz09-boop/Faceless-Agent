@@ -47,7 +47,7 @@ try {
   console.error('Error initializing Firebase Admin:', error);
 }
 
-const db = admin.firestore();
+const db = admin.firestore(firebaseConfig.firestoreDatabaseId || '(default)');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -526,6 +526,7 @@ app.get('/api/health', async (req, res) => {
     await db.listCollections();
     res.json({ status: 'ok', database: 'connected', environment: process.env.NODE_ENV || 'development' });
   } catch (error) {
+    console.error('Health check failed:', error);
     res.status(500).json({ status: 'error', error: (error as Error).message });
   }
 });

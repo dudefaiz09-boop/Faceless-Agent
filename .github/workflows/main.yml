@@ -71,9 +71,11 @@ jobs:
           # Wait for server to be ready
           MAX_RETRIES=30
           COUNT=0
-          until $(curl -sSf http://localhost:8080/api/health > /dev/null); do
+          until curl -sS http://localhost:8080/api/health > /dev/null; do
             if [ $COUNT -eq $MAX_RETRIES ]; then
-              echo "Server failed to start"
+              echo "::error::Server failed to start or health check failed."
+              echo "Final check response:"
+              curl -v http://localhost:8080/api/health || true
               exit 1
             fi
             echo "Waiting for server... ($COUNT)"
