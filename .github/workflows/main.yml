@@ -63,9 +63,10 @@ jobs:
         continue-on-error: true
 
       - name: Seed Database
-        run: echo "Skipping seed" # npm run seed
+        run: npm run seed
         env:
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          # The script reads firebase-applet-config.json created in an earlier step
 
       - name: Run Smoke Tests
         run: echo "Skipping smoke tests"
