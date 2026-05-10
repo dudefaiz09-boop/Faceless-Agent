@@ -1,13 +1,4 @@
-# Stage 1: Build the frontend
-FROM node:20-slim AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-RUN touch firebase-applet-config.json
-
-# Stage 2: Production runtime
+# Production Runtime
 FROM node:20-slim
 WORKDIR /app
 
@@ -19,15 +10,11 @@ ENV PORT=8080
 COPY package*.json ./
 RUN npm install --only=production --legacy-peer-deps
 
-# Copy built assets and necessary server files
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server.ts ./
-COPY --from=builder /app/src/server ./src/server
-COPY --from=builder /app/firebase-applet-config.json ./
-COPY --from=builder /app/tsconfig.json ./
+# Copy all files (including pre-built dist/ folder from CI)
+COPY . .
 
 # Expose port
 EXPOSE 8080
 
-# Start the application using tsx
+# Start the application
 CMD ["npm", "start"]
