@@ -32,7 +32,7 @@ let auth: any;
 let db: any;
 
 try {
-  // Priority 1: Individual environment variables (Standard for Vite)
+  // Use VITE_ prefix for client-side injection via Vite
   config = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -41,28 +41,35 @@ try {
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
-    firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
   };
 
-  // Priority 2: Fallback to a stringified JSON if provided
+  // Fallback to a stringified JSON if provided (Standard for AI Studio environments)
   if (!config.apiKey && import.meta.env.VITE_FIREBASE_CONFIG_JSON) {
-    config = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG_JSON);
+    try {
+      config = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG_JSON);
+    } catch (parseError) {
+      console.error("VITE_FIREBASE_CONFIG_JSON parse failed:", parseError);
+    }
   }
 
+  // Final fallback: Use project project ID from env if others are missing
+  if (!config.projectId) {
+    config.projectId = import.meta.env.VITE_PROJECT_ID || 'gen-lang-client-0979500227';
+  }
+
+  console.log("Firebase config detected for project:", config.projectId);
+
   if (!config.apiKey) {
-    throw new Error("Missing Firebase API Key");
+    console.warn("CRITICAL: Firebase API Key is missing. Login will fail.");
   }
 
   app = initializeApp(config);
   auth = getAuth(app);
-  db = getFirestore(app, config.firestoreDatabaseId || '(default)');
-  console.log("Firebase initialized for project:", config.projectId);
+  db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)');
 } catch (e) {
-  console.error("Firebase initialization failed:", e);
-  // Provide mock objects to prevent top-level crashes
-  app = {};
-  auth = { onAuthStateChanged: (cb: any) => cb(null) };
-  db = {};
+  console.error("Firebase Auth initialization failed:", e);
+  // Re-throw to allow global error boundary to catch it or let it fail naturally
+  throw e;
 }
 
 export { auth, db };

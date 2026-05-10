@@ -16,13 +16,15 @@ try {
   console.error('Error loading Firebase config:', error);
 }
 
+const projectId = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || firebaseConfig.projectId;
+
 if (!getApps().length) {
   initializeApp({
-    projectId: firebaseConfig.projectId,
+    projectId: projectId,
   });
-  console.log("Firebase Admin initialized for project:", firebaseConfig.projectId);
+  console.log("Firebase Admin initialized for project:", projectId);
 }
 
 export const auth = getAuth();
 export const db = getFirestore(firebaseConfig.firestoreDatabaseId || '(default)');
-export { firebaseConfig };
+export { firebaseConfig, projectId };

@@ -54,6 +54,9 @@ jobs:
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_APPLET_CONFIG }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+          VITE_PROJECT_ID: ${{ secrets.GCP_PROJECT }}
 
       - name: Run Linting
         run: npm run lint
