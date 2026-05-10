@@ -59,7 +59,8 @@ jobs:
         run: npm run lint
 
       - name: Run Unit Tests
-        run: echo "Skipping tests to unblock deployment" # npm run test
+        run: npm run test
+        continue-on-error: true
 
       - name: Seed Database
         run: echo "Skipping seed" # npm run seed
@@ -76,7 +77,7 @@ jobs:
             --project ${{ secrets.GCP_PROJECT }} \
             --region us-central1 \
             --set-env-vars GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }},FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }},DB_URL=${{ secrets.DB_URL }},NODE_ENV=production \
-            --set-labels commit-sha=${{ github.sha }} \
+            --labels commit-sha=${{ github.sha }} \
             --allow-unauthenticated \
             --quiet
 
