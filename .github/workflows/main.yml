@@ -165,3 +165,4 @@ jobs:
           args: appdistribution:distribute mobile/android/app/build/outputs/apk/release/app-release.apk --app ${{ secrets.FIREBASE_APP_ID_ANDROID }} --groups testers
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+# Triggering fresh build with security fixes
