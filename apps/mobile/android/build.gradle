@@ -26,13 +26,21 @@ plugins {
 // Apply the root project plugin
 apply plugin: "com.facebook.react.rootproject"
 
+def findNodeModules(String dependency) {
+    def localPath = "$rootDir/../node_modules/$dependency"
+    if (file(localPath).exists()) {
+        return localPath
+    }
+    return "$rootDir/../../../node_modules/$dependency"
+}
+
 allprojects {
     repositories {
         maven {
-            url("$rootDir/../node_modules/react-native/android")
+            url(findNodeModules("react-native/android"))
         }
         maven {
-            url("$rootDir/../node_modules/jsc-android/dist")
+            url(findNodeModules("jsc-android/dist"))
         }
         mavenCentral {
             content {

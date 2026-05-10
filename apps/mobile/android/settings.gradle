@@ -4,7 +4,12 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    includeBuild("../node_modules/@react-native/gradle-plugin")
+    // Check both local and root node_modules for monorepo compatibility
+    def gradlePluginPath = "../node_modules/@react-native/gradle-plugin"
+    if (!file(gradlePluginPath).exists()) {
+        gradlePluginPath = "../../../node_modules/@react-native/gradle-plugin"
+    }
+    includeBuild(gradlePluginPath)
 }
 plugins {
     id("com.facebook.react.settings")
