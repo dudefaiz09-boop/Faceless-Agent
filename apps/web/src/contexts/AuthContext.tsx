@@ -89,7 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         try {
           const idTokenResult = await user.getIdTokenResult(true); // Force refresh
-          const claims = idTokenResult.claims as any;
+          
+          interface CustomClaims {
+            roles?: string[];
+            permissions?: Record<string, boolean>;
+            classId?: string;
+          }
+          
+          const claims = idTokenResult.claims as CustomClaims;
           
           if (claims.roles) {
             setRoles(claims.roles);

@@ -13,7 +13,7 @@ interface ChatLog {
   id: string;
   query: string;
   response: string;
-  timestamp: any;
+  timestamp: { toDate: () => Date } | string | number | null;
   feedback: 'helpful' | 'not_helpful' | null;
 }
 
@@ -27,7 +27,7 @@ export const ChatbotPage = () => {
 
   const loadHistory = useCallback(async () => {
     try {
-      const data = await apiFetch(`/api/chatbot/history/${user?.uid}`);
+      const data = await apiFetch<ChatLog[]>(`/api/chatbot/history/${user?.uid}`);
       setLogs(data.reverse()); // Reverse to show oldest first in the scroll area
     } catch {
       // Error handled silently
@@ -52,7 +52,12 @@ export const ChatbotPage = () => {
     setLoading(true);
 
     try {
-      const data = await apiFetch('/api/chatbot/query', {
+      interface QueryResponse {
+        id: string;
+        response: string;
+        timestamp: string;
+      }
+      const data = await apiFetch<QueryResponse>('/api/chatbot/query', {
         method: 'POST',
         body: JSON.stringify({ query: currentQuery })
       });
@@ -187,7 +192,7 @@ export const ChatbotPage = () => {
                     
                     {/* Feedback & Tools */}
                     <div className="flex items-center gap-4 px-2">
-                       <span className="text-[9px] font-bold text-slate-400 uppercase">AI Generated • {new Date(log.timestamp?.toDate?.() || log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       <span className="text-[9px] font-bold text-slate-400 uppercase">AI Generated • {new Date((log.timestamp as any)?.toDate?.() || log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                        <div className="flex items-center gap-1 ml-auto">
                           <button 
                             onClick={() => handleFeedback(log.id, 'helpful')}

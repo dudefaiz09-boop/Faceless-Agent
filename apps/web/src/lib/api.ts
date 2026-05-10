@@ -72,8 +72,8 @@ export async function apiFetch<T = any>(path: string, options: ApiOptions = {}, 
     }
 
     return data;
-  } catch (error: any) {
-    if (retries > 0 && error.name === 'TypeError') { // Network error
+  } catch (error: unknown) {
+    if (retries > 0 && (error as Error).name === 'TypeError') { // Network error
       await new Promise(resolve => setTimeout(resolve, 1000));
       return apiFetch(path, options, retries - 1);
     }

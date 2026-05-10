@@ -38,7 +38,7 @@ const ChatbotPage = lazy(() => import('./pages/Chatbot').then(m => ({ default: m
 
 // --- Components ---
 
-const SidebarLink = ({ to, icon: Icon, label, active }: { to: string, icon: any, label: string, active: boolean }) => (
+const SidebarLink = ({ to, icon: Icon, label, active }: { to: string, icon: React.ElementType, label: string, active: boolean }) => (
   <Link
     to={to}
     className={cn(
@@ -169,14 +169,15 @@ const LoginPage = () => {
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
-      if (err.code === 'auth/operation-not-allowed') {
+      const errorObj = err as { code?: string, message?: string };
+      if (errorObj.code === 'auth/operation-not-allowed') {
         setError('Email/Password sign-in is disabled in Firebase Console.');
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      } else if (errorObj.code === 'auth/invalid-credential' || errorObj.code === 'auth/wrong-password' || errorObj.code === 'auth/user-not-found') {
         setError('Invalid email or password. Please try again.');
       } else {
-        setError(err.message || 'An unexpected error occurred.');
+        setError(errorObj.message || 'An unexpected error occurred.');
       }
     } finally {
       setSigningIn(false);

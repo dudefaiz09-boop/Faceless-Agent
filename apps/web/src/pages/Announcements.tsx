@@ -16,7 +16,7 @@ interface Announcement {
   authorId: string;
   targetClasses: string[];
   visibility: string;
-  createdAt: any;
+  createdAt: { toDate: () => Date } | null;
 }
 
 export const AnnouncementsPage = () => {

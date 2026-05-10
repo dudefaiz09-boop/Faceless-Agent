@@ -10,15 +10,21 @@ import {
   FlatList,
 } from 'react-native';
 import {auth, db} from './lib/firebase';
-import {signInWithEmailAndPassword, onAuthStateChanged, signOut} from 'firebase/auth';
+import {signInWithEmailAndPassword, onAuthStateChanged, User} from 'firebase/auth';
 import {collection, query, orderBy, limit, onSnapshot} from 'firebase/firestore';
 
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+}
+
 const App = () => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -37,7 +43,7 @@ const App = () => {
         limit(10)
       );
       const unsub = onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+        const docs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Announcement));
         setAnnouncements(docs);
       });
       return unsub;
@@ -49,16 +55,18 @@ const App = () => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => signOut(auth);
+  const handleLogout = () => {
+    auth.signOut();
+  };
 
-  if (loading && !user) {
+  if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#2563eb" />
@@ -69,9 +77,9 @@ const App = () => {
   if (!user) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.authForm}>
-          <Text style={styles.title}>EduConnect Mobile</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+        <View style={styles.loginContainer}>
+          <Text style={styles.title}>EduConnect</Text>
+          <Text style={styles.subtitle}>Mobile Portal</Text>
           
           <TextInput
             style={styles.input}
@@ -88,10 +96,10 @@ const App = () => {
             secureTextEntry
           />
           
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
           
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>Login</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -101,14 +109,17 @@ const App = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcome}>Welcome, {user.displayName || 'User'}</Text>
+        <View>
+          <Text style={styles.welcome}>Hello,</Text>
+          <Text style={styles.userName}>{user.displayName || user.email}</Text>
+        </View>
         <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logout}>Logout</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Recent Announcements</Text>
+        <Text style={styles.sectionTitle}>Latest Announcements</Text>
         <FlatList
           data={announcements}
           keyExtractor={(item) => item.id}
@@ -137,9 +148,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  authForm: {
-    padding: 30,
+  loginContainer: {
     flex: 1,
+    padding: 40,
     justifyContent: 'center',
   },
   title: {
@@ -147,76 +158,82 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1e293b',
     textAlign: 'center',
-    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#64748b',
     textAlign: 'center',
     marginBottom: 40,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 15,
     marginBottom: 16,
-    fontSize: 16,
   },
   button: {
     backgroundColor: '#2563eb',
+    padding: 16,
     borderRadius: 12,
-    padding: 18,
     alignItems: 'center',
     marginTop: 10,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
+    color: 'white',
     fontWeight: 'bold',
+    fontSize: 16,
   },
-  errorText: {
+  error: {
     color: '#ef4444',
-    marginBottom: 16,
+    marginBottom: 10,
     textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: 24,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
   welcome: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  userName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1e293b',
-    flex: 1,
   },
-  logout: {
+  logoutText: {
     color: '#ef4444',
     fontWeight: '600',
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 24,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1e293b',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: 'white',
     padding: 20,
-    marginBottom: 12,
+    borderRadius: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardTitle: {
     fontSize: 18,

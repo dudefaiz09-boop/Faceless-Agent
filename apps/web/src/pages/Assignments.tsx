@@ -18,7 +18,7 @@ interface Assignment {
   dueDate: string;
   classId: string;
   attachments: string[];
-  createdAt: any;
+  createdAt: { toDate: () => Date } | string | null;
 }
 
 interface Submission {
@@ -29,7 +29,7 @@ interface Submission {
   content: string;
   fileUrl: string | null;
   status: 'submitted' | 'graded';
-  submittedAt: any;
+  submittedAt: { toDate: () => Date } | string | null;
   grade: string | null;
   feedback: string | null;
   aiScore: number | null;
@@ -71,7 +71,7 @@ export const AssignmentsPage = () => {
   const loadAssignments = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch(`/api/assignments/${selectedClass}`);
+      const data = await apiFetch<Assignment[]>(`/api/assignments/${selectedClass}`);
       setAssignments(data);
     } catch (err) {
       console.error(err);
@@ -83,7 +83,7 @@ export const AssignmentsPage = () => {
   const loadMyHistory = React.useCallback(async () => {
     if (!uid) return;
     try {
-      const data = await apiFetch(`/api/assignments/history/${uid}`);
+      const data = await apiFetch<Submission[]>(`/api/assignments/history/${uid}`);
       const map: Record<string, Submission> = {};
       data.forEach((s: Submission) => map[s.assignmentId] = s);
       setMySubmissions(map);
@@ -120,7 +120,7 @@ export const AssignmentsPage = () => {
   const viewSubmissions = async (assignment: Assignment) => {
     setSelectedAssignment(assignment);
     try {
-      const data = await apiFetch(`/api/assignments/submissions/${assignment.id}`);
+      const data = await apiFetch<Submission[]>(`/api/assignments/submissions/${assignment.id}`);
       setSubmissions(data);
     } catch (err) {
       console.error(err);

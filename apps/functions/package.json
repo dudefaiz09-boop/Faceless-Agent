@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=esm --packages=external && esbuild src/standalone.ts --bundle --platform=node --target=node22 --outfile=dist/standalone.js --format=esm --packages=external",
+    "build": "node build.js",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
@@ -27,8 +27,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@educonnect/logger": "workspace:*",
-    "@educonnect/types": "workspace:*",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

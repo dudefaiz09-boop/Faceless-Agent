@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -54,7 +54,7 @@ export const AttendancePage = () => {
   // History state
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
 
-  const loadMarkingData = async () => {
+  const loadMarkingData = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Fetch students in the selected class
@@ -68,7 +68,7 @@ export const AttendancePage = () => {
       setStudents(studentList);
 
       // 2. Fetch existing records for this date and class
-      const records = await apiFetch(`/api/attendance?classId=${selectedClass}&date=${selectedDate}`);
+      const records = await apiFetch<AttendanceRecord[]>(`/api/attendance?classId=${selectedClass}&date=${selectedDate}`);
       const recordMap: Record<string, 'present' | 'absent' | 'late'> = {};
       records.forEach((r: AttendanceRecord) => {
         recordMap[r.studentId] = r.status;
@@ -79,12 +79,13 @@ export const AttendancePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClass, selectedDate]);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
+    if (!user?.uid) return;
     setLoading(true);
     try {
-      const data = await apiFetch(`/api/attendance/history/${user?.uid}`, {
+      const data = await apiFetch<AttendanceRecord[]>(`/api/attendance/history/${user?.uid}`, {
         cacheTTL: 5 * 60 * 1000 // 5 minutes cache for history
       });
       setHistory(data);
@@ -93,9 +94,9 @@ export const AttendancePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.uid]);
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     try {
       await apiFetch(`/api/attendance/report/${selectedClass}`, {
@@ -106,7 +107,7 @@ export const AttendancePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClass]);
   useEffect(() => {
     const fetchData = async () => {
       if (view === 'marking' && canManageAttendance) {

@@ -17,7 +17,7 @@ interface Conversation {
   type: 'direct' | 'group';
   name?: string;
   lastMessage?: string;
-  updatedAt: any;
+  updatedAt: { toDate: () => Date } | string | null;
 }
 
 interface Message {
@@ -25,7 +25,7 @@ interface Message {
   senderId: string;
   senderName: string;
   text: string;
-  sentAt: any;
+  sentAt: { toDate: () => Date } | string | null;
   readBy: string[];
 }
 
@@ -49,8 +49,8 @@ export const ChatPage = () => {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter((c: any) => c.participants.includes(user.uid)) as Conversation[];
+        .map(doc => ({ id: doc.id, ...doc.data() } as Conversation))
+        .filter((c: Conversation) => c.participants.includes(user.uid));
       setConversations(data);
       setLoading(false);
     });
@@ -69,7 +69,7 @@ export const ChatPage = () => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[]);
+      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)));
     });
 
     return () => unsubscribe();
