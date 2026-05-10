@@ -103,6 +103,8 @@ jobs:
   mobile-distribute:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
