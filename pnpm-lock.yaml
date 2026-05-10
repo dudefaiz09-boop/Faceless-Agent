@@ -59,12 +59,6 @@ importers:
 
   apps/functions:
     dependencies:
-      '@educonnect/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
-      '@educonnect/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       '@google/genai':
         specifier: ^2.0.1
         version: 2.0.1(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))
@@ -99,6 +93,12 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@educonnect/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@educonnect/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@types/compression':
         specifier: ^1.8.1
         version: 1.8.1

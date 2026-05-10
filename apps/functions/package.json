@@ -14,8 +14,6 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
-    "@educonnect/logger": "workspace:*",
-    "@educonnect/types": "workspace:*",
     "@google/genai": "^2.0.1",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -29,6 +27,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@educonnect/logger": "workspace:*",
+    "@educonnect/types": "workspace:*",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
