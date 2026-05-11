@@ -12,6 +12,10 @@ import { cn } from '../lib/utils';
 import { apiFetch } from '../lib/api';
 import { useDebounce } from '../lib/hooks';
 
+type TimestampValue = { toDate: () => Date } | string | number | null;
+
+type TimestampValue = { toDate: () => Date } | string | number | null;
+
 interface StudentProfile {
   uid: string;
   displayName: string;
@@ -20,15 +24,21 @@ interface StudentProfile {
   classId?: string;
   section?: string;
   linkedParentIds?: string[];
-  createdAt?: any;
+  createdAt?: TimestampValue;
 }
 
 interface AuditLog {
   id: string;
   action: string;
   details: string;
-  timestamp: any;
+  timestamp: TimestampValue;
   performedBy: string;
+}
+
+
+interface BulkImportResult {
+  success: boolean;
+  message?: string;
 }
 
 export const StudentsPage = () => {

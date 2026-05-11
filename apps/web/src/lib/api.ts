@@ -11,7 +11,7 @@ interface ApiOptions extends RequestInit {
  * - Client-side caching
  * - Correlation IDs for request tracking
  */
-export async function apiFetch<T = any>(path: string, options: ApiOptions = {}, retries = 3): Promise<T> {
+export async function apiFetch<T = unknown>(path: string, options: ApiOptions = {}, retries = 3): Promise<T> {
   const user = auth.currentUser;
   const token = user ? await user.getIdToken() : null;
   const isGet = !options.method || options.method === 'GET';

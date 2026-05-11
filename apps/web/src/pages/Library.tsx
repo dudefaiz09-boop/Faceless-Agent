@@ -10,6 +10,10 @@ import {
 import { cn } from '../lib/utils';
 import { useDebounce } from '../lib/hooks';
 
+interface TimestampLike {
+  toDate: () => Date;
+}
+
 interface LibraryResource {
   id: string;
   title: string;
@@ -17,7 +21,7 @@ interface LibraryResource {
   grade: string;
   fileUrl: string;
   tags: string[];
-  uploadedAt: any;
+  uploadedAt: TimestampLike | string | number | null;
 }
 
 interface BorrowRecord {
@@ -25,9 +29,9 @@ interface BorrowRecord {
   resourceId: string;
   studentId: string;
   studentName: string;
-  borrowedAt: any;
+  borrowedAt: TimestampLike | string | number | null;
   status: 'borrowed' | 'returned';
-  returnedAt: any;
+  returnedAt: TimestampLike | string | number | null;
 }
 
 export const LibraryPage = () => {

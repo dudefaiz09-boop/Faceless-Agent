@@ -12,6 +12,8 @@ import { cn } from '../lib/utils';
 import { apiFetch } from '../lib/api';
 import { useDebounce } from '../lib/hooks';
 
+type TimestampValue = { toDate: () => Date } | string | number | null;
+
 interface TeacherProfile {
   uid: string;
   displayName: string;
@@ -19,15 +21,20 @@ interface TeacherProfile {
   roles: string[];
   subjects?: string[];
   classes?: string[];
-  createdAt?: any;
+  createdAt?: TimestampValue;
 }
 
 interface AuditLog {
   id: string;
   action: string;
   details: string;
-  timestamp: any;
+  timestamp: TimestampValue;
   performedBy: string;
+}
+
+interface BulkImportResult {
+  success: boolean;
+  message?: string;
 }
 
 export const TeachersPage = () => {
@@ -134,13 +141,13 @@ export const TeachersPage = () => {
     });
 
     try {
-      const result = await apiFetch('/api/teachers/bulk-import', {
+      const result = await apiFetch<{ results: BulkImportResult[] }>('/api/teachers/bulk-import', {
         method: 'POST',
         body: JSON.stringify({ teachers: teachersToImport })
       });
       setIsBulkModalOpen(false);
       setBulkText('');
-      alert(`Import completed. Success: ${result.results.filter((r: any) => r.success).length}, Failed: ${result.results.filter((r: any) => !r.success).length}`);
+      alert(`Import completed. Success: ${result.results.filter(r => r.success).length}, Failed: ${result.results.filter(r => !r.success).length}`);
     } catch (error) {
       alert('Bulk import failed: ' + (error as Error).message);
     }
@@ -148,6 +155,7 @@ export const TeachersPage = () => {
 
   const viewAuditLogs = async (teacherUid?: string) => {
     setIsAuditModalOpen(true);
+    // In a real app, we'd fetch this via API or Firestore query
     const q = query(
       collection(db, 'auditLogs'),
       teacherUid ? where('targetUid', '==', teacherUid) : orderBy('timestamp', 'desc'),
@@ -444,7 +452,7 @@ export const TeachersPage = () => {
                    </div>
                 </div>
                 <button onClick={() => setIsAuditModalOpen(false)} className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white/60 hover:bg-white/20 hover:text-white transition-all">
-                  <X size={24} />
+                  <X size size={24} />
                 </button>
               </div>
 

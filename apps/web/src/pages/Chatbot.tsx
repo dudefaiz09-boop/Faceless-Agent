@@ -17,6 +17,10 @@ interface ChatLog {
   feedback: 'helpful' | 'not_helpful' | null;
 }
 
+interface TimestampLike {
+  toDate: () => Date;
+}
+
 export const ChatbotPage = () => {
   const { user, role } = useAuth();
   const [query, setQuery] = useState('');

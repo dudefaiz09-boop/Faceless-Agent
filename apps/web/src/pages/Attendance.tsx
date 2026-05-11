@@ -94,7 +94,7 @@ export const AttendancePage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid]);
+  }, [user]);
 
   const loadReports = useCallback(async () => {
     setLoading(true);

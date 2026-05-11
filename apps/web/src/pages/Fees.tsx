@@ -21,16 +21,28 @@ interface FeeRecord {
   amountPaid: number;
   dueDate: string;
   status: 'pending' | 'paid' | 'partial';
-  uploadedAt: any;
+  uploadedAt: { toDate: () => Date } | string | number | null;
 }
 
 interface PaymentRecord {
   id: string;
   feeId: string;
   amount: number;
-  paidAt: any;
+  paidAt: { toDate: () => Date } | string | number | null;
   method: string;
   receiptUrl: string;
+}
+
+interface FeeReport {
+  totalPaid: number;
+  pending: number;
+  totalDue: number;
+  records: Array<{
+    studentId: string;
+    amountDue: number;
+    amountPaid: number;
+    status: string;
+  }>;
 }
 
 export const FeesPage = () => {
@@ -38,7 +50,7 @@ export const FeesPage = () => {
   
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<FeeReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'summary' | 'management' | 'reports'>(
     canManageFees ? 'management' : 'summary'

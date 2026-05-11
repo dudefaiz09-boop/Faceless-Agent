@@ -20,14 +20,29 @@ interface PerformanceRecord {
   term: string;
   score: number;
   grade: string;
-  uploadedAt: any;
+  uploadedAt: { toDate: () => Date } | string | number | null;
+}
+
+interface PerformanceReport {
+  analytics: Array<{
+    subject: string;
+    average: number;
+  }>;
+  totalRecords: number;
+  records: Array<{
+    studentId: string;
+    term: string;
+    subject: string;
+    score: number;
+    grade: string;
+  }>;
 }
 
 export const PerformancePage = () => {
   const { user, isStudent, canManagePerformance, classId: userClassId } = useAuth();
   
   const [records, setRecords] = useState<PerformanceRecord[]>([]);
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<PerformanceReport | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'individual' | 'analytics' | 'management'>(
@@ -310,7 +325,7 @@ export const PerformancePage = () => {
                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} domain={[0, 100]} />
                          <Tooltip cursor={{fill: '#f8fafc'}} />
                          <Bar dataKey="average" radius={[10, 10, 0, 0]} barSize={50}>
-                            {report?.analytics?.map((_: any, index: number) => (
+                            {report?.analytics?.map((_, index: number) => (
                                <Cell key={index} fill={index % 2 === 0 ? '#4f46e5' : '#818cf8'} />
                             ))}
                          </Bar>
