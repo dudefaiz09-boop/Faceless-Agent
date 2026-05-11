@@ -1,98 +1,58 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, where } from 'firebase/firestore';
-import { useAuth, handleFirestoreError, OperationType } from '../contexts/AuthContext';
+import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, Send, X, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { PageHeader } from '../components/ui/PageHeader';
-
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  authorId: string;
-  targetClasses: string[];
-  visibility: string;
-  createdAt: { toDate: () => Date } | null;
-}
+import { useAnnouncements } from '@educonnect/shared-api';
+import { announcementsService } from '../lib/api-client';
 
 export const AnnouncementsPage = () => {
-  const { roles, isAdmin, user, classId } = useAuth();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const { isAdmin, user } = useAuth();
+  const { 
+    data: announcements = [], 
+    isLoading: loading, 
+    createAnnouncement, 
+    isCreating: submitting,
+    deleteAnnouncement 
+  } = useAnnouncements(announcementsService);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   
   // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [targetClassesInput, setTargetClassesInput] = useState('all');
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    let q;
-    const isStudent = roles.includes('student');
-    
-    if (isStudent) {
-      const studentTargets = ['all'];
-      if (classId) studentTargets.push(classId);
-      q = query(
-        collection(db, 'announcements'), 
-        where('targetClasses', 'array-contains-any', studentTargets),
-        orderBy('createdAt', 'desc')
-      );
-    } else {
-      q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
-    }
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Announcement[];
-      setAnnouncements(data);
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'announcements');
-    });
-
-    return () => unsubscribe();
-  }, [roles, classId]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !content) return;
 
-    setSubmitting(true);
     try {
       const targetClasses = targetClassesInput.split(',').map(s => s.trim()).filter(s => s !== '');
-      await addDoc(collection(db, 'announcements'), {
+      await createAnnouncement({
         title,
         content,
         targetClasses: targetClasses.length > 0 ? targetClasses : ['all'],
         visibility: targetClasses.includes('all') ? 'school' : 'class',
-        authorId: user?.uid,
-        createdAt: serverTimestamp(),
       });
       setIsModalOpen(false);
       setTitle('');
       setContent('');
       setTargetClassesInput('all');
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'announcements');
-    } finally {
-      setSubmitting(false);
+      console.error('Failed to create announcement:', error);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this announcement?')) return;
     try {
-      await deleteDoc(doc(db, 'announcements', id));
+      await deleteAnnouncement(id);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `announcements/${id}`);
+      console.error('Failed to delete announcement:', error);
     }
   };
 
@@ -150,7 +110,7 @@ export const AnnouncementsPage = () => {
                           )}
                         </div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                          {ann.createdAt?.toDate().toLocaleDateString(undefined, { dateStyle: 'long' })}
+                          {new Date(ann.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}
                         </p>
                       </div>
                       {(isAdmin || ann.authorId === user?.uid) && (

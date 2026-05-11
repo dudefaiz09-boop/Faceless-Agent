@@ -9,22 +9,45 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import {auth, db} from './lib/firebase';
+import {auth} from './lib/firebase';
 import {signInWithEmailAndPassword, onAuthStateChanged, User} from 'firebase/auth';
-import {collection, query, orderBy, limit, onSnapshot} from 'firebase/firestore';
+import {QueryClientProvider} from '@tanstack/react-query';
+import {queryClient} from './lib/query-client';
+import {useAnnouncements} from '@educonnect/shared-api';
+import {announcementsService} from './lib/api-client';
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-}
+const AnnouncementsList = () => {
+  const {data: announcements = [], isLoading} = useAnnouncements(announcementsService);
 
-const App = () => {
+  if (isLoading) {
+    return <ActivityIndicator size="small" color="#2563eb" />;
+  }
+
+  return (
+    <FlatList
+      data={announcements}
+      keyExtractor={(item) => item.id}
+      renderItem={({item}) => (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardContent}>{item.content}</Text>
+          <Text style={styles.cardDate}>
+            {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
+          </Text>
+        </View>
+      )}
+      ListEmptyComponent={
+        <Text style={styles.empty}>No announcements yet.</Text>
+      }
+    />
+  );
+};
+
+const AppContent = () => {
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -34,21 +57,6 @@ const App = () => {
     });
     return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      const q = query(
-        collection(db, 'announcements'),
-        orderBy('createdAt', 'desc'),
-        limit(10)
-      );
-      const unsub = onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Announcement));
-        setAnnouncements(docs);
-      });
-      return unsub;
-    }
-  }, [user]);
 
   const handleLogin = async () => {
     setError('');
@@ -120,23 +128,17 @@ const App = () => {
 
       <View style={styles.content}>
         <Text style={styles.sectionTitle}>Latest Announcements</Text>
-        <FlatList
-          data={announcements}
-          keyExtractor={(item) => item.id}
-          renderItem={({item}) => (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardContent}>{item.content}</Text>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>No announcements yet.</Text>
-          }
-        />
+        <AnnouncementsList />
       </View>
     </SafeAreaView>
   );
 };
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AppContent />
+  </QueryClientProvider>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -245,6 +247,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#475569',
     lineHeight: 20,
+  },
+  cardDate: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginTop: 8,
+    textAlign: 'right',
   },
   empty: {
     textAlign: 'center',

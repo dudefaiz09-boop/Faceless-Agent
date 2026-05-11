@@ -1,12 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from 'firebase/firestore';
 
 /**
  * Firebase Client SDK Initialization
- * 
- * NOTE: All variables prefixed with VITE_ are injected by Vite at BUILD TIME.
- * If these are missing during the CI build step, the app will fail to initialize.
  */
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,17 +18,16 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Fail-fast validation
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'undefined') {
-  if (import.meta.env.DEV) {
-    console.error("FATAL: Firebase configuration is missing. Ensure .env is populated.");
-  }
-}
-
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Initialize Firestore with persistent local cache
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 
 if (import.meta.env.DEV) {
-  console.log(`[Firebase] Initialized for project: ${firebaseConfig.projectId}`);
+  console.log(`[Firebase] Initialized with offline persistence for project: ${firebaseConfig.projectId}`);
 }

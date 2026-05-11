@@ -59,6 +59,9 @@ importers:
 
   apps/functions:
     dependencies:
+      '@educonnect/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@google/genai':
         specifier: ^2.0.1
         version: 2.0.1(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))
@@ -117,6 +120,15 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@educonnect/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@educonnect/shared-api':
+        specifier: workspace:*
+        version: link:../../packages/shared-api
+      '@educonnect/shared-firestore':
+        specifier: workspace:*
+        version: link:../../packages/shared-firestore
       '@react-native-firebase/app':
         specifier: ^21.6.2
         version: 21.14.0(react-native@0.76.3(@babel/core@7.29.0)(@babel/preset-env@7.29.5(@babel/core@7.29.0))(@react-native-community/cli-server-api@15.0.1)(@types/react@18.3.28)(react@18.3.1))(react@18.3.1)
@@ -126,6 +138,9 @@ importers:
       '@react-native-firebase/firestore':
         specifier: ^21.6.2
         version: 21.14.0(@react-native-firebase/app@21.14.0(react-native@0.76.3(@babel/core@7.29.0)(@babel/preset-env@7.29.5(@babel/core@7.29.0))(@react-native-community/cli-server-api@15.0.1)(@types/react@18.3.28)(react@18.3.1))(react@18.3.1))
+      '@tanstack/react-query':
+        specifier: ^5.100.9
+        version: 5.100.9(react@18.3.1)
       firebase:
         specifier: ^12.12.1
         version: 12.13.0
@@ -135,6 +150,9 @@ importers:
       react-native:
         specifier: 0.76.3
         version: 0.76.3(@babel/core@7.29.0)(@babel/preset-env@7.29.5(@babel/core@7.29.0))(@react-native-community/cli-server-api@15.0.1)(@types/react@18.3.28)(react@18.3.1)
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2
@@ -208,6 +226,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@educonnect/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@educonnect/shared-api':
+        specifier: workspace:*
+        version: link:../../packages/shared-api
+      '@educonnect/shared-firestore':
+        specifier: workspace:*
+        version: link:../../packages/shared-firestore
       '@educonnect/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -293,6 +320,45 @@ importers:
       pino:
         specifier: ^10.3.1
         version: 10.3.1
+
+  packages/shared:
+    dependencies:
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ~5.8.2
+        version: 5.8.3
+
+  packages/shared-api:
+    dependencies:
+      '@educonnect/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@tanstack/react-query':
+        specifier: ^5.100.9
+        version: 5.100.9(react@19.2.6)
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ~5.8.2
+        version: 5.8.3
+
+  packages/shared-firestore:
+    dependencies:
+      '@educonnect/shared':
+        specifier: workspace:*
+        version: link:../shared
+      firebase:
+        specifier: ^11.3.1
+        version: 11.3.1
+    devDependencies:
+      typescript:
+        specifier: ~5.8.2
+        version: 5.8.3
 
   packages/types: {}
 
@@ -10877,6 +10943,11 @@ snapshots:
       '@tanstack/query-devtools': 5.100.9
       '@tanstack/react-query': 5.100.9(react@19.2.6)
       react: 19.2.6
+
+  '@tanstack/react-query@5.100.9(react@18.3.1)':
+    dependencies:
+      '@tanstack/query-core': 5.100.9
+      react: 18.3.1
 
   '@tanstack/react-query@5.100.9(react@19.2.6)':
     dependencies:

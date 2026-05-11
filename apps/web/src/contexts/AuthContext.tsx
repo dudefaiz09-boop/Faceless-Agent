@@ -2,6 +2,13 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { 
+  UserContext, 
+  UserRole, 
+  ROLES, 
+  getUserRole, 
+  COLLECTIONS 
+} from '@educonnect/shared';
 
 export enum OperationType {
   CREATE = 'create',
@@ -42,7 +49,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 interface AuthContextType {
   user: User | null;
-  role: string | null; // Keep for legacy, but use roles/permissions
+  role: UserRole | null;
   roles: string[];
   permissions: Record<string, boolean>;
   classId: string | null;
@@ -104,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setClassId(claims.classId || null);
           } else {
             // Fallback to Firestore if claims are missing (initial setup)
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
             if (userDoc.exists()) {
               const data = userDoc.data();
               setRoles(data.roles || []);
@@ -128,14 +135,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = {
     user,
-    role: roles[0] || null,
+    role: getUserRole(roles),
     roles,
     permissions,
     classId,
     loading,
-    isAdmin: !!permissions.manageStudents || !!permissions.financialOps,
-    isTeacher: roles.includes('teacher'),
-    isStudent: roles.includes('student'),
+    isAdmin: roles.includes(ROLES.ADMIN),
+    isTeacher: roles.includes(ROLES.TEACHER),
+    isStudent: roles.includes(ROLES.STUDENT),
     canManageAttendance: !!permissions.manageAttendance,
     canManageAssignments: !!permissions.manageAssignments,
     canManageLibrary: !!permissions.manageLibrary,
