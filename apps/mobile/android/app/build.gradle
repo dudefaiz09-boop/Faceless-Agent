@@ -14,8 +14,8 @@ react {
     root = file("../../")
     
     // Explicitly point to hoisted node_modules for plugin internal path resolution
-    reactNativeDir = file("../../../node_modules/react-native")
-    codegenDir = file("../../../node_modules/@react-native/codegen")
+    reactNativeDir = file("../../../../node_modules/react-native")
+    codegenDir = file("../../../../node_modules/@react-native/codegen")
 
     // Trigger autolinking
     autolinkLibrariesWithApp()
