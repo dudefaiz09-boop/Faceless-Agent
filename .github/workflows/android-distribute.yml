@@ -38,6 +38,15 @@ jobs:
           mkdir -p apps/mobile/android/app
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > apps/mobile/android/app/google-services.json
 
+      - name: Create Firebase Applet Config
+        run: |
+          if [ -n "${{ secrets.FIREBASE_APPLET_CONFIG }}" ]; then
+            echo "${{ secrets.FIREBASE_APPLET_CONFIG }}" > apps/mobile/firebase-applet-config.json
+          else
+            echo "⚠️ FIREBASE_APPLET_CONFIG secret not found, using example config."
+            cp firebase-applet-config.json.example apps/mobile/firebase-applet-config.json
+          fi
+
       - name: Install dependencies
         run: pnpm install
 

@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Create Dummy Firebase Applet Config
+        run: cp firebase-applet-config.json.example apps/mobile/firebase-applet-config.json
+
       - name: Turbo Lint
         run: pnpm turbo lint
 
