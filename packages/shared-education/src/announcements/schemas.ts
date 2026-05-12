@@ -12,6 +12,7 @@ export const AnnouncementSchema = BaseSaaSObjectSchema.extend({
   isScheduled: z.boolean().default(false),
   scheduledFor: z.string().optional(),
   attachments: z.array(z.string()).default([]),
+  views: z.array(z.string()).default([]), // Array of User IDs
 });
 
 export type Announcement = z.infer<typeof AnnouncementSchema>;
