@@ -131,29 +131,26 @@ export const AnnouncementsPage = () => {
                           {ann.isScheduled && ann.scheduledFor && ` (Publishes ${new Date(ann.scheduledFor).toLocaleString()})`}
                         </p>
                       </div>
-                      const [isModalOpen, setIsModalOpen] = useState(false);
-                      const [selectedAnn, setSelectedAnn] = useState<any>(null); // For viewing receipts
-
-                      // ... inside AnnouncmentsPage render:
-                                            <div className="flex items-center gap-2">
-                                            {(isAdmin || isTeacher) && (
-                                              <button 
-                                                onClick={(e) => { e.stopPropagation(); setSelectedAnn(ann); }}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors mr-2"
-                                              >
-                                                 <Eye size={14} /> 
-                                                 {ann.views?.length || 0} Views
-                                              </button>
-                                            )}
-                                            {(isAdmin || ann.authorId === user?.uid) && (
-                                              <button 
-                                                onClick={() => handleDelete(ann.id)}
-                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                              >
-                                                <Trash2 size={18} />
-                                              </button>
-                                            )}
-                                          </div>                    </div>
+                      <div className="flex items-center gap-2">
+                        {(isAdmin || isTeacher) && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setSelectedAnn(ann); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors mr-2"
+                          >
+                             <Eye size={14} /> 
+                             {ann.views?.length || 0} Views
+                          </button>
+                        )}
+                        {(isAdmin || ann.authorId === user?.uid) && (
+                          <button 
+                            onClick={() => handleDelete(ann.id)}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <div className="text-slate-600 leading-relaxed whitespace-pre-wrap">
                       {ann.content}
                     </div>
@@ -164,6 +161,7 @@ export const AnnouncementsPage = () => {
           </AnimatePresence>
         </div>
       )}
+
 
       {/* Modal */}
       <AnimatePresence>

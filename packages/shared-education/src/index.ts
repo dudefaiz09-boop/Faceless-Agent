@@ -1,4 +1,5 @@
 export * from './core/schemas.js';
+export * from './core/subscription.js';
 export * from './assignments/schemas.js';
 export * from './assignments/states.js';
 export * from './attendance/schemas.js';
