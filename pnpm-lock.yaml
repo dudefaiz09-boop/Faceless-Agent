@@ -232,6 +232,9 @@ importers:
       '@educonnect/shared-api':
         specifier: workspace:*
         version: link:../../packages/shared-api
+      '@educonnect/shared-education':
+        specifier: workspace:*
+        version: link:../../packages/shared-education
       '@educonnect/shared-firestore':
         specifier: workspace:*
         version: link:../../packages/shared-firestore
@@ -339,6 +342,19 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.100.9
         version: 5.100.9(react@19.2.6)
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ~5.8.2
+        version: 5.8.3
+
+  packages/shared-education:
+    dependencies:
+      '@educonnect/shared':
+        specifier: workspace:*
+        version: link:../shared
       zod:
         specifier: ^3.23.8
         version: 3.25.76

@@ -17,7 +17,8 @@ import {
   Menu, 
   X,
   GraduationCap,
-  Bot
+  Bot,
+  Baby
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -35,6 +36,7 @@ const LibraryPage = lazy(() => import('./pages/Library').then(m => ({ default: m
 const FeesPage = lazy(() => import('./pages/Fees').then(m => ({ default: m.FeesPage })));
 const PerformancePage = lazy(() => import('./pages/Performance').then(m => ({ default: m.PerformancePage })));
 const ChatbotPage = lazy(() => import('./pages/Chatbot').then(m => ({ default: m.ChatbotPage })));
+const ParentPortal = lazy(() => import('./pages/ParentPortal').then(m => ({ default: m.ParentPortal })));
 
 // --- Components ---
 
@@ -68,6 +70,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: '/library', icon: Library, label: 'Library', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
     { to: '/fees', icon: CreditCard, label: 'Fees', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
     { to: '/performance', icon: BarChart3, label: 'Performance', roles: ['student', 'parent', 'teacher', 'staff', 'admin'] },
+    { to: '/parent-portal', icon: Baby, label: 'Parent Portal', roles: ['parent'] },
     { to: '/students', icon: Users, label: 'Students', roles: ['teacher', 'staff', 'admin'] },
     { to: '/teachers', icon: GraduationCap, label: 'Teachers', roles: ['staff', 'admin'] },
   ];
@@ -373,6 +376,11 @@ const AppContent = () => {
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/fees" element={<FeesPage />} />
           <Route path="/performance" element={<PerformancePage />} />
+          <Route path="/parent-portal" element={
+            <RoleGuard allowedRoles={['parent']}>
+              <ParentPortal />
+            </RoleGuard>
+          } />
           <Route path="/students" element={
             <RoleGuard allowedRoles={['teacher', 'staff', 'admin']}>
               <StudentsPage />
