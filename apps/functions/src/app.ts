@@ -1,4 +1,4 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { Express } from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -46,28 +46,26 @@ app.use(helmet({
 app.use(compression());
 app.use(express.json());
 
-// 2. Rate Limiting - Stricter limits for sensitive operations
+// 2. Rate Limiting - General
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Reduced from 500 to 100 for better security
-  message: { error: 'Too many requests, please try again later.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req: Request) => {
-    // Skip rate limiting for health checks
-    return req.path === '/api/health';
-  }
-});
-
-const strictLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30, // Stricter limit for sensitive operations
-  message: { error: 'Too many requests for this operation.' },
+  max: 100, // 100 requests per window
+  message: { error: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
-
 app.use('/api/', limiter);
+
+// 2b. Rate Limiting - Stricter for sensitive operations
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 requests per window for sensitive ops
+  message: { error: 'Too many upload requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/fees/upload', sensitiveLimiter);
+app.use('/api/performance/upload', sensitiveLimiter);
 
 // 3. Authentication
 app.use(authMiddleware);
@@ -86,19 +84,12 @@ app.use('/api/performance', performanceRouter);
 app.use('/api/teachers', teachersRouter);
 app.use('/api/chat', chatRouter);
 
-// 6. Strict rate limiting for sensitive endpoints
-app.post('/api/fees/upload', strictLimiter);
-app.post('/api/fees/pay', strictLimiter);
-app.post('/api/performance/upload', strictLimiter);
-
-// 7. Health Check
-app.get('/api/health', (req: Request, res: Response) => {
+// Health Check
+app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 8. Global Error Handling (MUST be last middleware)
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  globalErrorHandler(err, req, res, next);
-});
+// 6. Global Error Handling (MUST be last)
+app.use(globalErrorHandler);
 
 export default app;
