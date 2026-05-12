@@ -6,6 +6,10 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://us-central1-gen-l
 export const apiClient = new ApiClient({
   baseUrl: BASE_URL,
   getToken: () => auth.currentUser ? auth.currentUser.getIdToken() : Promise.resolve(null),
+  getTenantId: () => {
+    // In a multi-tenant SaaS, this would come from the subdomain, local storage, or custom claims
+    return localStorage.getItem('educonnect_school_id') || 'default-school';
+  },
   onUnauthorized: () => auth.signOut(),
 });
 

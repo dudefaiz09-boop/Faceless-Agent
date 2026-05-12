@@ -7,6 +7,7 @@ import { logger } from '@educonnect/logger';
 
 // Middleware
 import { authMiddleware } from './middleware/auth.js';
+import { tenantMiddleware } from './middleware/tenant.js';
 import { globalErrorHandler } from './middleware/error.js';
 
 // Features (Refactored)
@@ -56,8 +57,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// 3. Authentication
+// 3. Authentication & Tenancy
 app.use(authMiddleware);
+app.use(tenantMiddleware);
 
 // 4. Feature Routes
 app.use('/api/students', studentRoutes);

@@ -375,37 +375,42 @@ export const AssignmentsPage = () => {
                             </div>
 
                             {gradingState?.studentId === sub.studentId ? (
-                              <div className="pt-2 space-y-2">
+                              <div className="pt-4 space-y-3 border-t border-slate-200 mt-2">
+                                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                                   <p className="text-[10px] font-black text-blue-600 uppercase mb-1">AI Draft Analysis</p>
+                                   <p className="text-sm font-bold text-blue-900">Score: {sub.aiScore}</p>
+                                   <p className="text-xs text-blue-800 mt-1 italic">&quot;{sub.aiFeedback}&quot;</p>
+                                </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Score (suggested: {sub.aiScore})</label>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase">Final Grade to Publish</label>
                                   <input 
                                     placeholder="e.g. 8.5"
                                     defaultValue={sub.grade || ""}
-                                    className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100"
+                                    className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 font-bold"
                                     onChange={(e) => setGradingState({...gradingState, studentId: sub.studentId, grade: e.target.value})}
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase">Feedback</label>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase">Final Teacher Feedback</label>
                                   <textarea 
-                                    rows={2}
-                                    placeholder="Enter final feedback..."
+                                    rows={3}
+                                    placeholder="Enter final feedback to publish to student..."
                                     defaultValue={sub.feedback || ""}
                                     className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100"
                                     onChange={(e) => setGradingState({...gradingState, studentId: sub.studentId, feedback: e.target.value})}
                                   />
                                 </div>
-                                <div className="flex gap-2">
-                                  <button onClick={handleGrade} className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-xs font-bold shadow-sm">Save & Verify</button>
-                                  <button onClick={() => setGradingState(null)} className="px-4 bg-slate-200 py-2 rounded-xl text-xs font-bold text-slate-500">Cancel</button>
+                                <div className="flex gap-2 pt-2">
+                                  <button onClick={handleGrade} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-colors">Publish to Student</button>
+                                  <button onClick={() => setGradingState(null)} className="px-4 bg-slate-200 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-300 transition-colors">Cancel</button>
                                 </div>
                               </div>
                             ) : (
                               <button 
                                 onClick={() => setGradingState({studentId: sub.studentId, grade: sub.grade || sub.aiScore?.toString() || '', feedback: sub.feedback || sub.aiFeedback || ''})}
-                                className="w-full text-xs font-bold text-blue-600 hover:text-blue-700 text-left flex items-center gap-1 group/btn"
+                                className="w-full text-xs font-bold text-indigo-600 hover:text-indigo-700 text-left flex items-center gap-1 group/btn mt-2 bg-indigo-50 p-2 rounded-lg"
                               >
-                                {sub.recheckedByTeacher ? 'Edit Final Grade' : sub.checkedByAI ? 'Review AI Suggestions' : 'Grade Submission'} 
+                                {sub.recheckedByTeacher ? 'Edit Published Grade' : sub.checkedByAI ? 'Review AI Draft & Publish' : 'Grade Submission manually'} 
                                 <ChevronRight size={12} className="group-hover/btn:translate-x-0.5 transition-transform" />
                               </button>
                             )}

@@ -14,6 +14,7 @@ export type Interceptor<T> = (data: T) => T | Promise<T>;
 export interface ApiClientConfig {
   baseUrl: string;
   getToken?: () => Promise<string | null>;
+  getTenantId?: () => string | null;
   onUnauthorized?: () => void;
   defaultTimeout?: number;
   defaultRetry?: number;
@@ -31,6 +32,7 @@ export class ApiClient {
       defaultTimeout: 15000, // 15s default for mobile stability
       defaultRetry: 3,
       isOnline: () => typeof navigator !== 'undefined' ? navigator.onLine : true,
+      getTenantId: () => 'default-school', // Fallback for migration
       ...config,
     };
   }
@@ -92,9 +94,14 @@ export class ApiClient {
 
       try {
         const token = this.config.getToken ? await this.config.getToken() : null;
+        const tenantId = this.config.getTenantId ? this.config.getTenantId() : null;
+        
         const headers = new Headers(fetchConfig.headers);
         if (token && !headers.has('Authorization')) {
           headers.set('Authorization', `Bearer ${token}`);
+        }
+        if (tenantId && !headers.has('x-school-id')) {
+          headers.set('x-school-id', tenantId);
         }
         if (!headers.has('Content-Type')) {
           headers.set('Content-Type', 'application/json');

@@ -379,6 +379,22 @@ importers:
         specifier: ~5.8.2
         version: 5.8.3
 
+  packages/shared-notifications:
+    dependencies:
+      '@educonnect/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@educonnect/shared-education':
+        specifier: workspace:*
+        version: link:../shared-education
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ~5.8.2
+        version: 5.8.3
+
   packages/types: {}
 
 packages:
