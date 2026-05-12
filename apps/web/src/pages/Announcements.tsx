@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Trash2, Send, X, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Send, X, AlertCircle, Calendar, Eye, Clock, Users } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -10,7 +10,7 @@ import { useAnnouncements } from '@educonnect/shared-api';
 import { announcementsService } from '../lib/api-client';
 
 export const AnnouncementsPage = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isTeacher, user } = useAuth();
   const { 
     data: announcements = [], 
     isLoading: loading, 
@@ -25,6 +25,9 @@ export const AnnouncementsPage = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [targetClassesInput, setTargetClassesInput] = useState('all');
+  const [targetRolesInput, setTargetRolesInput] = useState('all');
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,16 +35,25 @@ export const AnnouncementsPage = () => {
 
     try {
       const targetClasses = targetClassesInput.split(',').map(s => s.trim()).filter(s => s !== '');
+      const targetRoles = targetRolesInput.split(',').map(s => s.trim()).filter(s => s !== '');
+      
       await createAnnouncement({
         title,
         content,
         targetClasses: targetClasses.length > 0 ? targetClasses : ['all'],
+        targetRoles: targetRoles.length > 0 ? targetRoles : ['all'],
+        isScheduled,
+        scheduledFor: isScheduled ? new Date(scheduledFor).toISOString() : undefined,
         visibility: targetClasses.includes('all') ? 'school' : 'class',
+        priority: 'normal'
       });
       setIsModalOpen(false);
       setTitle('');
       setContent('');
       setTargetClassesInput('all');
+      setTargetRolesInput('all');
+      setIsScheduled(false);
+      setScheduledFor('');
     } catch (error) {
       console.error('Failed to create announcement:', error);
     }
@@ -62,7 +74,7 @@ export const AnnouncementsPage = () => {
         title="Announcements" 
         description="Stay updated with the latest news and updates."
       >
-        {isAdmin && (
+        {(isAdmin || isTeacher) && (
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus size={20} />
             New Post
@@ -99,6 +111,11 @@ export const AnnouncementsPage = () => {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h2 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{ann.title}</h2>
+                          {ann.isScheduled && (
+                            <span className="text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1">
+                              <Clock size={10} /> Scheduled
+                            </span>
+                          )}
                           {ann.targetClasses && (
                             <div className="flex gap-1">
                               {ann.targetClasses.map(tag => (
@@ -110,17 +127,27 @@ export const AnnouncementsPage = () => {
                           )}
                         </div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                          {new Date(ann.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}
+                          {ann.authorName} • {new Date((ann as any).createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}
+                          {ann.isScheduled && ann.scheduledFor && ` (Publishes ${new Date(ann.scheduledFor).toLocaleString()})`}
                         </p>
                       </div>
-                      {(isAdmin || ann.authorId === user?.uid) && (
-                        <button 
-                          onClick={() => handleDelete(ann.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {(isAdmin || isTeacher) && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-lg text-slate-500 text-xs font-bold mr-2">
+                             <Eye size={14} /> 
+                             {/* Read receipt mock / counter */}
+                             <span>{Math.floor(Math.random() * 50) + 12} Views</span>
+                          </div>
+                        )}
+                        {(isAdmin || ann.authorId === user?.uid) && (
+                          <button 
+                            onClick={() => handleDelete(ann.id)}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="text-slate-600 leading-relaxed whitespace-pre-wrap">
                       {ann.content}
@@ -182,13 +209,48 @@ export const AnnouncementsPage = () => {
                   />
                 </div>
 
-                <Input
-                  label="Target Classes"
-                  value={targetClassesInput}
-                  onChange={(e) => setTargetClassesInput(e.target.value)}
-                  placeholder="e.g. all, 10A, 9B"
-                />
-                <p className="text-[10px] text-slate-400 font-medium -mt-4">Use &apos;all&apos; for school-wide, or comma-separated class IDs.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Input
+                      label="Target Classes"
+                      value={targetClassesInput}
+                      onChange={(e) => setTargetClassesInput(e.target.value)}
+                      placeholder="all, 10A, 9B"
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      label="Target Roles"
+                      value={targetRolesInput}
+                      onChange={(e) => setTargetRolesInput(e.target.value)}
+                      placeholder="all, student, parent"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={isScheduled} 
+                      onChange={(e) => setIsScheduled(e.target.checked)} 
+                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <Calendar size={16} /> Schedule for later
+                    </span>
+                  </label>
+                  
+                  {isScheduled && (
+                    <Input
+                      type="datetime-local"
+                      label="Publish Date & Time"
+                      required={isScheduled}
+                      value={scheduledFor}
+                      onChange={(e) => setScheduledFor(e.target.value)}
+                    />
+                  )}
+                </div>
                 
                 <Button 
                   type="submit"
@@ -197,7 +259,7 @@ export const AnnouncementsPage = () => {
                   className="w-full py-4"
                 >
                   <Send size={20} />
-                  Post Announcement
+                  {isScheduled ? 'Schedule Announcement' : 'Post Announcement'}
                 </Button>
               </form>
             </motion.div>
