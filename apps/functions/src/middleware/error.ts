@@ -1,3 +1,6 @@
+import { Request, Response, NextFunction } from 'express';
+import { logger } from '@educonnect/logger';
+
 /**
  * Centralized AppError class for operational errors.
  */
@@ -16,22 +19,15 @@ export class AppError extends Error {
 
 /**
  * Global Error Handler Middleware
- * 
- * Must be registered as the last middleware in Express.
- * Requires exactly 4 parameters (err, req, res, next) for Express to recognize it as an error handler.
+ * Must have exactly 4 parameters (err, req, res, next) for Express to recognize it as an error handler
  */
-import { Request, Response, NextFunction } from 'express';
-import { logger } from '@educonnect/logger';
+export const globalErrorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+  const status = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
 
-export const globalErrorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
-  // Determine status code
-  const status = err?.statusCode || (err?.status) || 500;
-  const message = err?.message || 'Internal Server Error';
-
-  // Extract correlation ID for request tracing
+  // Log the error with correlation ID if available
   const correlationId = req.headers['x-correlation-id'] || 'N/A';
   
-  // Log error with full context
   logger.error({
     err,
     status,
@@ -39,21 +35,16 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, _next:
     path: req.path,
     method: req.method,
     correlationId,
-    userId: (req as any).user?.uid || 'anonymous'
-  }, `Request failed: ${method} ${req.path}`);
+    stack: err.stack
+  }, 'Request failed');
 
-  // Security: Don't leak sensitive information in production
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  
+  // Security: Don't leak stack traces in production
   const response = {
     status: 'error',
     message,
-    ...(isDevelopment && { stack: err?.stack }),
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
     correlationId
   };
 
-  // Set appropriate status code
-  const statusCode = typeof status === 'number' && status >= 400 ? status : 500;
-
-  res.status(statusCode).json(response);
+  res.status(status).json(response);
 };
