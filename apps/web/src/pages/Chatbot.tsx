@@ -22,14 +22,18 @@ export const ChatbotPage = () => {
   const [logs, setLogs] = useState<ChatLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadHistory = useCallback(async () => {
     try {
+      setError(null);
       const data = await apiClient.request<ChatLog[]>(`/api/ai/history/${user?.uid}`);
       setLogs(data.reverse()); // Reverse to show oldest first in the scroll area
-    } catch {
-      // Error handled silently
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load chat history';
+      console.error('Error loading chat history:', err);
+      setError('Unable to load chat history. Please refresh the page.');
     } finally {
       setHistoryLoading(false);
     }
@@ -49,6 +53,7 @@ export const ChatbotPage = () => {
     const currentQuery = query;
     setQuery('');
     setLoading(true);
+    setError(null);
 
     try {
       interface QueryResponse {
@@ -70,8 +75,13 @@ export const ChatbotPage = () => {
       };
 
       setLogs((prev) => [...prev, newLog]);
-    } catch {
-      alert('AI assistant is currently unavailable. Please try again later.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Failed to get AI response:', err);
+      setError('AI assistant is currently unavailable. Please try again later.');
+      
+      // Restore query on error for retry
+      setQuery(currentQuery);
     } finally {
       setLoading(false);
     }
@@ -86,6 +96,7 @@ export const ChatbotPage = () => {
       setLogs((prev) => prev.map((log) => (log.id === logId ? { ...log, feedback } : log)));
     } catch (error) {
       console.error('Failed to save feedback:', error);
+      // Don't show error to user for feedback - it's not critical
     }
   };
 
@@ -157,6 +168,13 @@ export const ChatbotPage = () => {
         </div>
       </div>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-3">
+          <p className="text-sm text-red-700 font-medium">{error}</p>
+        </div>
+      )}
+
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/30">
         {historyLoading ? (
@@ -190,12 +208,12 @@ export const ChatbotPage = () => {
                   <button
                     key={i}
                     onClick={() => setQuery(q)}
-                    className="bg-white p-4 rounded-2xl border border-slate-100 text-sm font-bold text-slate-700 hover:border-blue-500 hover:text-blue-600 transition-all text-left flex items-center justify-between group"
+                    className="bg-white p-4 rounded-2xl border border-slate-100 text-sm font-bold text-slate-700 hover:border-blue-500 hover:text-blue-600 transition-all text-left flex items-center gap-3 group"
                   >
                     {q}
                     <ChevronRight
                       size={16}
-                      className="text-slate-300 group-hover:text-blue-500 transition-all"
+                      className="text-slate-300 group-hover:text-blue-500 transition-all ml-auto"
                     />
                   </button>
                 ))}

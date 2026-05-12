@@ -74,15 +74,26 @@ app.use(
 app.use(compression());
 app.use(express.json());
 
-// 2. Rate Limiting
+// 2. Rate Limiting - General
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
-  message: { error: 'Too many requests' },
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
+  message: { error: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
+
+// 2b. Rate Limiting - Stricter for sensitive operations
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 requests per window for sensitive ops
+  message: { error: 'Too many upload requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/fees/upload', sensitiveLimiter);
+app.use('/api/performance/upload', sensitiveLimiter);
 
 // 3. Authentication & Tenancy
 app.use(authMiddleware);
@@ -108,7 +119,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 6. Global Error Handling
+// 6. Global Error Handling (MUST be last)
 app.use(globalErrorHandler);
 
 export default app;

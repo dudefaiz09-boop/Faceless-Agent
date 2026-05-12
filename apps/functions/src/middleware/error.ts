@@ -16,6 +16,7 @@ export class AppError extends Error {
 
 /**
  * Global Error Handler Middleware
+ * IMPORTANT: Must have exactly 4 parameters for Express to recognize as error handler
  */
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@educonnect/logger';
@@ -26,18 +27,16 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, _next:
 
   // Log the error with correlation ID if available
   const correlationId = req.headers['x-correlation-id'] || 'N/A';
-
-  logger.error(
-    {
-      err,
-      status,
-      message,
-      path: req.path,
-      method: req.method,
-      correlationId,
-    },
-    'Request failed'
-  );
+  
+  logger.error({
+    err,
+    status,
+    message,
+    path: req.path,
+    method: req.method,
+    userId: (req as any).user?.uid || 'anonymous',
+    correlationId
+  }, 'Request failed');
 
   // Security: Don't leak stack traces in production
   const response = {

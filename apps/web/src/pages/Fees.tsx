@@ -2,30 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  CreditCard,
-  Upload,
-  Download,
-  History,
-  AlertCircle,
-  TrendingUp,
-  Users,
-  DollarSign,
-  Search,
-  PieChart as PieChartIcon,
-  FileText,
-  Send,
+import { 
+  CreditCard, Upload, Download, History, 
+  AlertCircle, TrendingUp, Users,
+  DollarSign, Search,
+  PieChart as PieChartIcon, FileText, Send, X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
+import { validateFeesCSV, CSVValidationError } from '../lib/csvValidator';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
 
 interface FeeRecord {
@@ -72,8 +59,10 @@ export const FeesPage = () => {
 
   // Management State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [uploadText, setUploadData] = useState('');
+  const [uploadText, setUploadText] = useState('');
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const loadStudentData = React.useCallback(async () => {
     setLoading(true);
@@ -82,7 +71,7 @@ export const FeesPage = () => {
       setFees(data.fees);
       setPayments(data.payments);
     } catch (error) {
-      console.error(error);
+      console.error('Failed to load student fees:', error);
     } finally {
       setLoading(false);
     }
@@ -94,7 +83,7 @@ export const FeesPage = () => {
       const data = await apiClient.request<any>(`/api/fees/report/${selectedClass}`);
       setReport(data);
     } catch (error) {
-      console.error(error);
+      console.error('Failed to load fee report:', error);
     } finally {
       setLoading(false);
     }
@@ -113,23 +102,41 @@ export const FeesPage = () => {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadError(null);
+    setUploadSuccess(false);
+
+    // Validate CSV format
+    const validation = validateFeesCSV(uploadText);
+    if (!validation.isValid) {
+      setUploadError(validation.errors || []);
+      return;
+    }
+
     try {
-      // Basic CSV-like simulation: studentId, amount, dueDate
-      const lines = uploadText.split('\n').filter((l) => l.trim() !== '');
-      const records = lines.map((line) => {
-        const [studentId, amountDue, dueDate] = line.split(',').map((s) => s.trim());
-        return { studentId, amountDue: parseFloat(amountDue), dueDate, classId: selectedClass };
-      });
+      const records = validation.records!.map(r => ({
+        ...r,
+        classId: selectedClass
+      }));
 
       await apiClient.request('/api/fees/upload', {
         method: 'POST',
         body: JSON.stringify({ records }),
       });
-      setIsUploadModalOpen(false);
-      setUploadData('');
-      loadReport();
-    } catch {
-      alert('Upload failed');
+
+      setUploadSuccess(true);
+      setTimeout(() => {
+        setIsUploadModalOpen(false);
+        setUploadText('');
+        setUploadSuccess(false);
+        loadReport();
+      }, 2000);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setUploadError([{
+        line: 0,
+        message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
+        value: ''
+      }]);
     }
   };
 
@@ -141,8 +148,9 @@ export const FeesPage = () => {
       });
       alert('Payment successful!');
       loadStudentData();
-    } catch {
-      alert('Payment failed');
+    } catch (error) {
+      console.error('Payment failed:', error);
+      alert('Payment failed. Please try again.');
     }
   };
 
@@ -250,7 +258,7 @@ export const FeesPage = () => {
                       <div>
                         <p className="font-bold text-slate-900 text-sm">${p.amount}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase">
-                          {(p.paidAt as any)?.toDate?.().toLocaleDateString()}
+                          {new Date((p.paidAt as any)?.toDate?.() || p.paidAt).toLocaleDateString()}
                         </p>
                       </div>
                       <button
@@ -552,47 +560,66 @@ export const FeesPage = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="relative w-full max-w-xl bg-white rounded-[40px] shadow-2xl overflow-hidden p-10 space-y-8"
             >
-              <div className="space-y-2">
-                <h3 className="text-3xl font-black text-slate-900">Import Fee Data</h3>
-                <p className="text-slate-500 font-medium leading-relaxed">
-                  Bulk upload student fee records for{' '}
-                  <span className="text-blue-600 font-bold">Class {selectedClass}</span>.
-                </p>
-              </div>
-              <form onSubmit={handleUpload} className="space-y-6">
-                <div className="space-y-3">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <FileText size={14} />
-                    Paste CSV Records
-                  </label>
-                  <textarea
-                    required
-                    rows={8}
-                    value={uploadText}
-                    onChange={(e) => setUploadData(e.target.value)}
-                    placeholder="studentId, amountDue, yyyy-mm-dd&#10;user_uid_1, 5000, 2026-05-30&#10;user_uid_2, 4500, 2026-06-15"
-                    className="w-full bg-slate-50 border border-slate-200 p-6 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 transition-all font-mono text-xs leading-relaxed"
-                  />
-                  <p className="text-[10px] text-slate-400 font-bold uppercase text-center tracking-wider">
-                    Format: UID, Amount, DueDate (one per line)
-                  </p>
-                </div>
-                <div className="flex gap-4">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all"
-                  >
-                    Import Records
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsUploadModalOpen(false)}
-                    className="px-8 bg-slate-100 text-slate-500 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+               <div className="flex items-center justify-between">
+                 <div className="space-y-2">
+                   <h3 className="text-3xl font-black text-slate-900">Import Fee Data</h3>
+                   <p className="text-slate-500 font-medium leading-relaxed">Bulk upload student fee records for <span className="text-blue-600 font-bold">Class {selectedClass}</span>.</p>
+                 </div>
+                 <button onClick={() => setIsUploadModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg">
+                   <X size={20} />
+                 </button>
+               </div>
+
+               {uploadSuccess ? (
+                 <div className="py-12 text-center space-y-4">
+                   <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                     <span className="text-2xl">✓</span>
+                   </div>
+                   <div>
+                     <h4 className="text-xl font-bold text-emerald-600">Upload Successful!</h4>
+                     <p className="text-sm text-slate-500 mt-1">Your fee records have been imported.</p>
+                   </div>
+                 </div>
+               ) : (
+                 <form onSubmit={handleUpload} className="space-y-6">
+                   <div className="space-y-3">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                         <FileText size={14} />
+                         Paste CSV Records
+                      </label>
+                      <textarea 
+                        required rows={8}
+                        value={uploadText}
+                        onChange={(e) => setUploadText(e.target.value)}
+                        placeholder="studentId, amountDue, yyyy-mm-dd&#10;user_uid_1, 5000, 2026-05-30&#10;user_uid_2, 4500, 2026-06-15"
+                        className="w-full bg-slate-50 border border-slate-200 p-6 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 transition-all font-mono text-xs leading-relaxed" 
+                      />
+                      <p className="text-[10px] text-slate-400 font-bold uppercase text-center tracking-wider">Format: UID, Amount, DueDate (one per line)</p>
+                   </div>
+
+                   {uploadError && (
+                     <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2">
+                       <p className="text-sm font-bold text-red-700">Validation Errors:</p>
+                       <div className="space-y-1 max-h-40 overflow-y-auto">
+                         {uploadError.map((err, i) => (
+                           <p key={i} className="text-xs text-red-600">
+                             <span className="font-bold">Line {err.line}:</span> {err.message}
+                           </p>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
+                   <div className="flex gap-4">
+                     <button type="submit" className="flex-1 bg-blue-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95">
+                       Upload
+                     </button>
+                     <button type="button" onClick={() => setIsUploadModalOpen(false)} className="px-8 bg-slate-100 text-slate-500 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all">
+                       Cancel
+                     </button>
+                   </div>
+                 </form>
+               )}
             </motion.div>
           </div>
         )}
