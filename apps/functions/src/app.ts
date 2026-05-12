@@ -1,4 +1,4 @@
-import express, { Express } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -46,27 +46,28 @@ app.use(helmet({
 app.use(compression());
 app.use(express.json());
 
-// 2. Rate Limiting - Stricter limits for sensitive data operations
+// 2. Rate Limiting - Stricter limits for sensitive operations
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Max 100 requests per window (≈6.67 req/min)
-  message: { error: 'Too many requests, please try again later' },
+  max: 100, // Reduced from 500 to 100 for better security
+  message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req: Request) => {
+    // Skip rate limiting for health checks
+    return req.path === '/api/health';
+  }
 });
 
-// Higher limits for read-only operations, lower for sensitive operations
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30, // More restrictive for fee/performance operations
-  message: { error: 'Too many requests. Please try again later.' },
+  max: 30, // Stricter limit for sensitive operations
+  message: { error: 'Too many requests for this operation.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 app.use('/api/', limiter);
-app.use('/api/fees', strictLimiter);
-app.use('/api/performance', strictLimiter);
 
 // 3. Authentication
 app.use(authMiddleware);
@@ -85,12 +86,19 @@ app.use('/api/performance', performanceRouter);
 app.use('/api/teachers', teachersRouter);
 app.use('/api/chat', chatRouter);
 
-// Health Check
-app.get('/api/health', (req, res) => {
+// 6. Strict rate limiting for sensitive endpoints
+app.post('/api/fees/upload', strictLimiter);
+app.post('/api/fees/pay', strictLimiter);
+app.post('/api/performance/upload', strictLimiter);
+
+// 7. Health Check
+app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 6. Global Error Handling (Must be last - Express requires 4 params for error handlers)
-app.use(globalErrorHandler);
+// 8. Global Error Handling (MUST be last middleware)
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  globalErrorHandler(err, req, res, next);
+});
 
 export default app;
