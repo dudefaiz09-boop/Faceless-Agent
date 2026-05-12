@@ -21,15 +21,6 @@ export interface Announcement {
   createdAt: string; // ISO String for JSON compatibility
 }
 
-export interface AttendanceRecord {
-  id?: string;
-  studentId: string;
-  classId: string;
-  date: string; // YYYY-MM-DD
-  status: 'present' | 'absent' | 'late';
-  markedBy: string;
-  updatedAt: string;
-}
 
 export interface ApiResponse<T> {
   data?: T;

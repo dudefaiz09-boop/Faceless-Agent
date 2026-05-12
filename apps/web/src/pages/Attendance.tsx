@@ -12,25 +12,13 @@ import {
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { useDebounce } from '../lib/hooks';
+import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
 
-interface AttendanceRecord {
-  id?: string;
-  studentId: string;
-  date: string;
-  status: 'present' | 'absent' | 'late';
-  classId: string;
-}
 
-interface Student {
-  uid: string;
-  displayName: string;
-  email: string;
-  classId?: string;
-}
 
 export const AttendancePage = () => {
   const { user, isStudent, canManageAttendance, classId: userClassId } = useAuth();

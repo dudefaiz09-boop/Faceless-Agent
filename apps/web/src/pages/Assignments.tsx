@@ -10,35 +10,9 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
+import { Assignment, Submission } from '@educonnect/shared';
 
-interface Assignment {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  classId: string;
-  attachments: string[];
-  createdAt: { toDate: () => Date } | string | null;
-}
 
-interface Submission {
-  id: string;
-  assignmentId: string;
-  studentId: string;
-  studentName: string;
-  content: string;
-  fileUrl: string | null;
-  status: 'submitted' | 'graded';
-  submittedAt: { toDate: () => Date } | string | null;
-  grade: string | null;
-  feedback: string | null;
-  aiScore: number | null;
-  aiFeedback: string | null;
-  teacherScore: string | null;
-  teacherFeedback: string | null;
-  checkedByAI: boolean;
-  recheckedByTeacher: boolean;
-}
 
 export const AssignmentsPage = () => {
   const { user, isStudent, canManageAssignments, classId: userClassId } = useAuth();

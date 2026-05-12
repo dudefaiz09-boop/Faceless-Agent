@@ -33,6 +33,10 @@ service cloud.firestore {
       return request.resource.data;
     }
 
+    function isParentOf(studentId) {
+      return request.auth.uid in get(/databases/$(database)/documents/users/$(studentId)).data.linkedParentIds;
+    }
+
     // USERS
     match /users/{userId} {
       allow get: if isSignedIn() && (
@@ -77,6 +81,7 @@ service cloud.firestore {
     match /submissions/{submissionId} {
       allow read: if isSignedIn() && (
         existing().studentId == request.auth.uid || 
+        isParentOf(existing().studentId) ||
         can('manageAssignments')
       );
       allow create: if hasRole('student') && incoming().studentId == request.auth.uid;
@@ -88,6 +93,7 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       allow read: if isSignedIn() && (
         request.auth.uid == resource.data.studentId || 
+        isParentOf(resource.data.studentId) ||
         hasRole('teacher') || hasRole('principal') || hasRole('staff') ||
         can('manageAttendance')
       );
@@ -98,6 +104,7 @@ service cloud.firestore {
     match /fees/{feeId} {
       allow read: if isSignedIn() && (
         existing().studentId == request.auth.uid || 
+        isParentOf(existing().studentId) ||
         can('manageFees')
       );
       allow write: if can('manageFees');
@@ -106,6 +113,7 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (
         existing().studentId == request.auth.uid || 
+        isParentOf(existing().studentId) ||
         can('manageFees')
       );
       allow create: if isSignedIn() && incoming().studentId == request.auth.uid;
@@ -121,6 +129,7 @@ service cloud.firestore {
     match /borrowRecords/{recordId} {
       allow read: if isSignedIn() && (
         existing().studentId == request.auth.uid || 
+        isParentOf(existing().studentId) ||
         can('manageLibrary')
       );
       allow create: if hasRole('student') && incoming().studentId == request.auth.uid;
@@ -131,6 +140,7 @@ service cloud.firestore {
     match /performance/{recordId} {
       allow read: if isSignedIn() && (
         existing().studentId == request.auth.uid || 
+        isParentOf(existing().studentId) ||
         can('managePerformance')
       );
       allow write: if can('managePerformance');
@@ -139,6 +149,7 @@ service cloud.firestore {
     match /aiSuggestions/{suggestionId} {
       allow read: if isSignedIn() && (
         existing().studentId == request.auth.uid || 
+        isParentOf(existing().studentId) ||
         can('managePerformance')
       );
       allow write: if can('managePerformance');

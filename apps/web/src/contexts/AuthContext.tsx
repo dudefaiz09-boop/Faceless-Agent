@@ -52,10 +52,12 @@ interface AuthContextType {
   roles: string[];
   permissions: Record<string, boolean>;
   classId: string | null;
+  linkedStudentIds: string[];
   loading: boolean;
   isAdmin: boolean;
   isTeacher: boolean;
   isStudent: boolean;
+  isParent: boolean;
   canManageAttendance: boolean;
   canManageAssignments: boolean;
   canManageLibrary: boolean;
@@ -69,10 +71,12 @@ const AuthContext = createContext<AuthContextType>({
   roles: [],
   permissions: {},
   classId: null,
+  linkedStudentIds: [],
   loading: true,
   isAdmin: false,
   isTeacher: false,
   isStudent: false,
+  isParent: false,
   canManageAttendance: false,
   canManageAssignments: false,
   canManageLibrary: false,
@@ -87,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [classId, setClassId] = useState<string | null>(null);
+  const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -100,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             roles?: string[];
             permissions?: Record<string, boolean>;
             classId?: string;
+            linkedStudentIds?: string[];
           }
           
           const claims = idTokenResult.claims as CustomClaims;
@@ -108,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setRoles(claims.roles);
             setPermissions(claims.permissions || {});
             setClassId(claims.classId || null);
+            setLinkedStudentIds(claims.linkedStudentIds || []);
           } else {
             // Fallback to Firestore if claims are missing (initial setup)
             const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
@@ -116,6 +123,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setRoles(data.roles || []);
               setPermissions(data.permissions || {});
               setClassId(data.classId || null);
+              // Parents fetch their linked children by inverse lookup, but caching here is simpler if stored in custom claims.
+              // For fallback, we will just set it if it exists.
+              setLinkedStudentIds(data.linkedStudentIds || []); 
             }
           }
         } catch (error) {
@@ -125,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRoles([]);
         setPermissions({});
         setClassId(null);
+        setLinkedStudentIds([]);
       }
       setLoading(false);
     });
@@ -138,10 +149,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     roles,
     permissions,
     classId,
+    linkedStudentIds,
     loading,
     isAdmin: roles.includes(ROLES.ADMIN),
     isTeacher: roles.includes(ROLES.TEACHER),
     isStudent: roles.includes(ROLES.STUDENT),
+    isParent: roles.includes(ROLES.PARENT),
     canManageAttendance: !!permissions.manageAttendance,
     canManageAssignments: !!permissions.manageAssignments,
     canManageLibrary: !!permissions.manageLibrary,

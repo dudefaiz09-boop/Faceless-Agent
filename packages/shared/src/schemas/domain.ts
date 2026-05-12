@@ -49,3 +49,50 @@ export interface BulkImportResult {
   success: boolean;
   message?: string;
 }
+
+export const AssignmentSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  dueDate: z.string(), // ISO string YYYY-MM-DD
+  classId: z.string(),
+  attachments: z.array(z.string()).default([]),
+  rubric: z.string().optional(),
+  visibility: z.enum(['public', 'private', 'archived']).default('public'),
+  createdBy: z.string().optional(),
+  createdAt: TimestampValueSchema.optional(),
+  updatedAt: TimestampValueSchema.optional(),
+});
+
+export const SubmissionSchema = z.object({
+  id: z.string(),
+  assignmentId: z.string(),
+  studentId: z.string(),
+  studentName: z.string(),
+  content: z.string(),
+  fileUrl: z.string().nullable(),
+  status: z.enum(['pending', 'submitted', 'graded', 'returned']),
+  submittedAt: TimestampValueSchema.optional(),
+  grade: z.string().nullable(),
+  feedback: z.string().nullable(),
+  aiScore: z.number().nullable(),
+  aiFeedback: z.string().nullable(),
+  teacherScore: z.string().nullable(),
+  teacherFeedback: z.string().nullable(),
+  checkedByAI: z.boolean().default(false),
+  recheckedByTeacher: z.boolean().default(false),
+});
+
+export const AttendanceRecordSchema = z.object({
+  id: z.string().optional(),
+  studentId: z.string(),
+  classId: z.string(),
+  date: z.string(), // YYYY-MM-DD
+  status: z.enum(['present', 'absent', 'late']),
+  markedBy: z.string().optional(),
+  updatedAt: TimestampValueSchema.optional(),
+});
+
+export type Assignment = z.infer<typeof AssignmentSchema>;
+export type Submission = z.infer<typeof SubmissionSchema>;
+export type AttendanceRecord = z.infer<typeof AttendanceRecordSchema>;
