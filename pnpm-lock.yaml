@@ -84,21 +84,18 @@ importers:
 
   apps/functions:
     dependencies:
-      '@educonnect/logger':
-        specifier: workspace:*
-        version: link:../../packages/logger
-      '@educonnect/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@educonnect/shared-api':
-        specifier: workspace:*
-        version: link:../../packages/shared-api
-      '@educonnect/types':
-        specifier: workspace:*
-        version: link:../../packages/types
+      '@google/genai':
+        specifier: ^2.0.1
+        version: 2.0.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))
       compression:
         specifier: ^1.7.4
         version: 1.8.1
+      cors:
+        specifier: ^2.8.6
+        version: 2.8.6
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       express:
         specifier: ^4.19.2
         version: 4.22.1
@@ -114,6 +111,9 @@ importers:
       helmet:
         specifier: ^7.1.0
         version: 7.2.0
+      pino:
+        specifier: ^10.3.1
+        version: 10.3.1
       pino-http:
         specifier: ^9.0.0
         version: 9.0.0

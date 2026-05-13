@@ -4,10 +4,14 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // Check both local and root node_modules for monorepo compatibility
+    // Check both local, monorepo root, and pnpm virtual store for monorepo compatibility
     def gradlePluginPath = "../node_modules/@react-native/gradle-plugin"
     if (!file(gradlePluginPath).exists()) {
         gradlePluginPath = "../../../node_modules/@react-native/gradle-plugin"
+    }
+    // Fallback for pnpm symlink structure
+    if (!file(gradlePluginPath).exists()) {
+        gradlePluginPath = new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json')"].execute(null, rootDir).text.trim()).parent
     }
     includeBuild(gradlePluginPath)
 }

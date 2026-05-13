@@ -1,4 +1,9 @@
 import * as esbuild from 'esbuild';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // We want to bundle ONLY workspace packages and their source code.
 // EVERYTHING else from node_modules should be external.
@@ -15,12 +20,11 @@ const commonConfig = {
     {
       name: 'bundle-workspace',
       setup(build) {
-        // Intercept workspace imports and mark them as NOT external
-        build.onResolve({ filter: /^@educonnect\// }, () => {
-          // Return null/undefined to let esbuild continue its default resolution
-          // but since we want to BUNDLE it, we need to make sure it's not marked external.
-          // By returning an empty object with external: false, we force it.
-          return { external: false };
+        // Intercept workspace imports and resolve to their source
+        build.onResolve({ filter: /^@educonnect\// }, (args) => {
+          const pkgName = args.path.split('/')[1]; // e.g., 'shared-analytics'
+          const pkgPath = path.resolve(__dirname, '../../packages', pkgName, 'src/index.ts');
+          return { path: pkgPath };
         });
       },
     },

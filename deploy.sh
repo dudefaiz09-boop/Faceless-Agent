@@ -15,6 +15,11 @@ pnpm turbo build --filter="./packages/*"
 case $TARGET in
   web)
     echo "🌐 Deploying Web to Firebase Hosting..."
+    # Source .env file if it exists to ensure Vite picks up variables
+    if [ -f "apps/web/.env" ]; then
+      echo "📝 Loading environment variables from apps/web/.env"
+      export $(grep -v '^#' apps/web/.env | xargs)
+    fi
     pnpm turbo build --filter @educonnect/web
     pnpm exec firebase deploy --only hosting:web
     ;;
