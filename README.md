@@ -12,37 +12,48 @@ A comprehensive education management system connecting students, parents, and te
 
 ## 📁 Architecture
 
-The project follows a modular monolithic architecture for the backend:
+This project is a monorepo managed by **pnpm** and **TurboRepo**:
 
-- `server.ts`: Entry point.
-- `src/server/app.ts`: Express application configuration and middleware.
-- `src/server/routes/`: Modular API routes.
-- `src/server/middleware/`: Custom middleware (auth, permissions).
-- `src/server/lib/`: External library initializations (Firebase, AI).
+- `apps/web`: React + Vite frontend.
+- `apps/mobile`: React Native mobile app.
+- `apps/functions`: Firebase Functions backend (Gen 2).
+- `packages/*`: Shared logic, types, and analytics.
 
 ## 🛠 Getting Started
 
 ### Prerequisites
 
-- Node.js (v18+)
-- Firebase Account
-- Google Gemini API Key
+- Node.js (v22+)
+- pnpm (v11+)
+- Firebase CLI
+- Android Studio / Xcode (for mobile)
 
 ### Installation
 
 1.  Clone the repository.
 2.  Install dependencies:
     ```bash
-    npm install
+    pnpm install
     ```
-3.  Configure environment variables in `.env`:
-    ```bash
-    GEMINI_API_KEY=your_key
-    ```
-4.  Run development server:
-    ```bash
-    npm run dev
-    ```
+3.  Configure environment variables (see `.env.example` in each app).
+
+### Development
+
+Run all apps in dev mode:
+```bash
+pnpm dev
+```
+
+## 🚀 Deployment & Release
+
+For production deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md) and [RELEASE_GUIDE.md](./RELEASE_GUIDE.md).
+
+Quick Deploy:
+```bash
+./deploy.sh web        # Deploy frontend
+./deploy.sh functions  # Deploy backend
+./deploy.sh android    # Build Android release
+```
 
 ## 🧪 Testing
 
