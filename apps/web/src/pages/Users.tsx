@@ -1,45 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { collection, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { useAuth, handleFirestoreError, OperationType } from '../contexts/AuthContext';
+import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { User as UserIcon, Shield, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDebounce } from '../lib/hooks';
+import { useDocuments } from '../lib/documents';
 
 interface UserProfile {
-  uid: string;
-  displayName: string;
-  email: string;
-  role: string;
+  id?: string;
+  uid?: string;
+  displayName?: string;
+  email?: string;
+  role?: string;
+  roles?: string[];
 }
 
 export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => {
   const { role: currentUserRole, user: currentUser } = useAuth();
-  const [users, setUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const [loading, setLoading] = useState(true);
+  const { data: allUsers, loading } = useDocuments<UserProfile>('users');
 
-  useEffect(() => {
-    const q = query(collection(db, 'users'));
+  const getPrimaryRole = (profile: UserProfile) => profile.role || profile.roles?.[0] || 'user';
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        let data = snapshot.docs.map((doc) => doc.data() as UserProfile);
-        if (type === 'student') data = data.filter((u) => u.role === 'student');
-        if (type === 'teacher') data = data.filter((u) => u.role === 'teacher');
-        setUsers(data);
-        setLoading(false);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'users');
-      }
-    );
-
-    return () => unsubscribe();
-  }, [type]);
+  const users = allUsers.filter((profile) => {
+    if (type === 'all') return true;
+    return getPrimaryRole(profile) === type || profile.roles?.includes(type);
+  });
 
   const updateRole = async (targetUid: string, nextRole: string) => {
     if (currentUserRole !== 'admin') {
@@ -48,10 +35,6 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     }
 
     try {
-      // 1. Update Firestore
-      await updateDoc(doc(db, 'users', targetUid), { role: nextRole });
-
-      // 2. Update Custom Claims via Server API
       const idToken = await currentUser?.getIdToken();
       await fetch('/api/roles', {
         method: 'POST',
@@ -98,7 +81,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((u) => (
           <motion.div
-            key={u.uid}
+            key={u.uid || u.id}
             layout
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -122,7 +105,9 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                   <Shield size={14} />
                   Role
                 </div>
-                <span className="text-sm font-bold text-blue-600 capitalize">{u.role}</span>
+                <span className="text-sm font-bold text-blue-600 capitalize">
+                  {getPrimaryRole(u)}
+                </span>
               </div>
 
               {currentUserRole === 'admin' && (
@@ -134,10 +119,11 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                     {['student', 'parent', 'teacher', 'staff', 'admin'].map((r) => (
                       <button
                         key={r}
-                        onClick={() => updateRole(u.uid, r)}
+                        onClick={() => updateRole(u.uid || u.id || '', r)}
+                        disabled={!(u.uid || u.id)}
                         className={cn(
                           'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
-                          u.role === r
+                          getPrimaryRole(u) === r
                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-100'
                             : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                         )}

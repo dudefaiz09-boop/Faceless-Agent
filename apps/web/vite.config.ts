@@ -21,9 +21,6 @@ export default defineConfig(() => {
               if (id.includes('@supabase')) {
                 return 'supabase-vendor';
               }
-              if (id.includes('firebase')) {
-                return 'firebase-vendor';
-              }
               if (id.includes('motion') || id.includes('lucide-react') || id.includes('recharts')) {
                 return 'ui-vendor';
               }

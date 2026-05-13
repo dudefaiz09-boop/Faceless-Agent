@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
-import { useQuery } from '@tanstack/react-query';
 import {
   CheckCircle2,
   XCircle,
@@ -18,9 +16,8 @@ import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { useDebounce } from '../lib/hooks';
 import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
-import { useRealtimeSync } from '@educonnect/shared-firestore';
-import { where } from 'firebase/firestore';
 import { Card } from '../components/ui/Card';
+import { useDocuments } from '../lib/documents';
 import {
   BarChart,
   Bar,
@@ -31,6 +28,13 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
+
+type StudentDocument = Student & {
+  role?: string;
+  roles?: string[];
+  schoolId?: string;
+  tenantId?: string;
+};
 
 export const AttendancePage = () => {
   const { user, canManageAttendance, classId: userClassId, schoolId } = useAuth();
@@ -56,22 +60,16 @@ export const AttendancePage = () => {
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
   const [reportData, setReportData] = useState<any[]>([]);
 
-  // REALTIME SYNC - Marking View
-  useRealtimeSync<Student>(
-    db,
-    'users',
-    [
-      where('roles', 'array-contains', 'student'),
-      where('classId', '==', selectedClass),
-      where('schoolId', '==', schoolId),
-    ],
-    ['students', selectedClass, schoolId || 'all']
-  );
-
-  // Get students from TanStack Query cache via useQuery (triggers re-render)
-  const { data: students = [] } = useQuery({
-    queryKey: ['students', selectedClass, schoolId || 'all'],
+  const { data: userDocuments, loading: studentsLoading } = useDocuments<StudentDocument>('users', {
     enabled: !!schoolId,
+  });
+
+  const students = userDocuments.filter((student) => {
+    const studentSchoolId = student.schoolId || student.tenantId;
+    const isStudent = student.role === 'student' || student.roles?.includes('student');
+    const matchesClass = student.classId === selectedClass;
+    const matchesSchool = !schoolId || !studentSchoolId || studentSchoolId === schoolId;
+    return isStudent && matchesClass && matchesSchool;
   });
 
   const loadMarkingData = useCallback(async () => {
@@ -175,8 +173,8 @@ export const AttendancePage = () => {
 
   const filteredStudents = students.filter(
     (s) =>
-      s.displayName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      s.email.toLowerCase().includes(debouncedSearch.toLowerCase())
+      (s.displayName || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (s.email || '').toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   return (
@@ -309,7 +307,7 @@ export const AttendancePage = () => {
                 </button>
               </div>
 
-              {loading ? (
+              {loading || studentsLoading ? (
                 <div className="p-20 flex justify-center">
                   <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                 </div>
@@ -332,10 +330,12 @@ export const AttendancePage = () => {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs">
-                                {s.displayName[0]}
+                                {(s.displayName || '?')[0]}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-800 text-sm">{s.displayName}</p>
+                                <p className="font-bold text-slate-800 text-sm">
+                                  {s.displayName || 'Unnamed Student'}
+                                </p>
                                 <p className="text-xs text-slate-400">{s.email}</p>
                               </div>
                             </div>

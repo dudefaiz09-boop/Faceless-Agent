@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion } from 'motion/react';
@@ -18,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { collectionPath, useDocuments } from '../lib/documents';
 
 interface Conversation {
   id: string;
@@ -39,45 +38,27 @@ interface Message {
 
 export const ChatPage = () => {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load conversations
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'conversations'), orderBy('updatedAt', 'desc'), limit(50));
+  const { data: conversationDocuments, loading } = useDocuments<Conversation>('conversations', {
+    enabled: !!user,
+    limit: 50,
+    order: { field: 'updatedAt', ascending: false },
+  });
+  const conversations = conversationDocuments.filter((conversation) =>
+    conversation.participants?.includes(user?.uid || '')
+  );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }) as Conversation)
-        .filter((c: Conversation) => c.participants.includes(user.uid));
-      setConversations(data);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Load messages for selected conversation
-  useEffect(() => {
-    if (!selectedConv) return;
-
-    const q = query(
-      collection(db, 'conversations', selectedConv.id, 'messages'),
-      orderBy('sentAt', 'asc'),
-      limit(100)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Message));
-    });
-
-    return () => unsubscribe();
-  }, [selectedConv]);
+  const { data: messages } = useDocuments<Message>(
+    selectedConv ? collectionPath('conversations', selectedConv.id, 'messages') : '',
+    {
+      enabled: !!selectedConv,
+      limit: 100,
+      order: { field: 'sentAt', ascending: true },
+    }
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -141,10 +122,7 @@ export const ChatPage = () => {
               {conversations.map((conv) => (
                 <button
                   key={conv.id}
-                  onClick={() => {
-                    setSelectedConv(conv);
-                    setMessages([]);
-                  }}
+                  onClick={() => setSelectedConv(conv)}
                   className={cn(
                     'w-full p-6 text-left hover:bg-white transition-all flex gap-4 items-center group',
                     selectedConv?.id === conv.id

@@ -1,7 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { collection, query, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../contexts/AuthContext';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User as UserIcon,
@@ -21,12 +18,29 @@ import { cn } from '../lib/utils';
 import { apiClient } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { TeacherProfile, AuditLog, BulkImportResult } from '@educonnect/shared';
+import { listDocuments, useDocuments } from '../lib/documents';
+
+type TeacherDocument = TeacherProfile & {
+  id?: string;
+  role?: string;
+  roles?: string[];
+};
+
+function isTeacherProfile(profile: TeacherDocument) {
+  return profile.role === 'teacher' || profile.roles?.includes('teacher');
+}
+
+function formatAuditTimestamp(timestamp: unknown) {
+  if (!timestamp) return 'Just now';
+  const value = timestamp as { toDate?: () => Date };
+  return value.toDate?.().toLocaleString() || new Date(String(timestamp)).toLocaleString();
+}
 
 export const TeachersPage = () => {
-  const [teachers, setTeachers] = useState<TeacherProfile[]>([]);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const [loading, setLoading] = useState(true);
+  const { data: userDocuments, loading } = useDocuments<TeacherDocument>('users');
+  const teachers = userDocuments.filter(isTeacherProfile);
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -45,24 +59,6 @@ export const TeachersPage = () => {
   });
 
   const [bulkText, setBulkText] = useState('');
-
-  useEffect(() => {
-    const q = query(collection(db, 'users'), where('roles', 'array-contains', 'teacher'));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => doc.data() as TeacherProfile);
-        setTeachers(data);
-        setLoading(false);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'users');
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
 
   const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,18 +159,17 @@ export const TeachersPage = () => {
 
   const viewAuditLogs = async (teacherUid?: string) => {
     setIsAuditModalOpen(true);
-    // In a real app, we'd fetch this via API or Firestore query
-    const q = query(
-      collection(db, 'auditLogs'),
-      teacherUid ? where('targetUid', '==', teacherUid) : orderBy('timestamp', 'desc'),
-      limit(50)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setAuditLogs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as AuditLog));
-    });
-
-    return () => unsubscribe();
+    try {
+      const logs = await listDocuments<AuditLog>('auditLogs', {
+        filters: teacherUid ? [{ field: 'targetUid', op: 'eq', value: teacherUid }] : [],
+        order: { field: 'timestamp', ascending: false },
+        limit: 50,
+      });
+      setAuditLogs(logs);
+    } catch (error) {
+      console.error('Failed to load audit logs:', error);
+      setAuditLogs([]);
+    }
   };
 
   const filtered = teachers.filter(
@@ -605,7 +600,7 @@ export const TeachersPage = () => {
                           {log.action.replace('_', ' ')}
                         </span>
                         <span className="text-xs font-bold text-slate-400">
-                          {(log.timestamp as any)?.toDate?.().toLocaleString() || 'Just now'}
+                          {formatAuditTimestamp(log.timestamp)}
                         </span>
                       </div>
                       <p className="text-slate-900 font-bold text-lg leading-snug">{log.details}</p>

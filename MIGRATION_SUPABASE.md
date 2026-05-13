@@ -20,19 +20,13 @@ This duplicate repo is the migration workspace for moving EduConnect away from G
 - Web login/logout and API bearer tokens now use Supabase Auth.
 - Mobile login/logout and API bearer tokens now use Supabase Auth.
 - Web file uploads now use Supabase Storage.
+- Web user, staff, student, attendance, chat, and announcement screens no longer import Firebase.
+- The unused `packages/shared-firestore` workspace has been removed.
 - Cloudflare Pages headers and SPA redirects are added.
-- Supabase migrations create `documents` and the upload bucket.
+- Supabase migrations create `documents`, enable Realtime for it, and create the upload bucket.
 
 ## Remaining Migration Work
 
-- Replace direct Web Firestore realtime screens with Supabase Realtime:
-  - `apps/web/src/pages/Users.tsx`
-  - `apps/web/src/pages/Teachers.tsx`
-  - `apps/web/src/pages/Students.tsx`
-  - `apps/web/src/pages/Chat.tsx`
-  - `apps/web/src/pages/Attendance.tsx`
-  - `apps/web/src/pages/Announcements.tsx`
-  - `packages/shared-firestore/*`
 - Replace Firebase mobile native packages after the mobile screens no longer import Firestore.
 - Choose the final free Node runtime for the Express API, or rewrite API modules as Supabase Edge Functions.
 - Replace FCM assignment push notifications with Expo Push, Web Push, or another free-tier provider.

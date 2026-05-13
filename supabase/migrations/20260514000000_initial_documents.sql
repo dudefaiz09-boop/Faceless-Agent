@@ -14,6 +14,19 @@ create index if not exists documents_data_gin_idx on public.documents using gin 
 create index if not exists documents_tenant_idx on public.documents ((data ->> 'tenantId'));
 create index if not exists documents_school_idx on public.documents ((data ->> 'schoolId'));
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'documents'
+  ) then
+    alter publication supabase_realtime add table public.documents;
+  end if;
+end $$;
+
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
