@@ -4,37 +4,38 @@ import { AnnouncementInput } from '@educonnect/shared';
 
 export const ANNOUNCEMENTS_QUERY_KEY = ['announcements'];
 
-export function useAnnouncements(service: AnnouncementsService) {
+export function useAnnouncements(service: AnnouncementsService, schoolId?: string | null) {
   const queryClient = useQueryClient();
+  const queryKey = schoolId ? [...ANNOUNCEMENTS_QUERY_KEY, schoolId] : ANNOUNCEMENTS_QUERY_KEY;
 
   const query = useQuery({
-    queryKey: ANNOUNCEMENTS_QUERY_KEY,
+    queryKey,
     queryFn: () => service.getAll(),
   });
 
   const createMutation = useMutation({
     mutationFn: (data: AnnouncementInput) => service.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => service.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey });
     },
     // Optimistic Update Example
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
-      const previous = queryClient.getQueryData(ANNOUNCEMENTS_QUERY_KEY);
-      queryClient.setQueryData(ANNOUNCEMENTS_QUERY_KEY, (old: any) =>
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData(queryKey);
+      queryClient.setQueryData(queryKey, (old: any) =>
         old?.filter((a: any) => a.id !== id)
       );
       return { previous };
     },
     onError: (err, id, context: any) => {
-      queryClient.setQueryData(ANNOUNCEMENTS_QUERY_KEY, context.previous);
+      queryClient.setQueryData(queryKey, context.previous);
     },
   });
 

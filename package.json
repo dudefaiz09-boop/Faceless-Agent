@@ -41,5 +41,8 @@
   "packageManager": "pnpm@11.1.0",
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "esbuild": "^0.20.2"
   }
 }

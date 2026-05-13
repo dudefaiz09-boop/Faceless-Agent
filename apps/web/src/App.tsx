@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { RoleGuard } from './components/RoleGuard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // --- Lazy loaded pages ---
 const AnnouncementsPage = lazy(() =>
@@ -514,10 +515,12 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

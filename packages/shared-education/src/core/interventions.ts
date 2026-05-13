@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BaseSaaSObjectSchema } from '@educonnect/shared-education';
+import { BaseSaaSObjectSchema } from './schemas.js';
 
 export const InterventionAlertSchema = BaseSaaSObjectSchema.extend({
   studentId: z.string(),

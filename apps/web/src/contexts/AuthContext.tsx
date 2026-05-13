@@ -50,6 +50,7 @@ interface AuthContextType {
   role: UserRole | null;
   roles: string[];
   permissions: Record<string, boolean>;
+  schoolId: string | null;
   classId: string | null;
   linkedStudentIds: string[];
   loading: boolean;
@@ -69,6 +70,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   roles: [],
   permissions: {},
+  schoolId: null,
   classId: null,
   linkedStudentIds: [],
   loading: true,
@@ -89,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [schoolId, setSchoolId] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
   const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (claims.roles) {
             setRoles(claims.roles);
             setPermissions(claims.permissions || {});
+            setSchoolId(claims.schoolId || null);
             setClassId(claims.classId || null);
             setLinkedStudentIds(claims.linkedStudentIds || []);
           } else {
@@ -121,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const data = userDoc.data();
               setRoles(data.roles || []);
               setPermissions(data.permissions || {});
+              setSchoolId(data.schoolId || null);
               setClassId(data.classId || null);
               // Parents fetch their linked children by inverse lookup, but caching here is simpler if stored in custom claims.
               // For fallback, we will just set it if it exists.
@@ -133,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setRoles([]);
         setPermissions({});
+        setSchoolId(null);
         setClassId(null);
         setLinkedStudentIds([]);
       }
@@ -147,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: getUserRole(roles),
     roles,
     permissions,
+    schoolId,
     classId,
     linkedStudentIds,
     loading,

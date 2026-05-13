@@ -12,12 +12,6 @@ interface EnvConfig {
   IS_PRODUCTION: boolean;
 }
 
-const STAGING_CONFIG: EnvConfig = {
-  API_BASE_URL: 'https://us-central1-educonnect-staging.cloudfunctions.net/api',
-  FIREBASE_PROJECT_ID: 'educonnect-staging',
-  IS_PRODUCTION: false,
-};
-
 const PRODUCTION_CONFIG: EnvConfig = {
   API_BASE_URL: 'https://us-central1-gen-lang-client-0979500227.cloudfunctions.net/api',
   FIREBASE_PROJECT_ID: 'gen-lang-client-0979500227',

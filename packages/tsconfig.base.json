@@ -10,15 +10,6 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "sourceMap": true,
-    "baseUrl": ".",
-    "paths": {
-      "@educonnect/shared": ["shared/src/index.ts"],
-      "@educonnect/types": ["types/src/index.ts"],
-      "@educonnect/shared-education": ["shared-education/src/index.ts"],
-      "@educonnect/shared-api": ["shared-api/src/index.ts"],
-      "@educonnect/shared-firestore": ["shared-firestore/src/index.ts"],
-      "@educonnect/logger": ["logger/src/index.ts"],
-      "@educonnect/shared-analytics": ["shared-analytics/src/index.ts"]
-    }
+    "baseUrl": "."
   }
 }

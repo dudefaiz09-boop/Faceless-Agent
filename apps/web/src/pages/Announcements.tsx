@@ -10,28 +10,26 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { useAnnouncements } from '@educonnect/shared-api';
 import { announcementsService } from '../lib/api-client';
 import { useRealtimeSync } from '@educonnect/shared-firestore';
-import { useQueryClient } from '@tanstack/react-query';
 import { Announcement } from '@educonnect/shared';
+import { where } from 'firebase/firestore';
 
 export const AnnouncementsPage = () => {
-  const { isAdmin, isTeacher, user } = useAuth();
+  const { isAdmin, isTeacher, user, schoolId } = useAuth();
   const {
+    data: announcements = [],
     isLoading: loading,
     createAnnouncement,
     isCreating: submitting,
     deleteAnnouncement,
-  } = useAnnouncements(announcementsService);
+  } = useAnnouncements(announcementsService, schoolId);
 
   // REALTIME SYNC
   useRealtimeSync<Announcement>(
     db,
     'announcements',
-    [], // Fetch all for now, or filter by tenantId if needed
-    ['announcements']
+    schoolId ? [where('tenantId', '==', schoolId)] : [],
+    ['announcements', schoolId || 'all']
   );
-
-  const queryClient = useQueryClient();
-  const announcements = queryClient.getQueryData<Announcement[]>(['announcements']) || [];
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 

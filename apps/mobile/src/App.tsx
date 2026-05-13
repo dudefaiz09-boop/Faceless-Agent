@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -9,13 +9,12 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import { auth } from './lib/firebase';
-import { signInWithEmailAndPassword, onAuthStateChanged, User } from 'firebase/auth';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/query-client';
 import { useAnnouncements } from '@educonnect/shared-api';
 import { announcementsService } from './lib/api-client';
 import { AssignmentsScreen } from './screens/AssignmentsScreen';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const AnnouncementsList = () => {
   const { data: announcements = [], isLoading } = useAnnouncements(announcementsService);
@@ -43,35 +42,23 @@ const AnnouncementsList = () => {
 };
 
 const AppContent = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading, login, logout } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'announcements' | 'assignments'>('announcements');
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
   const handleLogin = async () => {
     setError('');
-    setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await login(email, password);
     } catch (err: unknown) {
       setError((err as Error).message);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleLogout = () => {
-    auth.signOut();
+    logout();
   };
 
   if (loading) {
@@ -160,7 +147,9 @@ const AppContent = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AppContent />
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   </QueryClientProvider>
 );
 

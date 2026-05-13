@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -9,37 +9,23 @@ import {
   RefreshControl,
 } from 'react-native';
 import { assignmentsService } from '../lib/api-client';
-import { Assignment } from '@educonnect/shared-education';
+import { useAssignments } from '@educonnect/shared-api';
+import { useAuth } from '../contexts/AuthContext';
 
 export const AssignmentsScreen = () => {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadAssignments = async () => {
-    try {
-      // In a real app we'd get the classId from auth context
-      const data = await assignmentsService.getAssignments();
-      setAssignments(data);
-    } catch (error) {
-      console.error('Failed to load assignments:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadAssignments();
-  }, []);
+  const { schoolId } = useAuth();
+  const { 
+    data: assignments = [], 
+    isLoading, 
+    refetch,
+    isRefetching 
+  } = useAssignments(assignmentsService, schoolId);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    loadAssignments();
+    refetch();
   };
 
-  if (loading && !refreshing) {
+  if (isLoading && !isRefetching) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#2563eb" />
@@ -53,7 +39,7 @@ export const AssignmentsScreen = () => {
         data={assignments}
         keyExtractor={(item) => item.id!}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
         }
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card}>

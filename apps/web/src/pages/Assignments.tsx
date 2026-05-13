@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus,
@@ -11,21 +10,27 @@ import {
   Users,
   GraduationCap,
   ChevronRight,
-  UploadCloud,
   ExternalLink,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
-import { Assignment, Submission } from '@educonnect/shared';
+import { Assignment, AssignmentSubmission as Submission } from '@educonnect/shared-education';
+import { useAssignments, useAssignmentSubmissions } from '@educonnect/shared-api';
+import { assignmentsService } from '../lib/api-client';
+import { FileUpload } from '../components/FileUpload';
 
 export const AssignmentsPage = () => {
-  const { user, isStudent, canManageAssignments, classId: userClassId } = useAuth();
+  const { user, isStudent, canManageAssignments, classId: userClassId, schoolId } = useAuth();
   const uid = user?.uid;
 
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const {
+    data: assignments = [],
+    isLoading: loading,
+    createAssignment,
+  } = useAssignments(assignmentsService, selectedClass);
 
   // Creation Form State
   const [newAssignment, setNewAssignment] = useState(() => ({
@@ -33,11 +38,16 @@ export const AssignmentsPage = () => {
     description: '',
     dueDate: format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd'),
     classId: userClassId || '10A',
+    pointsPossible: 100,
   }));
 
   // Submission/Grading View State
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const { data: submissions = [] } = useAssignmentSubmissions(
+    assignmentsService,
+    selectedAssignment?.id || ''
+  );
+  
   const [gradingState, setGradingState] = useState<{
     studentId: string;
     grade: string;
@@ -50,22 +60,10 @@ export const AssignmentsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<Record<string, Submission>>({});
 
-  const loadAssignments = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiClient.request<Assignment[]>(`/api/assignments/${selectedClass}`);
-      setAssignments(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedClass]);
-
   const loadMyHistory = React.useCallback(async () => {
     if (!uid) return;
     try {
-      const data = await apiClient.request<Submission[]>(`/api/assignments/history/${uid}`);
+      const data = await assignmentsService.getMyHistory(uid);
       const map: Record<string, Submission> = {};
       data.forEach((s: Submission) => (map[s.assignmentId] = s));
       setMySubmissions(map);
@@ -75,57 +73,41 @@ export const AssignmentsPage = () => {
   }, [uid]);
 
   useEffect(() => {
-    const init = async () => {
-      await loadAssignments();
-      if (isStudent) {
-        await loadMyHistory();
-      }
-    };
-    init();
-  }, [loadAssignments, loadMyHistory, isStudent]);
+    if (isStudent) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadMyHistory();
+    }
+  }, [loadMyHistory, isStudent]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiClient.request('/api/assignments/create', {
-        method: 'POST',
-        body: JSON.stringify(newAssignment),
+      await createAssignment({
+        ...newAssignment,
+        tenantId: schoolId || undefined,
+        status: 'published' as any,
+        targetClasses: [newAssignment.classId],
+        attachments: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
       setIsModalOpen(false);
-      loadAssignments();
       setNewAssignment({ ...newAssignment, title: '', description: '' });
     } catch {
       alert('Failed to create assignment');
     }
   };
 
-  const viewSubmissions = async (assignment: Assignment) => {
-    setSelectedAssignment(assignment);
-    try {
-      const data = await apiClient.request<Submission[]>(
-        `/api/assignments/submissions/${assignment.id}`
-      );
-      setSubmissions(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleGrade = async () => {
     if (!gradingState || !selectedAssignment) return;
     try {
-      // Use recheck endpoint if it's a teacher override
-      await apiClient.request('/api/assignments/recheck', {
-        method: 'POST',
-        body: JSON.stringify({
-          assignmentId: selectedAssignment.id,
-          studentId: gradingState.studentId,
-          teacherScore: gradingState.grade,
-          teacherFeedback: gradingState.feedback,
-        }),
+      await assignmentsService.gradeSubmission({
+        assignmentId: selectedAssignment.id,
+        studentId: gradingState.studentId,
+        teacherScore: gradingState.grade,
+        teacherFeedback: gradingState.feedback,
       });
       setGradingState(null);
-      viewSubmissions(selectedAssignment);
     } catch {
       alert('Grading failed');
     }
@@ -134,13 +116,10 @@ export const AssignmentsPage = () => {
   const submitAssignment = async (assignmentId: string) => {
     setIsSubmitting(true);
     try {
-      await apiClient.request('/api/assignments/submit', {
-        method: 'POST',
-        body: JSON.stringify({
-          assignmentId,
-          content: submissionContent,
-          fileUrl: submissionFileUrl,
-        }),
+      await assignmentsService.submitAssignment({
+        assignmentId,
+        content: submissionContent,
+        fileUrl: submissionFileUrl,
       });
       setSubmissionContent('');
       setSubmissionFileUrl('');
@@ -190,8 +169,7 @@ export const AssignmentsPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Assignment List */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
             <div className="flex justify-center py-20">
@@ -210,11 +188,7 @@ export const AssignmentsPage = () => {
                   <motion.div
                     key={assignment.id}
                     layoutId={assignment.id}
-                    onClick={() =>
-                      canManageAssignments
-                        ? viewSubmissions(assignment)
-                        : setSelectedAssignment(assignment)
-                    }
+                    onClick={() => setSelectedAssignment(assignment)}
                     className={cn(
                       'bg-white p-6 rounded-3xl border transition-all cursor-pointer group',
                       selectedAssignment?.id === assignment.id
@@ -262,7 +236,6 @@ export const AssignmentsPage = () => {
           )}
         </div>
 
-        {/* Details / Submission / Grading Panel */}
         <div className="lg:col-span-1">
           <AnimatePresence mode="wait">
             {!selectedAssignment ? (
@@ -371,23 +344,11 @@ export const AssignmentsPage = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                            File/Image URL (Optional)
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="url"
-                              placeholder="https://example.com/homework.jpg"
-                              value={submissionFileUrl}
-                              disabled={isSubmitting}
-                              onChange={(e) => setSubmissionFileUrl(e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-blue-100 disabled:opacity-50"
-                            />
-                            <UploadCloud
-                              size={18}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300"
-                            />
-                          </div>
+                          <FileUpload 
+                            label="Attach File / Screenshot"
+                            path={`submissions/${selectedAssignment.id}/${uid}`}
+                            onUploadComplete={(url) => setSubmissionFileUrl(url)}
+                          />
                         </div>
 
                         <button

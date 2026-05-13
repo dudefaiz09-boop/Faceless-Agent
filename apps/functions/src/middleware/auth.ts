@@ -11,6 +11,7 @@ declare global {
         displayName?: string;
         roles: string[];
         isAdmin: boolean;
+        schoolId: string | null;
         classId: string | null;
         permissions: Record<string, boolean>;
       };
@@ -30,6 +31,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         displayName: (decodedToken as any).name,
         roles: (decodedToken.roles as string[]) || [],
         isAdmin: !!decodedToken.isAdmin,
+        schoolId: (decodedToken.schoolId as string) || null,
         classId: (decodedToken.classId as string) || null,
         permissions: (decodedToken.permissions as Record<string, boolean>) || {},
       };
