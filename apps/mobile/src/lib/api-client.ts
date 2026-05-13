@@ -1,10 +1,9 @@
 import { ApiClient, AnnouncementsService, AssignmentsService } from '@educonnect/shared-api';
 import { auth } from './firebase';
-
-const BASE_URL = 'https://us-central1-gen-lang-client-0979500227.cloudfunctions.net/api';
+import { ENV } from '../config/env';
 
 export const apiClient = new ApiClient({
-  baseUrl: BASE_URL,
+  baseUrl: ENV.API_BASE_URL,
   getToken: () => (auth.currentUser ? auth.currentUser.getIdToken() : Promise.resolve(null)),
   onUnauthorized: () => auth.signOut(),
 });

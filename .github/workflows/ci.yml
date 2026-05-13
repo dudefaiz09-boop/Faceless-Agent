@@ -11,16 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 11
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'pnpm'
-      - run: pnpm install
-      - run: pnpm run lint
-      - run: pnpm run build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo lint
+      - run: pnpm turbo build
+      - run: pnpm turbo typecheck
 
   e2e-tests:
     runs-on: ubuntu-latest

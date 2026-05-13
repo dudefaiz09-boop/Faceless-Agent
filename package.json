@@ -17,6 +17,8 @@
     "@eslint/js": "^10.0.1",
     "@google/genai": "^2.0.1",
     "@types/jest": "^30.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/supertest": "^7.2.0",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",

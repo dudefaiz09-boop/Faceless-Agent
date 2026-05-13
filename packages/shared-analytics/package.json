@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "zod": "^3.24.2",
-    "@educonnect/types": "workspace:*"
+    "@educonnect/types": "workspace:*",
+    "@educonnect/shared-education": "workspace:*"
   },
   "devDependencies": {
     "typescript": "~5.8.2"

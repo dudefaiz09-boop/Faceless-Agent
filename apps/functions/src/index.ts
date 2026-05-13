@@ -14,6 +14,7 @@ const apiOptions: HttpsOptions = {
   memory: '512MiB',
   timeoutSeconds: 60,
   cors: true,
+  secrets: ['GEMINI_API_KEY'], // Enable Secret Manager integration
 };
 
 export const api = onRequest(apiOptions, app);
