@@ -9,7 +9,7 @@ export const OFFLINE_CONFIG = {
 
 export function isOnline(): boolean {
   if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
-    return navigator.onLine;
+    return (navigator as any).onLine as boolean;
   }
   return true; // Default to true if cannot detect
 }

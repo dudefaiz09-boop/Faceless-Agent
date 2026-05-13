@@ -31,7 +31,6 @@ export const ChatbotPage = () => {
       const data = await apiClient.request<ChatLog[]>(`/api/ai/history/${user?.uid}`);
       setLogs(data.reverse()); // Reverse to show oldest first in the scroll area
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load chat history';
       console.error('Error loading chat history:', err);
       setError('Unable to load chat history. Please refresh the page.');
     } finally {
@@ -76,7 +75,6 @@ export const ChatbotPage = () => {
 
       setLogs((prev) => [...prev, newLog]);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       console.error('Failed to get AI response:', err);
       setError('AI assistant is currently unavailable. Please try again later.');
       

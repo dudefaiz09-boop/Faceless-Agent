@@ -1,4 +1,4 @@
-import { ApiClient, AnnouncementsService } from '@educonnect/shared-api';
+import { ApiClient, AnnouncementsService, AssignmentsService } from '@educonnect/shared-api';
 import { auth } from './firebase';
 
 const BASE_URL = 'https://us-central1-gen-lang-client-0979500227.cloudfunctions.net/api';
@@ -10,3 +10,4 @@ export const apiClient = new ApiClient({
 });
 
 export const announcementsService = new AnnouncementsService(apiClient);
+export const assignmentsService = new AssignmentsService(apiClient);

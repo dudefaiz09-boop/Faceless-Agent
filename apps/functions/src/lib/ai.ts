@@ -8,10 +8,9 @@ import { env } from './config.js';
  * Removes hardcoded API keys in favor of IAM Service Accounts.
  */
 export const ai = new GoogleGenAI({
-  vertexai: {
-    project: env.PROJECT_ID,
-    location: env.VERTEX_LOCATION,
-  },
+  vertexai: true,
+  project: env.PROJECT_ID,
+  location: env.VERTEX_LOCATION,
 });
 
 // Using Vertex AI models

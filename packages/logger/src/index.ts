@@ -27,47 +27,39 @@ const baseLogger = pino({
   timestamp: pino.stdTimeFunctions.isoTime,
 });
 
-export const logger = {
-  info: (msg: string, context?: LogContext) => baseLogger.info(context || {}, msg),
-  error: (msg: string, err?: Error | unknown, context?: LogContext) => {
-    const errorData =
-      err instanceof Error
-        ? {
-            message: err.message,
-            stack: err.stack,
-            name: err.name,
-          }
-        : { err };
-    baseLogger.error({ ...context, ...errorData }, msg);
-  },
-  warn: (msg: string, context?: LogContext) => baseLogger.warn(context || {}, msg),
-  debug: (msg: string, context?: LogContext) => baseLogger.debug(context || {}, msg),
-
+// Extend baseLogger with custom helpers
+export const logger = Object.assign(baseLogger, {
   /**
    * Creates a contextual child logger (e.g., for a specific request or tenant)
    */
   withContext: (context: LogContext) => baseLogger.child(context),
-};
+});
 
 /**
  * TELEMETRY HELPERS
  */
 export const telemetry = {
   trackPerformance: (name: string, durationMs: number, context?: LogContext) => {
-    logger.info(`Performance Metric: ${name}`, {
-      ...context,
-      metricType: 'performance',
-      metricName: name,
-      durationMs,
-    });
+    logger.info(
+      {
+        ...context,
+        metricType: 'performance',
+        metricName: name,
+        durationMs,
+      },
+      `Performance Metric: ${name}`
+    );
   },
 
   trackBusinessEvent: (name: string, context?: LogContext) => {
-    logger.info(`Business Event: ${name}`, {
-      ...context,
-      metricType: 'business_event',
-      eventName: name,
-    });
+    logger.info(
+      {
+        ...context,
+        metricType: 'business_event',
+        eventName: name,
+      },
+      `Business Event: ${name}`
+    );
   },
 };
 

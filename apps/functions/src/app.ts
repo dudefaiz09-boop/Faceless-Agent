@@ -29,7 +29,7 @@ const app: Express = express();
 app.set('trust proxy', 1);
 
 // 1. Security & Observability
-app.use(pinoHttp({ logger }));
+app.use(pinoHttp({ logger: logger as any }));
 app.use(
   helmet({
     contentSecurityPolicy: {

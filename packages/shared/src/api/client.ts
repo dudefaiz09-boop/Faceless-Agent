@@ -36,12 +36,12 @@ export async function createApiClient(defaultOptions: ApiClientOptions = {}) {
     }
 
     if (!response.ok) {
-      const errorData = await response
+      const errorData = (await response
         .json()
-        .catch(() => ({ message: 'An unexpected error occurred' }));
+        .catch(() => ({ message: 'An unexpected error occurred' }))) as { message?: string };
       throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   };
 }

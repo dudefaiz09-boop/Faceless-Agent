@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   CheckCircle2,
@@ -19,6 +19,8 @@ import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { useDebounce } from '../lib/hooks';
 import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
+import { useRealtimeSync } from '@educonnect/shared-firestore';
+import { where } from 'firebase/firestore';
 import {
   BarChart,
   Bar,
@@ -43,7 +45,6 @@ export const AttendancePage = () => {
   const [loading, setLoading] = useState(true);
 
   // Marking state
-  const [students, setStudents] = useState<Student[]>([]);
   const [dailyRecords, setDailyRecords] = useState<Record<string, 'present' | 'absent' | 'late'>>(
     {}
   );
@@ -53,21 +54,25 @@ export const AttendancePage = () => {
 
   // History state
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
+  const [reportData, setReportData] = useState<any[]>([]);
+
+  // REALTIME SYNC - Marking View
+  useRealtimeSync<Student>(
+    db,
+    'users',
+    [where('roles', 'array-contains', 'student'), where('classId', '==', selectedClass)],
+    ['students', selectedClass]
+  );
+
+  // Get students from TanStack Query cache
+  const queryClient = useQueryClient();
+  const students = queryClient.getQueryData<Student[]>(['students', selectedClass]) || [];
 
   const loadMarkingData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Fetch students in the selected class
-      const studentQ = query(
-        collection(db, 'users'),
-        where('roles', 'array-contains', 'student'),
-        where('classId', '==', selectedClass)
-      );
-      const studentSnap = await getDocs(studentQ);
-      const studentList = studentSnap.docs.map((doc) => doc.data() as Student);
-      setStudents(studentList);
-
-      // 2. Fetch existing records for this date and class
+      // Students are now handled by realtime sync in the background
+      // Fetching records manually for now as they are keyed by date_class
       const records = await apiClient.request<AttendanceRecord[]>(
         `/api/attendance?classId=${selectedClass}&date=${selectedDate}`
       );
@@ -82,7 +87,6 @@ export const AttendancePage = () => {
       setLoading(false);
     }
   }, [selectedClass, selectedDate]);
-
   const loadHistory = useCallback(async () => {
     if (!user?.uid) return;
     setLoading(true);
@@ -102,13 +106,15 @@ export const AttendancePage = () => {
   const loadReports = useCallback(async () => {
     setLoading(true);
     try {
-      await apiClient.request(`/api/attendance/report/${selectedClass}`, {});
+      const data = await apiClient.request<any[]>(`/api/attendance/report/${selectedClass}`, {});
+      setReportData(data);
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
   }, [selectedClass]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (view === 'marking' && canManageAttendance) {
@@ -506,9 +512,9 @@ export const AttendancePage = () => {
                         }}
                         cursor={{ fill: '#f8fafc' }}
                       />
-                      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                        {stats.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Bar dataKey="attendanceRate" radius={[6, 6, 0, 0]}>
+                        {reportData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.attendanceRate > 0.9 ? '#10b981' : '#f59e0b'} />
                         ))}
                       </Bar>
                     </BarChart>

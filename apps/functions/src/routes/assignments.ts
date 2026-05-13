@@ -7,11 +7,37 @@ import { ai, GEMINI_MODEL } from '../lib/ai.js';
 
 const router: Router = Router();
 
+// Get student submission history
+router.get('/history/:uid', async (req, res, next) => {
+  try {
+    const snapshot = await db.collection('submissions')
+      .where('tenantId', '==', req.tenantId)
+      .where('studentId', '==', req.params.uid)
+      .get();
+    res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get submissions for a specific assignment (teacher view)
+router.get('/submissions/:assignmentId', checkPermission('manageAssignments'), async (req, res, next) => {
+  try {
+    const snapshot = await db.collection('submissions')
+      .where('tenantId', '==', req.tenantId)
+      .where('assignmentId', '==', req.params.assignmentId)
+      .get();
+    res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  } catch (error) {
+    next(error);
+  }
+});
+
 // List assignments
 router.get('/:classId?', async (req, res, next) => {
   try {
     const classId = req.params.classId || (req.query.classId as string);
-    let query: any = db.collection('assignments');
+    let query: any = db.collection('assignments').where('tenantId', '==', req.tenantId);
 
     if (classId) {
       query = query.where('targetClasses', 'array-contains', classId);
@@ -32,6 +58,7 @@ router.post(['/', '/create'], checkPermission('manageAssignments'), async (req, 
     const targetClasses = [req.body.classId]; // Simplified for current payload structure
 
     const assignment = {
+      tenantId: req.tenantId,
       title: req.body.title,
       description: req.body.description,
       dueDate: req.body.dueDate,
@@ -90,6 +117,7 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
     const submissionRef = db.collection('submissions').doc(docId);
 
     const submissionData = {
+      tenantId: req.tenantId,
       assignmentId,
       studentId: user.uid,
       studentName: user.displayName || 'Student',
@@ -115,10 +143,13 @@ Respond strictly in JSON format: { "score": number, "feedback": "string" }`;
       const result = await ai.models.generateContent({
         model: GEMINI_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: 'application/json',
+        }
       });
 
-      const responseText = result.text || '';
-      const aiResult = JSON.parse(responseText.replace(/```json|```/g, '').trim() || '{}');
+      const responseText = result.text || '{}';
+      const aiResult = JSON.parse(responseText);
       await submissionRef.update({
         aiScore: aiResult.score || null,
         aiFeedback: aiResult.feedback || null,

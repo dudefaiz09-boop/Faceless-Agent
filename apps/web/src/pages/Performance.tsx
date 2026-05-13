@@ -48,7 +48,6 @@ export const PerformancePage = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const loadStudentData = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await apiClient.request<PerformanceRecord[]>(`/api/performance/${user?.uid}`);
       setRecords(data);
@@ -60,7 +59,6 @@ export const PerformancePage = () => {
   }, [user]);
 
   const loadClassReport = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await apiClient.request<PerformanceReport>(
         `/api/performance/report/${selectedClass}`
@@ -76,8 +74,10 @@ export const PerformancePage = () => {
 
   useEffect(() => {
     if (isStudent) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadStudentData();
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadClassReport();
     }
   }, [isStudent, loadStudentData, loadClassReport]);
@@ -111,6 +111,7 @@ export const PerformancePage = () => {
         setIsUploadOpen(false);
         setUploadText('');
         setUploadSuccess(false);
+        setLoading(true);
         loadClassReport();
       }, 2000);
     } catch (error) {
@@ -120,9 +121,18 @@ export const PerformancePage = () => {
         message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
         value: ''
       }]);
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handleClassChange = (newClass: string) => {
+    setSelectedClass(newClass);
+    setLoading(true);
+  };
+
+  const handleViewChange = (newView: 'analytics' | 'management') => {
+    setView(newView);
+    setLoading(true);
   };
 
   // Chart Data Preparation
@@ -139,8 +149,8 @@ export const PerformancePage = () => {
       ? Math.round(records.reduce((sum, r) => sum + r.score, 0) / records.length)
       : 0;
 
-  // Dynamic global rank based on report or random generation
-  const globalRank = report?.globalRank || Math.floor(Math.random() * 100) + 1;
+  const [randomRank] = useState(() => Math.floor(Math.random() * 100) + 1);
+  const globalRank = report?.globalRank || randomRank;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -165,8 +175,9 @@ export const PerformancePage = () => {
         <div className="flex items-center gap-3">
           {!isStudent && (
              <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-2">
-                <button onClick={() => setView('analytics')} className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", view === 'analytics' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Analytics</button>
-                <button onClick={() => setView('management')} className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", view === 'management' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Management</button>
+                <button onClick={() => handleViewChange('analytics')} className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", view === 'analytics' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Analytics</button>
+
+                <button onClick={() => handleViewChange('management')} className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", view === 'management' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Management</button>
              </div>
           )}
           {canManagePerformance && (
@@ -323,7 +334,7 @@ export const PerformancePage = () => {
                 </label>
                 <select
                   value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
+                  onChange={(e) => handleClassChange(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl outline-none font-bold text-slate-700"
                 >
                   <option value="10A">Class 10A</option>

@@ -23,6 +23,7 @@ export const AssignmentSchema = BaseSaaSObjectSchema.extend({
   title: z.string().min(1),
   description: z.string(),
   dueDate: z.string(), // ISO String
+  classId: z.string().optional(),
   targetClasses: z.array(z.string()),
   status: z.nativeEnum(ASSIGNMENT_STATUS).default(ASSIGNMENT_STATUS.PUBLISHED),
   attachments: z.array(AttachmentSchema).default([]),
@@ -49,8 +50,12 @@ export const AssignmentSubmissionSchema = BaseSaaSObjectSchema.extend({
   grade: z.string().nullable().optional(),
   feedback: z.string().nullable().optional(),
   teacherComments: z.array(SubmissionCommentSchema).default([]),
-  aiFeedbackDraft: z.string().optional(),
-  isAiFeedbackPublished: z.boolean().default(false),
+  aiScore: z.number().nullable().optional(),
+  aiFeedback: z.string().nullable().optional(),
+  checkedByAI: z.boolean().default(false),
+  recheckedByTeacher: z.boolean().default(false),
+  teacherScore: z.string().nullable().optional(),
+  teacherFeedback: z.string().nullable().optional(),
 });
 
 export type Rubric = z.infer<typeof RubricSchema>;

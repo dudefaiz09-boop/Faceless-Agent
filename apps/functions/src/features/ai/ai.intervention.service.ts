@@ -11,6 +11,7 @@ export class AiInterventionService {
       reason,
       status: 'pending',
       isApproved: false,
+      isArchived: false,
       createdAt: new Date().toISOString(),
     };
 
