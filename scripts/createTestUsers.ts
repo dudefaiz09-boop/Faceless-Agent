@@ -99,6 +99,43 @@ const TEST_USERS = [
       },
     },
   },
+  {
+    email: 'librarian@educonnect.test',
+    password: 'Library@1234',
+    displayName: 'Librarian Admin',
+    claims: {
+      roles: ['staff', 'librarian'],
+      isAdmin: false,
+      permissions: {
+        manageLibrary: true,
+        viewOwnRecords: true,
+        viewAttendance: true,
+        viewAssignments: true,
+        viewStudents: true,
+      },
+    },
+  },
+  {
+    email: 'admin@educonnect.test',
+    password: 'Admin@1234',
+    displayName: 'System Administrator',
+    claims: {
+      roles: ['admin'],
+      isAdmin: true,
+      permissions: {
+        manageStudents: true,
+        manageTeachers: true,
+        manageAnnouncements: true,
+        manageAttendance: true,
+        manageFees: true,
+        manageLibrary: true,
+        manageAssignments: true,
+        managePerformance: true,
+        financialOps: true,
+        manageUsers: true,
+      },
+    },
+  },
 ];
 
 async function setup() {
