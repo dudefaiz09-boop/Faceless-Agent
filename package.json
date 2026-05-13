@@ -10,7 +10,9 @@
     "lint": "turbo lint",
     "format": "prettier --write .",
     "test": "turbo test",
-    "deploy": "firebase deploy",
+    "deploy": "pnpm deploy:web",
+    "deploy:web": "pnpm --filter @educonnect/web build",
+    "deploy:functions": "pnpm --filter @educonnect/functions build",
     "setup": "pnpm install"
   },
   "devDependencies": {
@@ -27,8 +29,6 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "firebase-admin": "^13.9.0",
-    "firebase-tools": "^15.17.0",
     "globals": "^17.6.0",
     "jest": "^29.7.0",
     "prettier": "^3.8.3",

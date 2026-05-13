@@ -48,10 +48,10 @@ export class StudentRepository {
   }
 
   static async delete(uid: string) {
-    // 1. Delete from Firestore
+    // 1. Delete profile document
     await db.collection('users').doc(uid).delete();
 
-    // 2. Delete from Firebase Auth
+    // 2. Delete from Supabase Auth
     await auth.deleteUser(uid);
 
     return { success: true };

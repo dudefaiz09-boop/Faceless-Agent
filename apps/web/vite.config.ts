@@ -18,6 +18,9 @@ export default defineConfig(() => {
               ) {
                 return 'react-vendor';
               }
+              if (id.includes('@supabase')) {
+                return 'supabase-vendor';
+              }
               if (id.includes('firebase')) {
                 return 'firebase-vendor';
               }

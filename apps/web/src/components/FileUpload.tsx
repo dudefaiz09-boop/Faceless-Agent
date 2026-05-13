@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { storage } from '../lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { supabase, uploadsBucket } from '../lib/supabase';
 import { UploadCloud, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -23,7 +22,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -31,26 +30,26 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setError(null);
     setFileName(file.name);
 
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const objectPath = `${path}/${Date.now()}_${file.name}`;
 
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const p = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setProgress(p);
-      },
-      (err) => {
-        console.error('[Upload Error]', err);
-        setError('Upload failed. Please try again.');
-        setUploading(false);
-      },
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        onUploadComplete(downloadURL);
-        setUploading(false);
-      }
-    );
+    try {
+      setProgress(25);
+      const { error } = await supabase.storage.from(uploadsBucket).upload(objectPath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+      if (error) throw error;
+
+      setProgress(100);
+      const { data } = supabase.storage.from(uploadsBucket).getPublicUrl(objectPath);
+      onUploadComplete(data.publicUrl);
+    } catch (err) {
+      console.error('[Upload Error]', err);
+      setError('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (

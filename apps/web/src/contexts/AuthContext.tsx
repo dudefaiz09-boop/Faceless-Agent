@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { UserRole, ROLES, getUserRole, COLLECTIONS } from '@educonnect/shared';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { UserRole, ROLES, getUserRole } from '@educonnect/shared';
+import { supabase } from '../lib/supabase';
 
 export enum OperationType {
   CREATE = 'create',
@@ -11,6 +10,16 @@ export enum OperationType {
   LIST = 'list',
   GET = 'get',
   WRITE = 'write',
+}
+
+export interface AuthenticatedUser {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+  emailVerified?: boolean | null;
+  isAnonymous?: boolean | null;
+  getIdToken: () => Promise<string | null>;
 }
 
 export interface FirestoreErrorInfo {
@@ -25,6 +34,8 @@ export interface FirestoreErrorInfo {
   };
 }
 
+let latestAuthInfo: FirestoreErrorInfo['authInfo'] = {};
+
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
@@ -32,21 +43,16 @@ export function handleFirestoreError(
 ) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-    },
+    authInfo: latestAuthInfo,
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.error('Firestore compatibility error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthenticatedUser | null;
   role: UserRole | null;
   roles: string[];
   permissions: Record<string, boolean>;
@@ -87,8 +93,33 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+function toAuthenticatedUser(user: SupabaseUser, accessToken: string | null): AuthenticatedUser {
+  const metadata = user.user_metadata || {};
+  return {
+    uid: user.id,
+    email: user.email,
+    displayName: metadata.display_name || metadata.full_name || user.email,
+    photoURL: metadata.avatar_url || null,
+    emailVerified: !!user.email_confirmed_at,
+    isAnonymous: user.is_anonymous,
+    getIdToken: async () => accessToken,
+  };
+}
+
+async function getProfile(uid: string) {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('data')
+    .eq('collection', 'users')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data?.data || {}) as Record<string, any>;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [schoolId, setSchoolId] = useState<string | null>(null);
@@ -96,56 +127,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        try {
-          const idTokenResult = await user.getIdTokenResult(true); // Force refresh
-
-          interface CustomClaims {
-            roles?: string[];
-            permissions?: Record<string, boolean>;
-            classId?: string;
-            linkedStudentIds?: string[];
-          }
-
-          const claims = idTokenResult.claims as CustomClaims;
-
-          if (claims.roles) {
-            setRoles(claims.roles);
-            setPermissions(claims.permissions || {});
-            setSchoolId(claims.schoolId || null);
-            setClassId(claims.classId || null);
-            setLinkedStudentIds(claims.linkedStudentIds || []);
-          } else {
-            // Fallback to Firestore if claims are missing (initial setup)
-            const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
-            if (userDoc.exists()) {
-              const data = userDoc.data();
-              setRoles(data.roles || []);
-              setPermissions(data.permissions || {});
-              setSchoolId(data.schoolId || null);
-              setClassId(data.classId || null);
-              // Parents fetch their linked children by inverse lookup, but caching here is simpler if stored in custom claims.
-              // For fallback, we will just set it if it exists.
-              setLinkedStudentIds(data.linkedStudentIds || []);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching credentials:', error);
-        }
-      } else {
-        setRoles([]);
-        setPermissions({});
-        setSchoolId(null);
-        setClassId(null);
-        setLinkedStudentIds([]);
-      }
+  const applySession = async (session: Session | null) => {
+    if (!session?.user) {
+      setUser(null);
+      setRoles([]);
+      setPermissions({});
+      setSchoolId(null);
+      setClassId(null);
+      setLinkedStudentIds([]);
+      latestAuthInfo = {};
       setLoading(false);
+      return;
+    }
+
+    const authUser = toAuthenticatedUser(session.user, session.access_token);
+    setUser(authUser);
+    latestAuthInfo = {
+      userId: authUser.uid,
+      email: authUser.email,
+      emailVerified: authUser.emailVerified,
+      isAnonymous: authUser.isAnonymous,
+    };
+
+    try {
+      const profile = await getProfile(session.user.id);
+      const appMetadata = session.user.app_metadata || {};
+      const nextRoles = profile.roles || appMetadata.roles || [];
+      const nextPermissions = profile.permissions || appMetadata.permissions || {};
+      const nextSchoolId = profile.schoolId || appMetadata.schoolId || null;
+
+      setRoles(nextRoles);
+      setPermissions(nextPermissions);
+      setSchoolId(nextSchoolId);
+      setClassId(profile.classId || appMetadata.classId || null);
+      setLinkedStudentIds(profile.linkedStudentIds || appMetadata.linkedStudentIds || []);
+
+      if (nextSchoolId) {
+        localStorage.setItem('educonnect_school_id', nextSchoolId);
+      }
+    } catch (error) {
+      console.error('Error fetching Supabase profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => applySession(data.session));
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      void applySession(session);
     });
 
-    return () => unsubscribe();
+    return () => {
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   const value = {

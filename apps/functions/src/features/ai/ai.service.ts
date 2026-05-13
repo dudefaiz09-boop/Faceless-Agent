@@ -1,6 +1,5 @@
 import { generateSafeContent } from '../../lib/ai.js';
 import { db } from '../../lib/firebase.js';
-import { FieldValue } from 'firebase-admin/firestore';
 
 export class AiService {
   static async getChatbotResponse(userId: string, role: string, query: string) {
@@ -40,7 +39,7 @@ export class AiService {
       role,
       query,
       response: responseText,
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: new Date().toISOString(),
     });
 
     return {
@@ -65,11 +64,14 @@ export class AiService {
       .limit(20)
       .get();
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      timestamp: doc.data().timestamp?.toDate?.()?.toISOString() || new Date().toISOString(),
-    }));
+    return snapshot.docs.map((doc) => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate?.()?.toISOString() || data.timestamp || new Date().toISOString(),
+      };
+    });
   }
 
   static async saveFeedback(logId: string, feedback: 'helpful' | 'not_helpful') {

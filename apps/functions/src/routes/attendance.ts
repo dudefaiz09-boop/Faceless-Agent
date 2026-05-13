@@ -19,8 +19,8 @@ router.get('/report/:classId', checkPermission('viewAttendance'), async (req, re
 
     const snapshot = await query.get();
     
-    const stats = snapshot.docs.map(doc => {
-      const data = doc.data();
+    const stats = snapshot.docs.map((doc: any) => {
+      const data = doc.data() || {};
       // Flatten the record structure for the calculator
       const records = data.records || [];
       return AttendanceAnalytics.calculateStats(records, req.tenantId!, data.date);
@@ -45,8 +45,8 @@ router.get('/history/:uid', async (req, res, next) => {
       .where('tenantId', '==', req.tenantId)
       .where('classId', '==', classId)
       .get();
-    const history = snapshot.docs.map(doc => {
-      const data = doc.data();
+    const history = snapshot.docs.map((doc: any) => {
+      const data = doc.data() || {};
       const record = data.records?.find((r: any) => r.studentId === uid);
       return record ? { id: doc.id, date: data.date, status: record.status } : null;
     }).filter(Boolean);

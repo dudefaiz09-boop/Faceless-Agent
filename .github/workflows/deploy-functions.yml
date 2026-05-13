@@ -1,4 +1,4 @@
-name: Deploy Functions
+name: Build API
 
 on:
   push:
@@ -6,15 +6,18 @@ on:
     paths:
       - 'apps/functions/**'
       - 'packages/**'
-      - 'firebase.json'
       - '.github/workflows/deploy-functions.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/functions/**'
+      - 'packages/**'
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -22,18 +25,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v2'
-        with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-
-      - name: Deploy to Firebase Functions
-        run: |
-          pnpm exec firebase deploy --only functions --project production --non-interactive
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - name: Build API bundle
+        run: pnpm turbo build --filter @educonnect/functions

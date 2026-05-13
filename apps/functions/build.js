@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 // We want to bundle ONLY workspace packages and their source code.
 // EVERYTHING else from node_modules should be external.
 const commonConfig = {
+  absWorkingDir: __dirname,
   bundle: true,
   platform: 'node',
   target: 'node22',
@@ -38,15 +39,15 @@ async function runBuild() {
     // Build main index
     await esbuild.build({
       ...commonConfig,
-      entryPoints: ['src/index.ts'],
-      outfile: 'dist/index.js',
+      entryPoints: ['./src/index.ts'],
+      outfile: path.join(__dirname, 'dist/index.js'),
     });
 
     // Build standalone
     await esbuild.build({
       ...commonConfig,
-      entryPoints: ['src/standalone.ts'],
-      outfile: 'dist/standalone.js',
+      entryPoints: ['./src/standalone.ts'],
+      outfile: path.join(__dirname, 'dist/standalone.js'),
     });
 
     console.log('✅ Build complete!');

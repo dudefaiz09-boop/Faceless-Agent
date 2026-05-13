@@ -1,8 +1,7 @@
 import React, { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { auth } from './lib/firebase';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { supabase } from './lib/supabase';
 import {
   LayoutDashboard,
   Users,
@@ -147,7 +146,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: '/all-users', icon: Shield, label: 'All Users', roles: ['admin'] },
   ];
 
-  const handleLogout = () => signOut(auth);
+  const handleLogout = () => supabase.auth.signOut();
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -238,17 +237,12 @@ const LoginPage = () => {
     setSigningIn(true);
     setError('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (err: unknown) {
       console.error('Login error:', err);
       const errorObj = err as { code?: string; message?: string };
-      if (errorObj.code === 'auth/operation-not-allowed') {
-        setError('Email/Password sign-in is disabled in Firebase Console.');
-      } else if (
-        errorObj.code === 'auth/invalid-credential' ||
-        errorObj.code === 'auth/wrong-password' ||
-        errorObj.code === 'auth/user-not-found'
-      ) {
+      if (errorObj.message?.toLowerCase().includes('invalid login credentials')) {
         setError('Invalid email or password. Please try again.');
       } else {
         setError(errorObj.message || 'An unexpected error occurred.');
@@ -327,6 +321,7 @@ const LoginPage = () => {
 // --- Pages ---
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const stats = [
     { label: 'Attendance', value: '98%', trend: '+2%', color: 'bg-blue-50 text-blue-600' },
     { label: 'Assignments', value: '12', sub: 'Active', color: 'bg-indigo-50 text-indigo-600' },
@@ -343,7 +338,7 @@ const Dashboard = () => {
     <div className="space-y-10">
       <div className="flex flex-col gap-2">
         <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
-          Howdy, {auth.currentUser?.displayName?.split(' ')[0]}! 👋
+          Howdy, {user?.displayName?.split(' ')[0] || 'there'}!
         </h1>
         <p className="text-slate-500 text-lg">Here&apos;s what happening in your academy today.</p>
       </div>

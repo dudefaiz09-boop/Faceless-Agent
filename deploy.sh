@@ -1,57 +1,53 @@
 #!/bin/bash
 set -e
 
-# EduConnect Monorepo Unified Deployment Script
+# EduConnect deployment helper
 # Usage: ./deploy.sh [web|functions|android|all]
 
 TARGET=${1:-all}
 
-echo "🚀 Starting deployment for target: $TARGET"
+echo "Starting deployment helper for target: $TARGET"
 
-# 1. Shared Package Build (Foundation)
-echo "📦 Building shared packages..."
+echo "Building shared packages..."
 pnpm turbo build --filter="./packages/*"
 
 case $TARGET in
   web)
-    echo "🌐 Deploying Web to Firebase Hosting..."
-    # Source .env file if it exists to ensure Vite picks up variables
+    echo "Building Web for Cloudflare Pages..."
     if [ -f "apps/web/.env" ]; then
-      echo "📝 Loading environment variables from apps/web/.env"
+      echo "Loading environment variables from apps/web/.env"
       export $(grep -v '^#' apps/web/.env | xargs)
     fi
     pnpm turbo build --filter @educonnect/web
-    pnpm exec firebase deploy --only hosting:web
+    echo "Upload apps/web/dist to Cloudflare Pages or let GitHub Actions deploy it."
     ;;
-  
+
   functions)
-    echo "⚡ Deploying Cloud Functions..."
-    pnpm exec firebase deploy --only functions
+    echo "Building standalone API bundle..."
+    pnpm turbo build --filter @educonnect/functions
+    echo "Deploy apps/functions/dist/standalone.js to your chosen free Node runtime."
     ;;
 
   android)
-    echo "🤖 Building Android Production Release..."
-    # Check for keystore
+    echo "Building Android production release..."
     if [ ! -f "apps/mobile/android/app/release.keystore" ] && [ ! -f "../my-release-key.keystore" ]; then
-      echo "⚠️ WARNING: Keystore not found. Build will be unsigned or fail."
+      echo "WARNING: Keystore not found. Build will be unsigned or fail."
     fi
     cd apps/mobile/android
     ./gradlew bundleRelease
-    echo "✅ Android AAB built at: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab"
+    echo "Android AAB built at: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab"
     ;;
 
   all)
-    echo "🌟 Running full monorepo deployment..."
+    echo "Building full monorepo..."
     pnpm turbo build
-    pnpm exec firebase deploy
-    cd apps/mobile/android && ./gradlew bundleRelease
     ;;
 
   *)
-    echo "❌ Unknown target: $TARGET"
+    echo "Unknown target: $TARGET"
     echo "Usage: ./deploy.sh [web|functions|android|all]"
     exit 1
     ;;
 esac
 
-echo "🎉 Deployment complete!"
+echo "Done."

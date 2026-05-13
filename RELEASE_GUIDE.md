@@ -1,73 +1,43 @@
 # EduConnect Release Guide
 
-This document outlines the procedures for production web deployment and Android release.
+This migration branch releases through Cloudflare Pages for web assets and Supabase for Auth, Storage, and Postgres migrations.
 
-## 🌐 Web Production Deployment
+## Web
 
-The web application is deployed to **Firebase Hosting**.
+1. Add these GitHub secrets:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_API_BASE_URL`
+2. Push to `main`.
+3. The `Deploy Web to Cloudflare Pages` workflow builds `apps/web` and deploys `apps/web/dist`.
 
-### Prerequisites
-- Build shared packages: `pnpm turbo build --filter="./packages/*"`
-- Production environment variables in `apps/web/.env`
+## Supabase
 
-### Commands
+Apply migrations from `supabase/migrations` before releasing API code that depends on new tables or policies.
+
 ```bash
-./deploy.sh web
+supabase db push
 ```
 
-### Rollback
+## Backend API
+
+The API currently builds as a standalone Node bundle:
+
 ```bash
-firebase hosting:clone web:<version_id> web:live
+pnpm --filter @educonnect/functions build
+node apps/functions/dist/standalone.js
 ```
 
----
+Deploy that bundle to the free Node runtime you choose and set:
 
-## 🤖 Android Production Release
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_UPLOADS_BUCKET`
+- `GEMINI_API_KEY` if AI is enabled
 
-The Android app is built as an **Android App Bundle (AAB)** for Play Store distribution.
+## Mobile
 
-### 1. Release Signing Setup
-Create (or update) `apps/mobile/android/gradle.properties` with the following secrets (DO NOT COMMIT):
-
-```properties
-MYAPP_RELEASE_STORE_FILE=my-release-key.keystore
-MYAPP_RELEASE_KEY_ALIAS=my-key-alias
-MYAPP_RELEASE_STORE_PASSWORD=*****
-MYAPP_RELEASE_KEY_PASSWORD=*****
-```
-
-Place your `.keystore` file in `apps/mobile/android/app/`.
-
-### 2. Environment Configuration
-Ensure `apps/mobile/src/config/env.ts` is NOT in `__DEV__` mode during the build. The build script automatically handles this via the release variant.
-
-### 3. Build Commands
-```bash
-./deploy.sh android
-```
-
-Output path: `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`
-
----
-
-## ⚡ Cloud Functions Deployment
-
-### Prerequisites
-- Vertex AI API enabled in GCP
-- GEMINI_API_KEY set in **Google Cloud Secret Manager**
-
-### Commands
-```bash
-./deploy.sh functions
-```
-
----
-
-## ✅ Production Checklist
-
-- [ ] All shared packages are built and typed.
-- [ ] `apps/web/.env` contains production Firebase credentials.
-- [ ] No `localhost` references in production bundles.
-- [ ] CSP headers verified in `firebase.json`.
-- [ ] Android keystore is valid and properties are set.
-- [ ] Backend secrets are configured in Secret Manager.
+The Android workflow builds and uploads an APK artifact to GitHub Actions. Store mobile Supabase values through your React Native env strategy before production signing.

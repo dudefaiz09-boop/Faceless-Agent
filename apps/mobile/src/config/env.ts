@@ -1,5 +1,11 @@
 import { Platform } from 'react-native';
 
+declare const process:
+  | {
+      env: Record<string, string | undefined>;
+    }
+  | undefined;
+
 /**
  * PRODUCTION-GRADE MOBILE ENVIRONMENT CONFIG
  * 
@@ -8,24 +14,27 @@ import { Platform } from 'react-native';
 
 interface EnvConfig {
   API_BASE_URL: string;
-  FIREBASE_PROJECT_ID: string;
+  SUPABASE_URL: string;
+  SUPABASE_ANON_KEY: string;
   IS_PRODUCTION: boolean;
 }
 
 const PRODUCTION_CONFIG: EnvConfig = {
-  API_BASE_URL: 'https://us-central1-gen-lang-client-0979500227.cloudfunctions.net/api',
-  FIREBASE_PROJECT_ID: 'gen-lang-client-0979500227',
+  API_BASE_URL: 'https://your-api.example.com/api',
+  SUPABASE_URL: process?.env?.SUPABASE_URL || 'https://your-project.supabase.co',
+  SUPABASE_ANON_KEY: process?.env?.SUPABASE_ANON_KEY || 'your_supabase_anon_key',
   IS_PRODUCTION: true,
 };
 
 const DEV_CONFIG: EnvConfig = {
   // Use local emulator IP for Android/iOS
   API_BASE_URL: Platform.select({
-    android: 'http://10.0.2.2:5001/gen-lang-client-0979500227/us-central1/api',
-    ios: 'http://localhost:5001/gen-lang-client-0979500227/us-central1/api',
-    default: 'http://localhost:5001/gen-lang-client-0979500227/us-central1/api',
+    android: 'http://10.0.2.2:8080/api',
+    ios: 'http://localhost:8080/api',
+    default: 'http://localhost:8080/api',
   })!,
-  FIREBASE_PROJECT_ID: 'gen-lang-client-0979500227',
+  SUPABASE_URL: process?.env?.SUPABASE_URL || 'https://your-project.supabase.co',
+  SUPABASE_ANON_KEY: process?.env?.SUPABASE_ANON_KEY || 'your_supabase_anon_key',
   IS_PRODUCTION: false,
 };
 

@@ -9,10 +9,14 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().transform(Number).default('8080'),
 
-  // FIREBASE / GCP (Injected by environment or Secret Manager)
-  PROJECT_ID: z.string().min(1, 'PROJECT_ID is required for Vertex AI'),
-  VERTEX_LOCATION: z.string().default('us-central1'),
-  FIREBASE_STORAGE_BUCKET: z.string().optional(),
+  // Supabase backend configuration.
+  SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
+  SUPABASE_ANON_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
+  SUPABASE_UPLOADS_BUCKET: z.string().default('educonnect-uploads'),
+
+  // Gemini API. Keep this separate from hosting so the app can disable AI without changing cloud.
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 /**

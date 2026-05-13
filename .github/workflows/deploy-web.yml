@@ -1,4 +1,4 @@
-name: Deploy Web
+name: Deploy Web to Cloudflare Pages
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/**'
-      - 'firebase.json'
       - '.github/workflows/deploy-web.yml'
   pull_request:
     branches: [main]
@@ -18,9 +17,8 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write'
-      pull-requests: 'write'
+      contents: read
+      deployments: write
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +26,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -36,23 +34,15 @@ jobs:
       - name: Build Web App
         run: pnpm turbo build --filter @educonnect/web
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.PROD_FIREBASE_API_KEY }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.PROD_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.PROD_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PROD_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.PROD_FIREBASE_APP_ID }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_UPLOADS_BUCKET: educonnect-uploads
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v2'
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name == 'push'
+        uses: cloudflare/wrangler-action@v3
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.GCP_CREDENTIALS }}'
-          projectId: gen-lang-client-0979500227
-          channelId: ${{ github.event_name == 'push' && 'live' || '' }}
-          target: web
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/dist --project-name educonnect-app

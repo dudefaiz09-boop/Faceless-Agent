@@ -4,6 +4,7 @@ export interface UserContext {
   displayName?: string;
   roles: string[];
   isAdmin: boolean;
+  schoolId: string | null;
   classId: string | null;
   permissions: Record<string, boolean>;
 }
@@ -12,7 +13,7 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      user: UserContext;
+      user?: UserContext;
     }
   }
 }

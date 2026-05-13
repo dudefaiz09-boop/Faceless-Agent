@@ -19,6 +19,7 @@
       "@educonnect/types": ["../../packages/types/src/index.ts"],
       "@educonnect/shared": ["../../packages/shared/src/index.ts"],
       "@educonnect/shared-education": ["../../packages/shared-education/src/index.ts"],
+      "@educonnect/shared-analytics": ["../../packages/shared-analytics/src/index.ts"],
       "@educonnect/shared-api": ["../../packages/shared-api/src/index.ts"],
       "@educonnect/shared-notifications": ["../../packages/shared-notifications/src/index.ts"]
     }

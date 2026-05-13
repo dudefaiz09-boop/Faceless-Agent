@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import { db } from '../lib/firebase.js';
-import { getMessaging } from 'firebase-admin/messaging';
 import { checkPermission } from '../middleware/auth.js';
 import { logger } from '@educonnect/logger';
-import { ai, GEMINI_MODEL } from '../lib/ai.js';
+import { ai, GEMINI_MODEL, isAiEnabled } from '../lib/ai.js';
 import { AssignmentAnalytics } from '@educonnect/shared-analytics';
 
 const router: Router = Router();
@@ -102,26 +101,10 @@ router.post(['/', '/create'], checkPermission('manageAssignments'), async (req, 
     };
     const docRef = await db.collection('assignments').add(assignment);
 
-    // Dispatch push notifications to mobile clients via FCM Topics
-    try {
-      const messaging = getMessaging();
-      const topic = `class_${req.body.classId}_assignments`;
-      await messaging.send({
-        topic,
-        notification: {
-          title: `New Assignment: ${assignment.title}`,
-          body: `Due on ${assignment.dueDate}`,
-        },
-        data: {
-          type: 'assignment',
-          assignmentId: docRef.id,
-          classId: req.body.classId,
-        },
-      });
-      logger.info(`Pushed FCM notification to topic: ${topic}`);
-    } catch (fcmError) {
-      logger.error({ err: fcmError }, 'Failed to send FCM assignment notification');
-    }
+    logger.info(
+      { assignmentId: docRef.id, classId: req.body.classId },
+      'Assignment created; push notification provider is not configured after Firebase migration'
+    );
 
     res.json({ id: docRef.id, ...assignment });
   } catch (error) {
@@ -163,6 +146,11 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
 
     // Trigger AI Grading
     try {
+      if (!isAiEnabled) {
+        logger.info({ assignmentId }, 'Skipping AI grading because GEMINI_API_KEY is not configured');
+        return res.json({ success: true, id: docId });
+      }
+
       const rubricText = assignment?.rubric ? `Use this rubric: ${assignment.rubric}.` : '';
       const prompt = `Grade this student submission for the assignment "${assignment?.title || 'Unknown'}".
 Submission Content: ${content || 'No text provided.'}

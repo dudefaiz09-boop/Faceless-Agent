@@ -5,10 +5,10 @@ A comprehensive education management system connecting students, parents, and te
 ## 🚀 Tech Stack
 
 - **Frontend:** React 19, Vite, Tailwind CSS, Lucide React, Framer Motion
-- **Backend:** Node.js, Express, Firebase Admin SDK, Google Generative AI
-- **Mobile:** React Native, Firebase
+- **Backend:** Node.js, Express, Supabase Admin, Google Generative AI
+- **Mobile:** React Native, Supabase
 - **Testing:** Jest, Supertest, Playwright, Artillery
-- **CI/CD:** GitHub Actions, Cloud Run
+- **CI/CD:** GitHub Actions, Cloudflare Pages, Supabase migrations
 
 ## 📁 Architecture
 
@@ -16,7 +16,7 @@ This project is a monorepo managed by **pnpm** and **TurboRepo**:
 
 - `apps/web`: React + Vite frontend.
 - `apps/mobile`: React Native mobile app.
-- `apps/functions`: Firebase Functions backend (Gen 2).
+- `apps/functions`: Standalone Express API for free-tier Node hosting.
 - `packages/*`: Shared logic, types, and analytics.
 
 ## 🛠 Getting Started
@@ -25,7 +25,7 @@ This project is a monorepo managed by **pnpm** and **TurboRepo**:
 
 - Node.js (v22+)
 - pnpm (v11+)
-- Firebase CLI
+- Supabase CLI
 - Android Studio / Xcode (for mobile)
 
 ### Installation
@@ -46,7 +46,7 @@ pnpm dev
 
 ## 🚀 Deployment & Release
 
-For production deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md) and [RELEASE_GUIDE.md](./RELEASE_GUIDE.md).
+For production deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md), [MIGRATION_SUPABASE.md](./MIGRATION_SUPABASE.md), and [RELEASE_GUIDE.md](./RELEASE_GUIDE.md).
 
 Quick Deploy:
 ```bash
@@ -74,7 +74,7 @@ npm run test:ui
 - Content Security Policy (CSP) enabled via Helmet.
 - Input validation using Zod.
 - Rate limiting on API routes.
-- Secure authentication via Firebase Auth.
+- Secure authentication via Supabase Auth.
 - Role-based access control (RBAC).
 
 ## 📄 License

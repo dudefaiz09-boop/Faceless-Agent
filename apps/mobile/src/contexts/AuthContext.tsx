@@ -1,9 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../lib/firebase';
-import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+
+interface MobileUser {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  getIdToken: () => Promise<string | null>;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: MobileUser | null;
   loading: boolean;
   schoolId: string | null;
   roles: string[];
@@ -24,42 +31,78 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+function toMobileUser(user: SupabaseUser, accessToken: string | null): MobileUser {
+  return {
+    uid: user.id,
+    email: user.email,
+    displayName: user.user_metadata?.display_name || user.email,
+    getIdToken: async () => accessToken,
+  };
+}
+
+async function getProfile(uid: string) {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('data')
+    .eq('collection', 'users')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data?.data || {}) as Record<string, any>;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<MobileUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        try {
-          const idTokenResult = await u.getIdTokenResult(true);
-          const claims = idTokenResult.claims as any;
-          setSchoolId(claims.schoolId || null);
-          setRoles(claims.roles || []);
-          setPermissions(claims.permissions || {});
-        } catch (error) {
-          console.error('[Auth] Failed to fetch custom claims:', error);
-        }
-      } else {
-        setSchoolId(null);
-        setRoles([]);
-        setPermissions({});
-      }
+  const applySession = async (session: Session | null) => {
+    if (!session?.user) {
+      setUser(null);
+      setSchoolId(null);
+      setRoles([]);
+      setPermissions({});
       setLoading(false);
+      return;
+    }
+
+    setUser(toMobileUser(session.user, session.access_token));
+
+    try {
+      const profile = await getProfile(session.user.id);
+      const appMetadata = session.user.app_metadata || {};
+      setSchoolId(profile.schoolId || appMetadata.schoolId || null);
+      setRoles(profile.roles || appMetadata.roles || []);
+      setPermissions(profile.permissions || appMetadata.permissions || {});
+    } catch (error) {
+      console.error('[Auth] Failed to fetch Supabase profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => applySession(data.session));
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      void applySession(session);
     });
-    return unsubscribe;
+
+    return () => {
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
   const logout = async () => {
-    await firebaseSignOut(auth);
+    await supabase.auth.signOut();
   };
 
   return (
