@@ -84,6 +84,21 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// Create a separate router for public endpoints
+const publicRouter = express.Router();
+publicRouter.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'EduConnect API is running.',
+    version: process.env.npm_package_version || '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+publicRouter.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+app.use('/api', publicRouter);
+
 // 2b. Rate Limiting - Stricter for sensitive operations
 const sensitiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -113,11 +128,6 @@ app.use('/api/performance', performanceRouter);
 app.use('/api/teachers', teachersRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/roles', rolesRouter);
-
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // 6. Global Error Handling (MUST be last)
 app.use(globalErrorHandler);
