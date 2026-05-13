@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, Send, X, AlertCircle, Calendar, Eye, Clock } from 'lucide-react';
@@ -9,9 +8,6 @@ import { Input } from '../components/ui/Input';
 import { PageHeader } from '../components/ui/PageHeader';
 import { useAnnouncements } from '@educonnect/shared-api';
 import { announcementsService } from '../lib/api-client';
-import { useRealtimeSync } from '@educonnect/shared-firestore';
-import { Announcement } from '@educonnect/shared';
-import { where } from 'firebase/firestore';
 
 export const AnnouncementsPage = () => {
   const { isAdmin, isTeacher, user, schoolId } = useAuth();
@@ -22,14 +18,6 @@ export const AnnouncementsPage = () => {
     isCreating: submitting,
     deleteAnnouncement,
   } = useAnnouncements(announcementsService, schoolId);
-
-  // REALTIME SYNC
-  useRealtimeSync<Announcement>(
-    db,
-    'announcements',
-    schoolId ? [where('tenantId', '==', schoolId)] : [],
-    ['announcements', schoolId || 'all']
-  );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 

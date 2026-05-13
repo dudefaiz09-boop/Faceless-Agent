@@ -17,8 +17,8 @@ router.post('/', checkPermission('manageUsers'), async (req, res, next) => {
     const claims = { roles: [role], isAdmin: role === 'admin' };
     await auth.setCustomUserClaims(uid, claims);
 
-    // 2. Update Firestore
-    await db.collection('users').doc(uid).update({ role });
+    // 2. Update the Supabase-backed profile document.
+    await db.collection('users').doc(uid).update({ role, roles: [role] });
 
     res.json({ success: true, message: `User ${uid} role updated to ${role}` });
   } catch (error) {
