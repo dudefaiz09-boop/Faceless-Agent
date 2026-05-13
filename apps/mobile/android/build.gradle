@@ -1,0 +1,59 @@
+buildscript {
+    ext {
+        buildToolsVersion = "34.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "26.1.10909125"
+        kotlinVersion = "1.9.22"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
+plugins {
+    id("com.android.application") version "8.7.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+    id("com.facebook.react") version "0.76.3" apply false
+    id("com.facebook.react.rootproject") version "0.76.3" apply false
+}
+
+// Apply the root project plugin
+apply plugin: "com.facebook.react.rootproject"
+
+def findNodeModules(String dependency) {
+    def localPath = "$rootDir/../node_modules/$dependency"
+    if (file(localPath).exists()) {
+        return localPath
+    }
+    return "$rootDir/../../../node_modules/$dependency"
+}
+
+allprojects {
+    repositories {
+        maven {
+            url("$rootDir/../node_modules/react-native/android")
+        }
+        maven {
+            url("$rootDir/../../../node_modules/react-native/android")
+        }
+        maven {
+            url("$rootDir/../node_modules/jsc-android/dist")
+        }
+        maven {
+            url("$rootDir/../../../node_modules/jsc-android/dist")
+        }
+        mavenCentral {
+            content {
+                excludeGroup "com.facebook.react"
+            }
+        }
+        google()
+        maven { url 'https://www.jitpack.io' }
+    }
+}

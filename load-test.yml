@@ -1,0 +1,31 @@
+config:
+  target: 'https://educonnect-app-902823826580.us-central1.run.app'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 50
+      name: Warm up phase
+    - duration: 120
+      arrivalRate: 50
+      name: Sustained load phase
+    - duration: 60
+      arrivalRate: 50
+      rampTo: 100
+      name: Stress phase
+  payload:
+    path: 'tests/users.csv'
+    fields:
+      - 'email'
+      - 'password'
+
+scenarios:
+  - name: 'Student browsing and chatbot'
+    flow:
+      - get:
+          url: '/api/health'
+      - get:
+          url: '/api/announcements'
+      - post:
+          url: '/api/chatbot/query'
+          json:
+            query: 'What is my current attendance?'

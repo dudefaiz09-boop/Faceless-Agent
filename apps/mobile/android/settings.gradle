@@ -1,0 +1,27 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    // Check both local, monorepo root, and pnpm virtual store for monorepo compatibility
+    def gradlePluginPath = "../node_modules/@react-native/gradle-plugin"
+    if (!file(gradlePluginPath).exists()) {
+        gradlePluginPath = "../../../node_modules/@react-native/gradle-plugin"
+    }
+    // Fallback for pnpm symlink structure
+    if (!file(gradlePluginPath).exists()) {
+        gradlePluginPath = new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json')"].execute(null, rootDir).text.trim()).parent
+    }
+    includeBuild(gradlePluginPath)
+}
+plugins {
+    id("com.facebook.react.settings")
+}
+
+extensions.configure(com.facebook.react.ReactSettingsExtension) {
+    it.autolinkLibrariesFromCommand()
+}
+
+rootProject.name = 'EduConnect'
+include ':app'

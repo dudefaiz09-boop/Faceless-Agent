@@ -1,0 +1,28 @@
+# Multi-stage Dockerfile for EduConnect Monorepo Backend (Bundled)
+FROM node:22-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+WORKDIR /app
+
+FROM base AS build
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm turbo build --filter=functions...
+
+FROM base AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+
+# Copy workspace config and package.json for dependency resolution
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# Copy functions package.json
+COPY --from=build /app/apps/functions/package.json ./apps/functions/package.json
+# Copy built bundled code
+COPY --from=build /app/apps/functions/dist ./apps/functions/dist
+
+# Install production dependencies only (for externalized packages)
+RUN pnpm install --prod --frozen-lockfile
+
+EXPOSE 8080
+CMD ["node", "apps/functions/dist/standalone.js"]

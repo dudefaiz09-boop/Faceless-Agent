@@ -1,0 +1,11 @@
+{
+  "name": "@educonnect/types",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "node ../../scripts/build-package.js && tsc --emitDeclarationOnly"
+  }
+}

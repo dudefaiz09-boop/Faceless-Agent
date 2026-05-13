@@ -1,0 +1,19 @@
+{
+  "name": "@educonnect/shared-analytics",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "node ../../scripts/build-package.js && tsc --emitDeclarationOnly"
+  },
+  "dependencies": {
+    "zod": "^3.24.2",
+    "@educonnect/types": "workspace:*",
+    "@educonnect/shared-education": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2"
+  }
+}

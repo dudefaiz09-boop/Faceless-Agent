@@ -1,0 +1,21 @@
+{
+  "name": "@educonnect/shared-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "node ../../scripts/build-package.js && tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "@educonnect/shared": "workspace:*",
+    "@tanstack/react-query": "^5.100.9",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2"
+  }
+}
