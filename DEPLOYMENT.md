@@ -7,7 +7,7 @@ This migration branch targets free-tier friendly hosting without Firebase or Goo
 | Target | Technology | Hosting | Pipeline |
 | :--- | :--- | :--- | :--- |
 | Web | React + Vite | Cloudflare Pages | `.github/workflows/deploy-web.yml` |
-| Backend API | Node.js + Express | Free Node runtime of choice | `.github/workflows/deploy-functions.yml` builds the bundle |
+| Backend API | Node.js + Express | Vercel Hobby Functions | `vercel.json` builds the bundle |
 | Database/Auth/Storage | Supabase | Supabase Free | `supabase/migrations/*` |
 | Mobile | React Native | Play Store / App Store | `.github/workflows/android-distribute.yml` |
 
@@ -31,6 +31,20 @@ Use `apps/functions/.env.example` as the template. Keep these as provider secret
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `GEMINI_API_KEY`
 
+Deploy the API as a separate Vercel project using the repository root:
+
+- Build command: `corepack pnpm --filter @educonnect/functions build`
+- Function entrypoint: `api/index.ts`
+- Required Vercel environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_UPLOADS_BUCKET`
+- Recommended Vercel environment variable: `CORS_ORIGINS=https://your-web-app.pages.dev`
+- Optional Vercel environment variables: `GEMINI_API_KEY`
+
+After deployment, set `VITE_API_BASE_URL` in Cloudflare Pages to the Vercel deployment URL, for example:
+
+```bash
+VITE_API_BASE_URL=https://your-api-project.vercel.app/api
+```
+
 ### Supabase
 
 Apply migrations from the `supabase/migrations` folder. The first migration creates a generic document store so existing Firestore-shaped API routes can move without a big rewrite.
@@ -39,7 +53,7 @@ Apply migrations from the `supabase/migrations` folder. The first migration crea
 
 1. CI builds and tests the monorepo on pull requests.
 2. Web deploys to Cloudflare Pages on `main`.
-3. API workflow builds the standalone Express bundle. Deploy the built API to the free Node provider you choose.
+3. The Vercel project builds the Express bundle and serves it from `/api`.
 
 ## Rollback
 

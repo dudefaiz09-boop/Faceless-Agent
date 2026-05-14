@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cors from 'cors';
 import { pinoHttp } from 'pino-http';
 import { logger } from '@educonnect/logger';
 
@@ -28,8 +29,35 @@ import rolesRouter from './routes/roles.js';
 const app: Express = express();
 app.set('trust proxy', 1);
 
+const configuredOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function isAllowedOrigin(origin: string) {
+  if (configuredOrigins.includes(origin)) return true;
+  if (/^http:\/\/localhost:\d+$/.test(origin)) return true;
+  if (/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) return true;
+  if (/^https:\/\/[a-z0-9-]+\.pages\.dev$/i.test(origin)) return true;
+  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return true;
+  return false;
+}
+
 // 1. Security & Observability
 app.use(pinoHttp({ logger: logger as any }));
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, callback) {
+      if (!origin || isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
+  })
+);
 app.use(
   helmet({
     contentSecurityPolicy: {

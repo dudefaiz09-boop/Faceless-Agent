@@ -10,11 +10,12 @@
     "lint": "turbo lint",
     "format": "prettier --write .",
     "test": "turbo test",
-    "deploy": "pnpm deploy:web",
-    "deploy:web": "pnpm --filter @educonnect/web build",
-    "deploy:functions": "pnpm --filter @educonnect/functions build",
+    "deploy": "corepack pnpm deploy:web",
+    "deploy:web": "corepack pnpm --filter @educonnect/web build",
+    "deploy:api": "corepack pnpm --filter @educonnect/functions build",
+    "deploy:functions": "corepack pnpm --filter @educonnect/functions build",
     "seed:supabase": "corepack pnpm --filter @educonnect/functions seed:supabase",
-    "setup": "pnpm install"
+    "setup": "corepack pnpm install"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

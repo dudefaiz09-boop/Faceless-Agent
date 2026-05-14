@@ -8,7 +8,7 @@ This duplicate repo is the migration workspace for moving EduConnect away from G
 - Auth: Supabase Auth
 - Database: Supabase Postgres with a generic `documents` table during migration
 - File uploads: Supabase Storage bucket `educonnect-uploads`
-- API: existing Express app as a standalone Node service
+- API: existing Express app deployed as Vercel Node.js Functions
 - AI: optional Gemini API key, disabled by omission
 
 ## What Is Migrated In This Slice
@@ -24,13 +24,13 @@ This duplicate repo is the migration workspace for moving EduConnect away from G
 - The unused legacy realtime workspace has been removed.
 - Backend document access now imports from a Supabase document adapter instead of a Firebase-named module.
 - Turbo and smoke-test configuration now use Supabase environment variables.
+- Vercel deployment config exposes the Express API as Node.js Functions under `/api`.
 - Cloudflare Pages headers and SPA redirects are added.
 - Supabase migrations create `documents`, enable Realtime for it, and create the upload bucket.
 
 ## Remaining Migration Work
 
 - Replace Firebase mobile native packages after the mobile screens no longer import Firestore.
-- Choose the final free Node runtime for the Express API, or rewrite API modules as Supabase Edge Functions.
 - Replace assignment push notifications with Expo Push, Web Push, or another free-tier provider.
 - Export existing Firestore data and import it into `public.documents`.
 
