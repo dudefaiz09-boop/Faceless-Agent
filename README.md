@@ -8,7 +8,7 @@ A comprehensive education management system connecting students, parents, and te
 - **Backend:** Node.js, Express, Supabase Admin, Google Generative AI
 - **Mobile:** React Native, Supabase
 - **Testing:** Jest, Supertest, Playwright, Artillery
-- **CI/CD:** GitHub Actions, Cloudflare Pages, Supabase migrations
+- **CI/CD:** GitHub Actions, Vercel, Supabase migrations
 
 ## Architecture
 

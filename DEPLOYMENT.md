@@ -1,71 +1,137 @@
 # EduConnect Deployment Architecture
 
-This migration branch targets free-tier friendly hosting without Firebase or Google Cloud deployment.
+This migration branch targets free-tier friendly hosting with Vercel and Supabase only. Deployment uses two Vercel projects from the same GitHub repository:
 
-For the exact provider-dashboard checklist, see [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md).
+- `educonnect-web`
+- `educonnect-api`
+
+For the production checklist, see [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md).
 
 ## Deployable Targets
 
-| Target | Technology | Hosting | Pipeline |
-| :--- | :--- | :--- | :--- |
-| Web | React + Vite | Cloudflare Pages | `.github/workflows/deploy-web.yml` |
-| Backend API | Node.js + Express | Vercel Hobby Functions | `vercel.json` builds the bundle |
-| Database/Auth/Storage | Supabase | Supabase Free | `supabase/migrations/*` |
-| Mobile | React Native | Play Store / App Store | `.github/workflows/android-distribute.yml` |
+| Target | Technology | Hosting | Notes |
+| --- | --- | --- | --- |
+| Web | React + Vite | Vercel Hobby | Builds apps/web |
+| Backend API | Node.js + Express | Vercel Hobby Functions | Served from /api |
+| Database/Auth/Storage | Supabase | Supabase Free | Uses supabase/migrations/* |
+| Mobile | React Native | Local / App Store / Play Store | Uses the same Supabase backend |
 
-## Environment Management
+## Vercel Projects
 
-### Web
+### Web Project: educonnect-web
 
-Use `apps/web/.env.example` as the template. Browser-safe values:
+Create a Vercel project from this GitHub repository with these settings:
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `VITE_SUPABASE_UPLOADS_BUCKET`
-- `VITE_API_BASE_URL`
+- Framework Preset: Vite
+- Root Directory: repository root
+- Install Command: `corepack pnpm install --frozen-lockfile`
+- Build Command: `corepack pnpm --filter @educonnect/web build`
+- Output Directory: `apps/web/dist`
 
-### Backend
-
-Use `apps/functions/.env.example` as the template. Keep these as provider secrets:
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_UPLOADS_BUCKET`
-- `GEMINI_API_KEY`
-
-Deploy the API as a separate Vercel project using the repository root:
-
-- Build command: `corepack pnpm --filter @educonnect/functions build`
-- Function entrypoint: `api/index.ts`
-- Required Vercel environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_UPLOADS_BUCKET`
-- Recommended Vercel environment variable: `CORS_ORIGINS=https://your-web-app.pages.dev`
-- Optional Vercel environment variables: `GEMINI_API_KEY`
-
-After deployment, set `VITE_API_BASE_URL` in Cloudflare Pages to the Vercel deployment URL, for example:
+Set these browser-safe environment variables:
 
 ```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 VITE_API_BASE_URL=https://your-api-project.vercel.app/api
+VITE_ENABLE_AI_FEATURES=true
+VITE_ENVIRONMENT=production
 ```
 
-### Supabase
+Never add `SUPABASE_SERVICE_ROLE_KEY` to the web project.
 
-Apply migrations from the `supabase/migrations` folder. The first migration creates a generic document store so existing Firestore-shaped API routes can move without a big rewrite.
+### API Project: educonnect-api
 
-Seed demo users and starter documents after applying the migration:
+Create a second Vercel project from the same GitHub repository with these settings:
+
+- Framework Preset: Other
+- Root Directory: repository root
+- Install Command: `corepack pnpm install --frozen-lockfile`
+- Build Command: `corepack pnpm --filter @educonnect/functions build`
+- Output Directory: leave empty
+
+The existing root [vercel.json](./vercel.json) handles the API entrypoint, includes the compiled Express bundle from `apps/functions/dist/**`, and rewrites `/api` traffic to `api/index.ts`.
+
+Set these API environment variables:
+
+```bash
+NODE_ENV=production
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SUPABASE_UPLOADS_BUCKET=educonnect-uploads
+CORS_ORIGINS=https://your-web-project.vercel.app
+GEMINI_API_KEY=your_gemini_key_if_using_ai
+```
+
+`GEMINI_API_KEY` is optional. Omit it if AI features are not being used.
+
+## Supabase Setup
+
+1. Create a Supabase project on the Free plan.
+2. Copy the project URL.
+3. Copy the anon public key.
+4. Copy the service role key.
+5. Copy the project ref.
+6. Create a storage bucket named `educonnect-uploads`.
+7. Prefer a private bucket for school and student files.
+8. Apply migrations:
+
+```bash
+supabase login
+supabase link --project-ref your-project-ref
+supabase db push
+```
+
+Optionally seed demo data:
 
 ```bash
 pnpm seed:supabase
 ```
 
-## CI/CD
+Keep `SUPABASE_SERVICE_ROLE_KEY` only in local backend `.env` files or backend hosting secrets.
 
-1. CI builds and tests the monorepo on pull requests.
-2. Web deploys to Cloudflare Pages on `main`.
-3. The Vercel project builds the Express bundle and serves it from `/api` through Vercel's GitHub integration.
+## Local Development
+
+Create `apps/web/.env.local`:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_UPLOADS_BUCKET=educonnect-uploads
+VITE_API_BASE_URL=/api
+VITE_ENABLE_AI_FEATURES=true
+VITE_ENVIRONMENT=development
+```
+
+Create `apps/functions/.env`:
+
+```bash
+NODE_ENV=development
+PORT=8080
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SUPABASE_UPLOADS_BUCKET=educonnect-uploads
+CORS_ORIGINS=http://localhost:5173
+GEMINI_API_KEY=your_gemini_key_if_using_ai
+```
+
+## Deployment Order
+
+1. Create Supabase project.
+2. Apply migrations.
+3. Create `educonnect-uploads` storage bucket.
+4. Deploy API project to Vercel.
+5. Test `https://your-api-project.vercel.app/api/health`.
+6. Deploy web project to Vercel.
+7. Set `VITE_API_BASE_URL` to the API URL.
+8. Add the final web URL to `CORS_ORIGINS` in the API project.
+9. Test auth, API calls, uploads, AI features, and role-based access.
 
 ## Rollback
 
-- Web: roll back to a previous Cloudflare Pages deployment.
-- API: redeploy the previous Node bundle or container.
-- Data: export Supabase `documents` rows before destructive migrations.
+- Web rollback: use Vercel previous deployment rollback.
+- API rollback: use Vercel previous deployment rollback.
+- Database rollback: export or back up Supabase data before destructive migrations.

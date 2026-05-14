@@ -1,42 +1,63 @@
 # EduConnect Release Guide
 
-This migration branch releases through Cloudflare Pages for web assets and Supabase for Auth, Storage, and Postgres migrations.
-
-## Web
-
-1. Add these GitHub secrets:
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_API_BASE_URL`
-2. Push to `main`.
-3. The `Deploy Web to Cloudflare Pages` workflow builds `apps/web` and deploys `apps/web/dist`.
+This migration branch releases through Vercel for web and API hosting, with Supabase for Auth, Storage, and Postgres migrations.
 
 ## Supabase
 
 Apply migrations from `supabase/migrations` before releasing API code that depends on new tables or policies.
 
 ```bash
+supabase login
+supabase link --project-ref your-project-ref
 supabase db push
 ```
 
+Confirm the `educonnect-uploads` storage bucket exists before testing file uploads.
+
 ## Backend API
 
-The API currently builds as a standalone Node bundle:
+Deploy the API as the `educonnect-api` Vercel project from the repository root.
 
-```bash
-pnpm --filter @educonnect/functions build
-node apps/functions/dist/standalone.js
-```
+Use these settings:
 
-Deploy that bundle to the free Node runtime you choose and set:
+- Framework Preset: Other
+- Install Command: `corepack pnpm install --frozen-lockfile`
+- Build Command: `corepack pnpm --filter @educonnect/functions build`
+- Output Directory: leave empty
 
+Set:
+
+- `NODE_ENV=production`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_UPLOADS_BUCKET`
+- `CORS_ORIGINS`
 - `GEMINI_API_KEY` if AI is enabled
+
+The root `vercel.json` serves the Express app from `/api`.
+
+## Web
+
+Deploy the web app as the `educonnect-web` Vercel project from the repository root.
+
+Use these settings:
+
+- Framework Preset: Vite
+- Install Command: `corepack pnpm install --frozen-lockfile`
+- Build Command: `corepack pnpm --filter @educonnect/web build`
+- Output Directory: `apps/web/dist`
+
+Set:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_UPLOADS_BUCKET`
+- `VITE_API_BASE_URL`
+- `VITE_ENABLE_AI_FEATURES`
+- `VITE_ENVIRONMENT`
+
+Never add `SUPABASE_SERVICE_ROLE_KEY` to the web project.
 
 ## Mobile
 

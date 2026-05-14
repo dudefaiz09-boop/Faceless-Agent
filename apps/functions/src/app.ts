@@ -38,7 +38,6 @@ function isAllowedOrigin(origin: string) {
   if (configuredOrigins.includes(origin)) return true;
   if (/^http:\/\/localhost:\d+$/.test(origin)) return true;
   if (/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) return true;
-  if (/^https:\/\/[a-z0-9-]+\.pages\.dev$/i.test(origin)) return true;
   if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return true;
   return false;
 }
@@ -89,8 +88,7 @@ app.use(
           "'self'",
           'https://*.supabase.co',
           'https://*.supabase.in',
-          'https://*.workers.dev',
-          'https://*.pages.dev',
+          'https://*.vercel.app',
           'https://*.onrender.com',
           'https://*.koyeb.app',
           'wss://*.supabase.co',

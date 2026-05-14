@@ -13,19 +13,19 @@ corepack pnpm turbo build --filter="./packages/*"
 
 case $TARGET in
   web)
-    echo "Building Web for Cloudflare Pages..."
+    echo "Building Web for Vercel..."
     if [ -f "apps/web/.env" ]; then
       echo "Loading environment variables from apps/web/.env"
       export $(grep -v '^#' apps/web/.env | xargs)
     fi
     corepack pnpm turbo build --filter @educonnect/web
-    echo "Upload apps/web/dist to Cloudflare Pages or let GitHub Actions deploy it."
+    echo "Deploy the web project to Vercel with output directory apps/web/dist."
     ;;
 
   functions)
     echo "Building API bundle for Vercel..."
     corepack pnpm turbo build --filter @educonnect/functions
-    echo "Deploy the repository root to Vercel; vercel.json serves api/index.ts."
+    echo "Deploy the API project to Vercel from the repository root; vercel.json serves api/index.ts."
     ;;
 
   android)
