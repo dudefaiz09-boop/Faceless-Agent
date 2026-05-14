@@ -22,7 +22,6 @@ async function build() {
       ...Object.keys(pkg.dependencies || {}),
       ...Object.keys(pkg.peerDependencies || {}),
       '@educonnect/*',
-      'firebase/*',
       '@tanstack/*',
       'react',
       'react-dom'

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../lib/firebase.js';
+import { db } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 import { logger } from '@educonnect/logger';
 import { ai, GEMINI_MODEL, isAiEnabled } from '../lib/ai.js';

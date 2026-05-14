@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { supabaseAdmin, type DocumentData } from './supabase.js';
 
-// Compatibility layer for the first migration slice. Existing routes keep their
-// Firestore-shaped calls while the storage underneath moves to Supabase.
+// Compatibility layer for the migration. Existing routes keep their
+// document-store shaped calls while the storage underneath runs on Supabase.
 
 type FilterOperator = '==' | '>=' | '<=' | '>' | '<' | 'array-contains' | 'array-contains-any';
 

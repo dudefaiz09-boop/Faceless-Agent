@@ -1,4 +1,4 @@
-import { db, auth } from '../../lib/firebase.js';
+import { db, auth } from '../../lib/documents.js';
 import { AppError } from '../../middleware/error.js';
 
 export class StudentRepository {
