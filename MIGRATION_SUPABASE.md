@@ -39,14 +39,22 @@ This duplicate repo is the migration workspace for moving EduConnect away from G
 1. Create a Supabase project.
 2. Run the SQL in `supabase/migrations/20260514000000_initial_documents.sql`.
 3. Copy `.env.example` values into app-specific `.env` files.
-4. Start the API:
+4. Seed demo users and starter documents:
+
+```bash
+pnpm seed:supabase
+```
+
+Use `pnpm seed:supabase -- --dry-run` to preview the seed users without touching Supabase.
+
+5. Start the API:
 
 ```bash
 pnpm --filter @educonnect/functions build
 node apps/functions/dist/standalone.js
 ```
 
-5. Start the web app:
+6. Start the web app:
 
 ```bash
 pnpm --filter @educonnect/web dev

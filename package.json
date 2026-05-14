@@ -13,6 +13,7 @@
     "deploy": "pnpm deploy:web",
     "deploy:web": "pnpm --filter @educonnect/web build",
     "deploy:functions": "pnpm --filter @educonnect/functions build",
+    "seed:supabase": "corepack pnpm --filter @educonnect/functions seed:supabase",
     "setup": "pnpm install"
   },
   "devDependencies": {
