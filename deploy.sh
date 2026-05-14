@@ -9,7 +9,7 @@ TARGET=${1:-all}
 echo "Starting deployment helper for target: $TARGET"
 
 echo "Building shared packages..."
-pnpm turbo build --filter="./packages/*"
+corepack pnpm turbo build --filter="./packages/*"
 
 case $TARGET in
   web)
@@ -18,14 +18,14 @@ case $TARGET in
       echo "Loading environment variables from apps/web/.env"
       export $(grep -v '^#' apps/web/.env | xargs)
     fi
-    pnpm turbo build --filter @educonnect/web
+    corepack pnpm turbo build --filter @educonnect/web
     echo "Upload apps/web/dist to Cloudflare Pages or let GitHub Actions deploy it."
     ;;
 
   functions)
-    echo "Building standalone API bundle..."
-    pnpm turbo build --filter @educonnect/functions
-    echo "Deploy apps/functions/dist/standalone.js to your chosen free Node runtime."
+    echo "Building API bundle for Vercel..."
+    corepack pnpm turbo build --filter @educonnect/functions
+    echo "Deploy the repository root to Vercel; vercel.json serves api/index.ts."
     ;;
 
   android)
@@ -40,7 +40,7 @@ case $TARGET in
 
   all)
     echo "Building full monorepo..."
-    pnpm turbo build
+    corepack pnpm turbo build
     ;;
 
   *)
