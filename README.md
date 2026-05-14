@@ -2,7 +2,7 @@
 
 A comprehensive education management system connecting students, parents, and teachers with features for attendance, assignments, fees, and communication.
 
-## 🚀 Tech Stack
+## Tech Stack
 
 - **Frontend:** React 19, Vite, Tailwind CSS, Lucide React, Framer Motion
 - **Backend:** Node.js, Express, Supabase Admin, Google Generative AI
@@ -10,7 +10,7 @@ A comprehensive education management system connecting students, parents, and te
 - **Testing:** Jest, Supertest, Playwright, Artillery
 - **CI/CD:** GitHub Actions, Cloudflare Pages, Supabase migrations
 
-## 📁 Architecture
+## Architecture
 
 This project is a monorepo managed by **pnpm** and **TurboRepo**:
 
@@ -19,64 +19,67 @@ This project is a monorepo managed by **pnpm** and **TurboRepo**:
 - `apps/functions`: Standalone Express API for free-tier Node hosting.
 - `packages/*`: Shared logic, types, and analytics.
 
-## 🛠 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- Node.js (v22+)
-- pnpm (v11+)
+- Node.js v22+
+- pnpm v11+
 - Supabase CLI
-- Android Studio / Xcode (for mobile)
+- Android Studio / Xcode for mobile builds
 
 ### Installation
 
-1.  Clone the repository.
-2.  Install dependencies:
-    ```bash
-    pnpm install
-    ```
-3.  Configure environment variables (see `.env.example` in each app).
+1. Clone the repository.
+2. Install dependencies:
+
+```bash
+pnpm install
+```
+
+3. Configure environment variables. Use `.env.example` in the repository root and each app as templates.
 
 ### Development
 
 Run all apps in dev mode:
+
 ```bash
 pnpm dev
 ```
 
-## 🚀 Deployment & Release
+## Deployment & Release
 
-For production deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md), [MIGRATION_SUPABASE.md](./MIGRATION_SUPABASE.md), and [RELEASE_GUIDE.md](./RELEASE_GUIDE.md).
+For production deployment instructions, see [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md), [DEPLOYMENT.md](./DEPLOYMENT.md), [MIGRATION_SUPABASE.md](./MIGRATION_SUPABASE.md), and [RELEASE_GUIDE.md](./RELEASE_GUIDE.md).
 
-Quick Deploy:
+Quick deploy checks:
+
 ```bash
-./deploy.sh web        # Deploy frontend
-./deploy.sh functions  # Deploy backend
+./deploy.sh web        # Build frontend
+./deploy.sh functions  # Build backend API
 ./deploy.sh android    # Build Android release
 ```
 
-## 🧪 Testing
+## Testing
 
-Run API tests:
+Run the monorepo test pipeline:
 
 ```bash
-npm test
+pnpm test
 ```
 
 Run UI tests:
 
 ```bash
-npm run test:ui
+pnpm exec playwright test
 ```
 
-## 🔒 Security
+## Security
 
-- Content Security Policy (CSP) enabled via Helmet.
-- Input validation using Zod.
-- Rate limiting on API routes.
-- Secure authentication via Supabase Auth.
-- Role-based access control (RBAC).
+- Content Security Policy is enabled for the web app.
+- API hardening uses Helmet, compression, validation, and rate limits.
+- Secure authentication is handled by Supabase Auth.
+- Role-based access control protects app routes and API actions.
 
-## 📄 License
+## License
 
 MIT

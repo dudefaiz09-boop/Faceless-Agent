@@ -2,6 +2,8 @@
 
 This migration branch targets free-tier friendly hosting without Firebase or Google Cloud deployment.
 
+For the exact provider-dashboard checklist, see [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md).
+
 ## Deployable Targets
 
 | Target | Technology | Hosting | Pipeline |
@@ -29,6 +31,7 @@ Use `apps/functions/.env.example` as the template. Keep these as provider secret
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_UPLOADS_BUCKET`
 - `GEMINI_API_KEY`
 
 Deploy the API as a separate Vercel project using the repository root:
@@ -49,11 +52,17 @@ VITE_API_BASE_URL=https://your-api-project.vercel.app/api
 
 Apply migrations from the `supabase/migrations` folder. The first migration creates a generic document store so existing Firestore-shaped API routes can move without a big rewrite.
 
+Seed demo users and starter documents after applying the migration:
+
+```bash
+pnpm seed:supabase
+```
+
 ## CI/CD
 
 1. CI builds and tests the monorepo on pull requests.
 2. Web deploys to Cloudflare Pages on `main`.
-3. The Vercel project builds the Express bundle and serves it from `/api`.
+3. The Vercel project builds the Express bundle and serves it from `/api` through Vercel's GitHub integration.
 
 ## Rollback
 
