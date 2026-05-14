@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "corepack pnpm install --frozen-lockfile",
-  "buildCommand": "corepack pnpm --filter @educonnect/web build",
+  "installCommand": "cd ../.. && corepack pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && corepack pnpm --filter @educonnect/web build",
   "outputDirectory": "dist",
   "rewrites": [
     {

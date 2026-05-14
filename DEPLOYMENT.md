@@ -23,10 +23,13 @@ For the production checklist, see [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md).
 Create a Vercel project from this GitHub repository with these settings:
 
 - Framework Preset: Vite
-- Root Directory: repository root
-- Install Command: `corepack pnpm install --frozen-lockfile`
-- Build Command: `corepack pnpm --filter @educonnect/web build`
-- Output Directory: `apps/web/dist`
+- Root Directory: `apps/web`
+- Include source files outside Root Directory: enabled
+- Install Command: `cd ../.. && corepack pnpm install --frozen-lockfile`
+- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web build`
+- Output Directory: `dist`
+
+The web project must use `apps/web` as its root so it reads [apps/web/vercel.json](./apps/web/vercel.json) instead of the API-focused root [vercel.json](./vercel.json).
 
 Set these browser-safe environment variables:
 
@@ -49,9 +52,9 @@ Create a second Vercel project from the same GitHub repository with these settin
 - Root Directory: repository root
 - Install Command: `corepack pnpm install --frozen-lockfile`
 - Build Command: `corepack pnpm --filter @educonnect/functions build`
-- Output Directory: leave empty
+- Output Directory: `public`
 
-The existing root [vercel.json](./vercel.json) handles the API entrypoint, includes the compiled Express bundle from `apps/functions/dist/**`, and rewrites `/api` traffic to `api/index.ts`.
+The existing root [vercel.json](./vercel.json) handles the API entrypoint, includes the compiled Express bundle from `apps/functions/dist/**`, rewrites `/api` traffic to `api/index.ts`, and publishes a small `public` directory so Vercel does not fail with `No Output Directory named "public"`.
 
 Set these API environment variables:
 

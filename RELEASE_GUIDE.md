@@ -23,7 +23,7 @@ Use these settings:
 - Framework Preset: Other
 - Install Command: `corepack pnpm install --frozen-lockfile`
 - Build Command: `corepack pnpm --filter @educonnect/functions build`
-- Output Directory: leave empty
+- Output Directory: `public`
 
 Set:
 
@@ -40,13 +40,14 @@ The root `vercel.json` serves the Express app from `/api`.
 ## Web
 
 Deploy the web app as the `educonnect-web` Vercel project from the repository root.
+Deploy the web app as the `educonnect-web` Vercel project with `apps/web` as the root directory.
 
 Use these settings:
 
 - Framework Preset: Vite
-- Install Command: `corepack pnpm install --frozen-lockfile`
-- Build Command: `corepack pnpm --filter @educonnect/web build`
-- Output Directory: `apps/web/dist`
+- Install Command: `cd ../.. && corepack pnpm install --frozen-lockfile`
+- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web build`
+- Output Directory: `dist`
 
 Set:
 

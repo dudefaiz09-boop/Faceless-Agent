@@ -44,9 +44,9 @@ Use these settings:
 - Root Directory: repository root
 - Install Command: `corepack pnpm install --frozen-lockfile`
 - Build Command: `corepack pnpm --filter @educonnect/functions build`
-- Output Directory: leave empty
+- Output Directory: `public`
 
-The root `vercel.json` is API-focused. It builds `@educonnect/functions`, includes `apps/functions/dist/**`, and rewrites `/api` requests to `api/index.ts`.
+The root `vercel.json` is API-focused. It builds `@educonnect/functions`, includes `apps/functions/dist/**`, rewrites `/api` requests to `api/index.ts`, and publishes a tiny `public` directory so Vercel's default static output check passes.
 
 Set these Vercel environment variables:
 
@@ -75,10 +75,13 @@ Create a second Vercel project named `educonnect-web` from the same repository.
 Use these settings:
 
 - Framework Preset: Vite
-- Root Directory: repository root
-- Install Command: `corepack pnpm install --frozen-lockfile`
-- Build Command: `corepack pnpm --filter @educonnect/web build`
-- Output Directory: `apps/web/dist`
+- Root Directory: `apps/web`
+- Include source files outside Root Directory: enabled
+- Install Command: `cd ../.. && corepack pnpm install --frozen-lockfile`
+- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web build`
+- Output Directory: `dist`
+
+The web project must use `apps/web` as the root directory so it reads `apps/web/vercel.json` instead of the API-focused root `vercel.json`.
 
 Set these browser-safe Vercel environment variables:
 
@@ -93,7 +96,7 @@ VITE_ENVIRONMENT=production
 
 Never add `SUPABASE_SERVICE_ROLE_KEY` to the web project.
 
-If you choose `apps/web` as the Vercel project root instead of the repository root, [apps/web/vercel.json](./apps/web/vercel.json) provides the Vite build and SPA routing settings for that layout.
+The [apps/web/vercel.json](./apps/web/vercel.json) file provides the Vite build and SPA routing settings for this layout.
 
 ## 4. Final Smoke Tests
 
