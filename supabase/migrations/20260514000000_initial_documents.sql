@@ -30,6 +30,7 @@ end $$;
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -48,26 +49,20 @@ drop policy if exists "service role manages documents" on public.documents;
 create policy "service role manages documents"
 on public.documents
 for all
-using (auth.role() = 'service_role')
-with check (auth.role() = 'service_role');
+to service_role
+using (true)
+with check (true);
 
-drop policy if exists "users read own profile" on public.documents;
-create policy "users read own profile"
-on public.documents
-for select
-to authenticated
-using (collection = 'users' and id = auth.uid()::text);
-
-drop policy if exists "users read tenant documents" on public.documents;
-create policy "users read tenant documents"
+drop policy if exists "authenticated reads own and tenant documents" on public.documents;
+create policy "authenticated reads own and tenant documents"
 on public.documents
 for select
 to authenticated
 using (
-  coalesce(data ->> 'tenantId', data ->> 'schoolId') =
-  coalesce(
-    auth.jwt() -> 'app_metadata' ->> 'schoolId',
-    auth.jwt() -> 'user_metadata' ->> 'schoolId'
+  (collection = 'users' and id = (select auth.uid())::text)
+  or (
+    coalesce(data ->> 'tenantId', data ->> 'schoolId') =
+    ((select auth.jwt()) -> 'app_metadata' ->> 'schoolId')
   )
 );
 
@@ -76,12 +71,6 @@ values ('educonnect-uploads', 'educonnect-uploads', true, 52428800)
 on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit;
-
-drop policy if exists "public reads educonnect uploads" on storage.objects;
-create policy "public reads educonnect uploads"
-on storage.objects
-for select
-using (bucket_id = 'educonnect-uploads');
 
 drop policy if exists "authenticated uploads educonnect files" on storage.objects;
 create policy "authenticated uploads educonnect files"
