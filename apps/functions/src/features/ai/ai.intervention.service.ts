@@ -1,4 +1,4 @@
-import { db } from '../../lib/firebase.js';
+import { db } from '../../lib/documents.js';
 import { InterventionAlert } from '@educonnect/shared-education';
 
 export class AiInterventionService {

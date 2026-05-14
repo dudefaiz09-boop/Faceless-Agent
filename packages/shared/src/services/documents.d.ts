@@ -1,16 +1,12 @@
-/**
- * SHARED FIRESTORE SERVICE
- * Centralized query definitions to ensure Web and Mobile use identical data access patterns.
- */
-export declare const FirestoreQueries: {
+export declare const DocumentQueries: {
     getLatestAnnouncements: (limitCount?: number) => {
-        collection: "announcements";
+        collection: string;
         orderByField: string;
         orderDirection: "desc";
         limit: number;
     };
     getAnnouncementsForStudent: (classId: string | null, limitCount?: number) => {
-        collection: "announcements";
+        collection: string;
         whereConditions: {
             field: string;
             operator: "array-contains-any";
@@ -21,11 +17,11 @@ export declare const FirestoreQueries: {
         limit: number;
     };
     getAttendanceForDate: (classId: string, date: string) => {
-        collection: "attendance";
-        whereConditions: {
+        collection: string;
+        whereConditions: ({
             field: string;
             operator: "==";
             value: string;
-        }[];
+        })[];
     };
 };

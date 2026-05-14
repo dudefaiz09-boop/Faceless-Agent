@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, auth } from '../lib/firebase.js';
+import { db, auth } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 
 const router: Router = Router();

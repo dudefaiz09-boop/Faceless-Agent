@@ -1,11 +1,11 @@
 import { COLLECTIONS } from '../constants/index.js';
 
 /**
- * SHARED FIRESTORE SERVICE
+ * SHARED DOCUMENT QUERY SERVICE
  * Centralized query definitions to ensure Web and Mobile use identical data access patterns.
  */
 
-export const FirestoreQueries = {
+export const DocumentQueries = {
   getLatestAnnouncements: (limitCount: number = 10) => ({
     collection: COLLECTIONS.ANNOUNCEMENTS,
     orderByField: 'createdAt',

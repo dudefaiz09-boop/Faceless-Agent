@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { auth } from '../lib/firebase.js';
+import { auth } from '../lib/documents.js';
 import { logger } from '@educonnect/logger';
 
 declare global {

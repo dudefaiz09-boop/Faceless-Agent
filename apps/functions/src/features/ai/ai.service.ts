@@ -1,5 +1,5 @@
 import { generateSafeContent } from '../../lib/ai.js';
-import { db } from '../../lib/firebase.js';
+import { db } from '../../lib/documents.js';
 
 export class AiService {
   static async getChatbotResponse(userId: string, role: string, query: string) {
