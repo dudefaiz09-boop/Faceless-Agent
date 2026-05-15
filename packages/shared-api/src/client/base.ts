@@ -21,6 +21,33 @@ export interface ApiClientConfig {
   isOnline?: () => boolean;
 }
 
+function runtimeOrigin() {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  return 'http://localhost';
+}
+
+function baseEndsWithApi(baseUrl: string) {
+  try {
+    return new URL(baseUrl).pathname.replace(/\/+$/, '').endsWith('/api');
+  } catch {
+    return baseUrl.replace(/\/+$/, '').endsWith('/api');
+  }
+}
+
+function buildRequestUrl(baseUrl: string, path: string) {
+  const normalizedBase = (baseUrl || '').trim().replace(/\/+$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const requestPath =
+    baseEndsWithApi(normalizedBase) && /^\/api(\/|$)/.test(normalizedPath)
+      ? normalizedPath.replace(/^\/api(?=\/|$)/, '') || '/'
+      : normalizedPath;
+
+  return new URL(`${normalizedBase}${requestPath}`, runtimeOrigin());
+}
+
 export class ApiClient {
   private config: ApiClientConfig;
   private requestInterceptors: Interceptor<RequestConfig>[] = [];
@@ -78,8 +105,9 @@ export class ApiClient {
       throw new Error('NETWORK_OFFLINE');
     }
 
-    // Construct URL with params
-    const url = new URL(`${this.config.baseUrl}${path}`);
+    // Construct URL with params. Supports both `/api` and absolute
+    // `https://project.vercel.app/api` base URLs without duplicating `/api`.
+    const url = buildRequestUrl(this.config.baseUrl, path);
     if (params) {
       Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
     }
