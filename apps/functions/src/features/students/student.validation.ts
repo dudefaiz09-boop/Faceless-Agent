@@ -6,7 +6,12 @@ export const createStudentSchema = z.object({
       email: z.string().email(),
       password: z.string().min(8),
       displayName: z.string().min(2),
-      classId: z.string(),
+      classId: z.string().optional(),
+      classIds: z.array(z.string()).optional(),
+      section: z.string().optional(),
+      sectionIds: z.array(z.string()).optional(),
+      admissionNumber: z.string().optional(),
+      phone: z.string().optional(),
     })
     .strict(),
 });
