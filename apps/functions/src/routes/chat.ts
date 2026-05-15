@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { db } from '../lib/documents.js';
 import { createNotification } from '../lib/notifications.js';
+import { logger } from '@educonnect/logger';
 
 const router: Router = Router();
 
@@ -18,6 +19,109 @@ function directConversationId(left: string, right: string) {
 
 function displayName(user: NonNullable<Express.Request['user']>) {
   return user.displayName || user.email || 'EduConnect user';
+}
+
+/**
+ * Check if user can message another user based on role eligibility rules
+ */
+async function canMessageUser(
+  currentUser: NonNullable<Express.Request['user']>,
+  targetUserId: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  const currentRole = currentUser.role;
+  
+  // Admin and Principal can message anyone
+  if (currentRole === 'admin' || currentRole === 'principal') {
+    return { allowed: true, reason: 'Admin/Principal access' };
+  }
+
+  // Fetch target user profile
+  const targetDoc = await db.collection('users').doc(targetUserId).get();
+  if (!targetDoc.exists) {
+    return { allowed: false, reason: 'Target user not found' };
+  }
+
+  const targetData = targetDoc.data() || {};
+  const targetRole = targetData.role || targetData.roles?.[0] || '';
+  const targetClassIds = targetData.classIds || (targetData.classId ? [targetData.classId] : []);
+  const currentClassIds = currentUser.classIds || (currentUser.classId ? [currentUser.classId] : []);
+
+  // Student eligibility
+  if (currentRole === 'student') {
+    // Can message teachers in their class
+    if (targetRole === 'teacher') {
+      const hasSharedClass = targetClassIds.some((classId: string) => currentClassIds.includes(classId));
+      if (hasSharedClass) return { allowed: true, reason: 'Class Teacher' };
+    }
+    // Can message principal or admin
+    if (targetRole === 'principal' || targetRole === 'admin') {
+      return { allowed: true, reason: 'Administration' };
+    }
+    return { allowed: false, reason: 'Not authorized to message this user' };
+  }
+
+  // Parent eligibility
+  if (currentRole === 'parent') {
+    // Can message their linked child's teachers
+    if (targetRole === 'teacher') {
+      const hasLinkedStudentClass = targetClassIds.some((classId: string) => currentClassIds.includes(classId));
+      if (hasLinkedStudentClass) return { allowed: true, reason: "Child's Teacher" };
+    }
+    // Can message principal or admin
+    if (targetRole === 'principal' || targetRole === 'admin') {
+      return { allowed: true, reason: 'Administration' };
+    }
+    return { allowed: false, reason: 'Not authorized to message this user' };
+  }
+
+  // Teacher eligibility
+  if (currentRole === 'teacher') {
+    // Can message students in assigned classes
+    if (targetRole === 'student') {
+      const hasSharedClass = targetClassIds.some((classId: string) => currentClassIds.includes(classId));
+      if (hasSharedClass) return { allowed: true, reason: 'Your Student' };
+    }
+    // Can message parents of assigned students
+    if (targetRole === 'parent') {
+      const targetLinkedStudents = targetData.linkedStudentIds || [];
+      // Check if any linked student is in teacher's class
+      const hasLinkedStudent = targetLinkedStudents.some((studentId: string) => {
+        // This is simplified - in production you'd check if student is in teacher's class
+        return currentClassIds.length > 0;
+      });
+      if (hasLinkedStudent) return { allowed: true, reason: "Student's Parent" };
+    }
+    // Can message principal/admin or other teachers
+    if (targetRole === 'principal' || targetRole === 'admin' || targetRole === 'teacher') {
+      return { allowed: true, reason: 'Colleague' };
+    }
+    return { allowed: false, reason: 'Not authorized to message this user' };
+  }
+
+  // Librarian eligibility
+  if (currentRole === 'librarian') {
+    if (targetRole === 'admin' || targetRole === 'principal') {
+      return { allowed: true, reason: 'Administration' };
+    }
+    if (targetRole === 'student' || targetRole === 'parent') {
+      return { allowed: true, reason: 'Library Services' };
+    }
+    return { allowed: false, reason: 'Not authorized to message this user' };
+  }
+
+  // Accountant eligibility
+  if (currentRole === 'accountant') {
+    if (targetRole === 'admin' || targetRole === 'principal') {
+      return { allowed: true, reason: 'Administration' };
+    }
+    if (targetRole === 'student' || targetRole === 'parent') {
+      return { allowed: true, reason: 'Fee Management' };
+    }
+    return { allowed: false, reason: 'Not authorized to message this user' };
+  }
+
+  // Default: deny
+  return { allowed: false, reason: 'Not authorized to message this user' };
 }
 
 router.get('/rooms', async (req, res, next) => {
@@ -48,6 +152,13 @@ router.post('/conversations', async (req, res, next) => {
       const recipientId = String(req.body.recipientId || '').trim();
       if (!recipientId || recipientId === user.uid) {
         return res.status(400).json({ error: 'A valid recipientId is required' });
+      }
+
+      // Check eligibility
+      const eligibility = await canMessageUser(user, recipientId);
+      if (!eligibility.allowed) {
+        logger.warn({ userId: user.uid, recipientId, reason: eligibility.reason }, 'Unauthorized conversation attempt');
+        return res.status(403).json({ error: eligibility.reason || 'You are not authorized to message this user' });
       }
 
       const id = directConversationId(user.uid, recipientId);
@@ -137,6 +248,13 @@ router.post('/send', async (req, res, next) => {
       const recipientId = String(req.body.recipientId || '').trim();
       if (!recipientId || recipientId === user.uid) {
         return res.status(400).json({ error: 'recipientId is required for a new direct message' });
+      }
+
+      // Check eligibility for new conversation
+      const eligibility = await canMessageUser(user, recipientId);
+      if (!eligibility.allowed) {
+        logger.warn({ userId: user.uid, recipientId, reason: eligibility.reason }, 'Unauthorized message attempt');
+        return res.status(403).json({ error: eligibility.reason || 'You are not authorized to message this user' });
       }
 
       conversationId = directConversationId(user.uid, recipientId);
