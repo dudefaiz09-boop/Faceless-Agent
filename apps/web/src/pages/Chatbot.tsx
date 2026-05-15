@@ -14,6 +14,13 @@ interface ChatLog {
   feedback?: 'helpful' | 'not_helpful' | null;
 }
 
+type AiQueryResponse = {
+  success?: boolean;
+  id?: string;
+  response?: string;
+  timestamp?: string;
+};
+
 const modes = [
   { key: 'chat', label: 'Ask', icon: Bot },
   { key: 'lesson', label: 'Lesson', icon: GraduationCap },
@@ -42,7 +49,7 @@ export const ChatbotPage = () => {
       parent: 'Summarize what I should check for my child this week.',
       librarian: 'Recommend books for Grade 10 science enrichment.',
       accountant: 'Create a friendly pending-fee reminder.',
-      staff: 'Summarize today’s support priorities.',
+      staff: "Summarize today's support priorities.",
     }),
     []
   );
@@ -82,7 +89,7 @@ export const ChatbotPage = () => {
     setError(null);
 
     try {
-      const data = await apiClient.request<{ id: string; response: string; timestamp: string }>(
+      const data = await apiClient.request<AiQueryResponse>(
         '/api/ai/query',
         {
           method: 'POST',
