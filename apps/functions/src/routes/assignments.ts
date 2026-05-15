@@ -4,8 +4,17 @@ import { checkPermission } from '../middleware/auth.js';
 import { logger } from '@educonnect/logger';
 import { generateSafeContent, isAiEnabled } from '../lib/ai.js';
 import { AssignmentAnalytics } from '@educonnect/shared-analytics';
+import { createNotification, type NotificationInput } from '../lib/notifications.js';
 
 const router: Router = Router();
+
+async function emitAssignmentNotification(input: NotificationInput) {
+  try {
+    await createNotification(input);
+  } catch (error) {
+    logger.warn({ err: error, title: input.title }, 'Assignment notification could not be created');
+  }
+}
 
 // Get assignment analytics for a class
 router.get('/report/:classId', checkPermission('manageAssignments'), async (req, res, next) => {
@@ -84,10 +93,14 @@ router.post(['/', '/create'], checkPermission('manageAssignments'), async (req, 
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const targetClasses = [req.body.classId]; // Simplified for current payload structure
+    const targetClasses = [req.body.classId].filter(Boolean);
+    if (!req.body.title || !req.body.classId || !req.body.dueDate) {
+      return res.status(400).json({ error: 'title, classId, and dueDate are required' });
+    }
 
     const assignment = {
       tenantId: req.tenantId,
+      schoolId: req.user.schoolId,
       title: req.body.title,
       description: req.body.description,
       dueDate: req.body.dueDate,
@@ -101,10 +114,18 @@ router.post(['/', '/create'], checkPermission('manageAssignments'), async (req, 
     };
     const docRef = await db.collection('assignments').add(assignment);
 
-    logger.info(
-      { assignmentId: docRef.id, classId: req.body.classId },
-      'Assignment created; push notification provider is not configured after Firebase migration'
-    );
+    await emitAssignmentNotification({
+      title: `New assignment: ${assignment.title}`,
+      message: `Due ${assignment.dueDate}${assignment.description ? ` - ${assignment.description.slice(0, 140)}` : ''}`,
+      type: 'assignment',
+      href: '/assignments',
+      targetRoles: ['student', 'parent'],
+      targetClasses,
+      schoolId: req.user.schoolId,
+      tenantId: req.tenantId,
+      actorId: req.user.uid,
+      metadata: { assignmentId: docRef.id, classId: req.body.classId, dueDate: assignment.dueDate },
+    });
 
     res.json({ id: docRef.id, ...assignment });
   } catch (error) {
@@ -125,6 +146,7 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
     // Fetch assignment to get rubric
     const assignmentDoc = await db.collection('assignments').doc(assignmentId).get();
     const assignment = assignmentDoc.exists ? assignmentDoc.data() : null;
+    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
 
     const docId = `${assignmentId}_${user.uid}`;
     const submissionRef = db.collection('submissions').doc(docId);
@@ -143,6 +165,20 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
     };
 
     await submissionRef.set(submissionData);
+
+    if (assignment.createdBy && assignment.createdBy !== user.uid) {
+      await emitAssignmentNotification({
+        title: `${submissionData.studentName} submitted work`,
+        message: `${assignment.title || 'Assignment'} is ready for review.`,
+        type: 'assignment',
+        href: '/assignments',
+        targetUserIds: [assignment.createdBy],
+        schoolId: user.schoolId,
+        tenantId: req.tenantId,
+        actorId: user.uid,
+        metadata: { assignmentId, submissionId: docId, studentId: user.uid },
+      });
+    }
 
     // Trigger AI Grading
     try {
@@ -173,6 +209,17 @@ Respond strictly in JSON format: { "score": number, "feedback": "string" }`;
         status: 'graded',
         checkedByAI: true,
       });
+      await emitAssignmentNotification({
+        title: `AI feedback is ready: ${assignment.title || 'Assignment'}`,
+        message: aiResult.feedback || 'Your submission has been reviewed and is waiting for teacher verification.',
+        type: 'assignment',
+        href: '/assignments',
+        targetUserIds: [user.uid],
+        schoolId: user.schoolId,
+        tenantId: req.tenantId,
+        actorId: user.uid,
+        metadata: { assignmentId, submissionId: docId, aiScore: aiResult.score || null },
+      });
     } catch (aiError) {
       logger.error({ err: aiError, uid: user.uid }, 'AI evaluation failed');
     }
@@ -187,10 +234,15 @@ Respond strictly in JSON format: { "score": number, "feedback": "string" }`;
 router.post('/recheck', checkPermission('manageAssignments'), async (req, res, next) => {
   try {
     const { assignmentId, studentId, teacherScore, teacherFeedback } = req.body;
+    const user = req.user;
 
     if (!assignmentId || !studentId) {
       return res.status(400).json({ error: 'assignmentId and studentId required' });
     }
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const assignmentDoc = await db.collection('assignments').doc(assignmentId).get();
+    const assignment = assignmentDoc.exists ? assignmentDoc.data() : {};
 
     const docId = `${assignmentId}_${studentId}`;
     await db.collection('submissions').doc(docId).update({
@@ -201,6 +253,18 @@ router.post('/recheck', checkPermission('manageAssignments'), async (req, res, n
       recheckedByTeacher: true,
       status: 'returned', // Finalized state
       updatedAt: new Date().toISOString(),
+    });
+
+    await emitAssignmentNotification({
+      title: `Grade returned: ${assignment?.title || 'Assignment'}`,
+      message: teacherFeedback || `Your teacher published a final score of ${teacherScore}.`,
+      type: 'assignment',
+      href: '/assignments',
+      targetUserIds: [studentId],
+      schoolId: user.schoolId,
+      tenantId: req.tenantId,
+      actorId: user.uid,
+      metadata: { assignmentId, submissionId: docId, teacherScore },
     });
 
     res.json({ success: true });
