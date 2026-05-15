@@ -46,7 +46,7 @@ Use these settings:
 
 - Framework Preset: Vite
 - Install Command: `cd ../.. && corepack pnpm install --frozen-lockfile`
-- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web build`
+- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web... build`
 - Output Directory: `dist`
 
 Set:

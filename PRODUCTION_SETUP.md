@@ -79,10 +79,10 @@ Use these settings:
 - Root Directory: `apps/web`
 - Include source files outside Root Directory: enabled
 - Install Command: `cd ../.. && corepack pnpm install --frozen-lockfile`
-- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web build`
+- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web... build`
 - Output Directory: `dist`
 
-The web project must use `apps/web` as the root directory so it reads `apps/web/vercel.json` instead of the API-focused root `vercel.json`.
+The web project must use `apps/web` as the root directory so it reads `apps/web/vercel.json` instead of the API-focused root `vercel.json`. Use the `@educonnect/web...` pnpm filter so workspace package dependencies are built before Vite runs.
 
 Set these browser-safe Vercel environment variables:
 

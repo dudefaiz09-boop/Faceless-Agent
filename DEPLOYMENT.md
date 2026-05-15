@@ -26,10 +26,10 @@ Create a Vercel project from this GitHub repository with these settings:
 - Root Directory: `apps/web`
 - Include source files outside Root Directory: enabled
 - Install Command: `cd ../.. && corepack pnpm install --frozen-lockfile`
-- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web build`
+- Build Command: `cd ../.. && corepack pnpm --filter @educonnect/web... build`
 - Output Directory: `dist`
 
-The web project must use `apps/web` as its root so it reads [apps/web/vercel.json](./apps/web/vercel.json) instead of the API-focused root [vercel.json](./vercel.json).
+The web project must use `apps/web` as its root so it reads [apps/web/vercel.json](./apps/web/vercel.json) instead of the API-focused root [vercel.json](./vercel.json). The `@educonnect/web...` pnpm filter is required because the web app imports internal workspace packages such as `@educonnect/shared`, whose `dist` outputs must be built before Vite bundles the app.
 
 Set these browser-safe environment variables:
 
