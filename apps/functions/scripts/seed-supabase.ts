@@ -67,6 +67,21 @@ const seedUsers: SeedUser[] = [
     },
   },
   {
+    email: 'teacher.b@educonnect.test',
+    password: 'Teach@1234',
+    displayName: 'Bharat Teacher',
+    role: 'teacher',
+    subjects: ['English', 'History'],
+    permissions: {
+      manageAnnouncements: true,
+      manageAssignments: true,
+      markAttendance: true,
+      viewAttendance: true,
+      viewPerformance: true,
+      viewStudentDetails: true,
+    },
+  },
+  {
     email: 'student.a@educonnect.test',
     password: 'Test@1234',
     displayName: 'Student A',
@@ -97,7 +112,11 @@ const seedUsers: SeedUser[] = [
     password: 'Library@1234',
     displayName: 'Library Staff',
     role: 'staff',
-    permissions: { manageLibrary: true },
+    permissions: {
+      manageLibrary: true,
+      viewStudentDetails: true,
+      viewAssignments: true,
+    },
   },
 ];
 
