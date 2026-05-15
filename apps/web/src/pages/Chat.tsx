@@ -4,7 +4,6 @@ import { apiClient } from '../lib/api-client';
 import { motion } from 'motion/react';
 import {
   Send,
-  User as UserIcon,
   MessageSquare,
   MoreVertical,
   Phone,
@@ -13,6 +12,8 @@ import {
   Paperclip,
   CheckCheck,
   Users,
+  Plus,
+  X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { collectionPath, useDocuments } from '../lib/documents';
@@ -26,6 +27,7 @@ interface Conversation {
   type: 'direct' | 'group';
   name?: string;
   lastMessage?: string;
+  lastMessageAt?: { toDate: () => Date } | string | null;
   updatedAt: { toDate: () => Date } | string | null;
 }
 
@@ -38,12 +40,26 @@ interface Message {
   readBy: string[];
 }
 
+interface UserProfile {
+  id: string;
+  uid?: string;
+  email?: string;
+  displayName?: string;
+  role?: string;
+  roles?: string[];
+  status?: 'active' | 'inactive';
+}
+
 export const ChatPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [search, setSearch] = useState('');
+  const [contactSearch, setContactSearch] = useState('');
+  const [showContacts, setShowContacts] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: conversationDocuments, loading } = useDocuments<Conversation>('conversations', {
@@ -54,6 +70,29 @@ export const ChatPage = () => {
   const conversations = conversationDocuments.filter((conversation) =>
     conversation.participants?.includes(user?.uid || '')
   );
+
+  const { data: userProfiles } = useDocuments<UserProfile>('users', {
+    enabled: !!user,
+    limit: 200,
+    order: { field: 'displayName', ascending: true },
+    realtime: true,
+  });
+  const userMap = useMemo(() => {
+    return new Map(
+      userProfiles.map((profile) => [profile.uid || profile.id, profile])
+    );
+  }, [userProfiles]);
+  const contactOptions = userProfiles.filter((profile) => {
+    const uid = profile.uid || profile.id;
+    const query = contactSearch.trim().toLowerCase();
+    if (!uid || uid === user?.uid || profile.status === 'inactive') return false;
+    if (!query) return true;
+    return (
+      (profile.displayName || '').toLowerCase().includes(query) ||
+      (profile.email || '').toLowerCase().includes(query) ||
+      (profile.role || profile.roles?.[0] || '').toLowerCase().includes(query)
+    );
+  });
   const filteredConversations = conversations.filter((conversation) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
@@ -76,10 +115,42 @@ export const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    if (!selectedConv) return;
+    void apiClient.request(`/api/chat/rooms/${selectedConv.id}/read`, { method: 'PATCH' }).catch(() => {
+      // Read receipts should not block the message view.
+    });
+  }, [selectedConv?.id]);
+
+  const startConversation = async (profile: UserProfile) => {
+    const recipientId = profile.uid || profile.id;
+    if (!recipientId) return;
+
+    setIsStartingChat(true);
+    try {
+      const conversation = await apiClient.request<Conversation>('/api/chat/conversations', {
+        method: 'POST',
+        body: JSON.stringify({ type: 'direct', recipientId }),
+      });
+      setSelectedConv(conversation);
+      setShowContacts(false);
+      setContactSearch('');
+    } catch (error) {
+      toast({
+        tone: 'error',
+        title: 'Could not start chat',
+        description: error instanceof Error ? error.message : 'Please try again in a moment.',
+      });
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConv) return;
 
+    setIsSending(true);
     try {
       const recipientId = selectedConv.participants.find((p) => p !== user?.uid);
       await apiClient.request('/api/chat/send', {
@@ -93,20 +164,34 @@ export const ChatPage = () => {
       });
       setNewMessage('');
     } catch (error) {
-      console.error('Failed to send message:', error);
       toast({
         tone: 'error',
         title: 'Message not sent',
         description: 'Please check your connection and try again.',
       });
+    } finally {
+      setIsSending(false);
     }
   };
 
   function getChatName(conv: Conversation) {
     if (conv.type === 'group') return conv.name || 'Group Chat';
-    // For direct chat, we'd ideally fetch the other participant's name
-    // For now, using a placeholder or just showing their ID if we don't have user list
-    return 'Direct Chat';
+    const peerId = conv.participants.find((participantId) => participantId !== user?.uid);
+    const peer = peerId ? userMap.get(peerId) : null;
+    return peer?.displayName || peer?.email || 'Direct Chat';
+  }
+
+  function getInitials(value: string) {
+    return value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'EC';
+  }
+
+  function getRoleLabel(profile: UserProfile) {
+    return profile.role || profile.roles?.[0] || 'member';
   }
 
   const formatTime = (value: Conversation['updatedAt'] | Message['sentAt']) => {
@@ -121,9 +206,59 @@ export const ChatPage = () => {
       {/* Sidebar: Conversation List */}
       <div className="w-full md:w-80 border-r border-slate-100 flex flex-col bg-slate-50/30">
         <div className="p-6 border-b border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950">
-          <h2 className="text-xl font-black text-slate-900 mb-4 dark:text-white">Messages</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">Messages</h2>
+            <button
+              type="button"
+              onClick={() => setShowContacts((value) => !value)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 active:scale-95 dark:shadow-blue-950/40"
+              title={showContacts ? 'Close contacts' : 'Start chat'}
+            >
+              {showContacts ? <X size={18} /> : <Plus size={18} />}
+            </button>
+          </div>
           <SearchBar value={search} onChange={setSearch} placeholder="Search chats..." />
         </div>
+
+        {showContacts && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-b border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
+          >
+            <SearchBar value={contactSearch} onChange={setContactSearch} placeholder="Find people..." />
+            <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+              {contactOptions.slice(0, 12).map((profile) => {
+                const name = profile.displayName || profile.email || 'EduConnect user';
+                return (
+                  <button
+                    key={profile.uid || profile.id}
+                    type="button"
+                    disabled={isStartingChat}
+                    onClick={() => void startConversation(profile)}
+                    className="flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-slate-50 disabled:opacity-60 dark:hover:bg-slate-900"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                      {getInitials(name)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-black text-slate-900 dark:text-white">
+                        {name}
+                      </span>
+                      <span className="block truncate text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {getRoleLabel(profile)}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+              {contactOptions.length === 0 && (
+                <p className="py-4 text-center text-sm font-bold text-slate-400">No matching people found.</p>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
@@ -150,7 +285,7 @@ export const ChatPage = () => {
                   )}
                 >
                   <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold shrink-0">
-                    {conv.type === 'group' ? <Users size={20} /> : <UserIcon size={20} />}
+                    {conv.type === 'group' ? <Users size={20} /> : getInitials(getChatName(conv))}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-1">
@@ -180,7 +315,7 @@ export const ChatPage = () => {
             <div className="p-6 border-b border-slate-100 flex items-center justify-between dark:border-slate-800">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold">
-                  {selectedConv.type === 'group' ? <Users size={18} /> : <UserIcon size={18} />}
+                  {selectedConv.type === 'group' ? <Users size={18} /> : getInitials(getChatName(selectedConv))}
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 leading-tight dark:text-white">
@@ -280,7 +415,7 @@ export const ChatPage = () => {
               </div>
               <button
                 type="submit"
-                disabled={!newMessage.trim()}
+                disabled={!newMessage.trim() || isSending}
                 className="bg-blue-600 text-white p-4 rounded-2xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:scale-95 active:scale-90"
               >
                 <Send size={20} />
