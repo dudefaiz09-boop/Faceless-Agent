@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import type React from 'react';
 import {
   Activity,
   Banknote,
@@ -13,6 +14,7 @@ import {
 import { Link } from 'react-router-dom';
 import { StatCard } from '../components/saas/StatCard';
 import { AnalyticsChart } from '../components/saas/AnalyticsChart';
+import { QuickActionCard } from '../components/saas/QuickActionCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useDocuments } from '../lib/documents';
 import { cn } from '../lib/utils';
@@ -58,7 +60,7 @@ const roleCopy = {
   },
   teacher: {
     title: 'Teaching Workspace',
-    subtitle: 'Today’s classes, submissions, attendance, and lesson support in one place.',
+    subtitle: "Today's classes, submissions, attendance, and lesson support in one place.",
     insight:
       'Three students need feedback on pending submissions. Generate a short revision quiz for tomorrow.',
   },
@@ -174,37 +176,36 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <section className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur">
+        <section className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-black text-slate-950">Quick Actions</h2>
-              <p className="text-sm font-medium text-slate-500">Fast paths for today’s work</p>
+              <h2 className="text-lg font-black text-slate-950 dark:text-white">Quick Actions</h2>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Fast paths for today's work</p>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {[
-              ['Ask AI', '/chatbot', Brain],
-              ['Post update', '/announcements', Megaphone],
-              ['Mark attendance', '/attendance', Activity],
-              ['Create assignment', '/assignments', BookOpen],
-            ].map(([label, path, Icon]) => (
-              <Link
+              ['Ask AI', 'Generate lessons, reports, or study help.', '/chatbot', Brain],
+              ['Post update', 'Publish a targeted school announcement.', '/announcements', Megaphone],
+              ['Mark attendance', 'Record daily attendance faster.', '/attendance', Activity],
+              ['Create assignment', 'Draft and publish class work.', '/assignments', BookOpen],
+            ].map(([label, description, path, Icon]) => (
+              <QuickActionCard
                 key={String(label)}
+                title={String(label)}
+                description={String(description)}
                 to={String(path)}
-                className="group rounded-2xl border border-slate-100 bg-slate-50 p-4 hover:border-blue-200 hover:bg-blue-50"
-              >
-                <Icon className="mb-3 text-blue-600" size={22} />
-                <span className="font-black text-slate-900 group-hover:text-blue-700">{String(label)}</span>
-              </Link>
+                icon={Icon as React.ElementType}
+              />
             ))}
           </div>
         </section>
 
-        <section className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur">
+        <section className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-black text-slate-950">Realtime Announcements</h2>
-              <p className="text-sm font-medium text-slate-500">Live updates from your school</p>
+              <h2 className="text-lg font-black text-slate-950 dark:text-white">Realtime Announcements</h2>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Live updates from your school</p>
             </div>
             <Link to="/announcements" className="text-sm font-black text-blue-600">
               View all
@@ -219,11 +220,13 @@ export function DashboardPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     'rounded-2xl border p-4',
-                    index === 0 ? 'border-blue-100 bg-blue-50/70' : 'border-slate-100 bg-slate-50'
+                    index === 0
+                      ? 'border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/50'
+                      : 'border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70'
                   )}
                 >
-                  <p className="font-black text-slate-900">{announcement.title}</p>
-                  <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500">{announcement.content}</p>
+                  <p className="font-black text-slate-900 dark:text-white">{announcement.title}</p>
+                  <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">{announcement.content}</p>
                 </motion.div>
               )
             )}

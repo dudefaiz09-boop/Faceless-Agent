@@ -5,12 +5,12 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Search,
   Calendar as CalendarIcon,
   Users,
   BarChart3,
   Save,
   CheckSquare,
+  Download,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
@@ -18,6 +18,10 @@ import { useDebounce } from '../lib/hooks';
 import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
 import { Card } from '../components/ui/Card';
 import { useDocuments } from '../lib/documents';
+import { EmptyState } from '../components/saas/EmptyState';
+import { SearchBar } from '../components/saas/SearchBar';
+import { StatCard } from '../components/saas/StatCard';
+import { useToast } from '../components/saas/ToastProvider';
 import {
   BarChart,
   Bar,
@@ -36,8 +40,48 @@ type StudentDocument = Student & {
   tenantId?: string;
 };
 
+const statusOptions = [
+  {
+    id: 'present',
+    icon: CheckCircle2,
+    label: 'Present',
+    activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-100',
+  },
+  {
+    id: 'absent',
+    icon: XCircle,
+    label: 'Absent',
+    activeClass: 'bg-red-600 text-white border-red-600 shadow-md shadow-red-100',
+  },
+  {
+    id: 'late',
+    icon: Clock,
+    label: 'Late',
+    activeClass: 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-100',
+  },
+] as const;
+
+function exportCsv(filename: string, rows: Array<Record<string, unknown>>) {
+  const headers = Object.keys(rows[0] || {});
+  if (!headers.length) return;
+
+  const escapeCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const csv = [
+    headers.join(','),
+    ...rows.map((row) => headers.map((header) => escapeCell(row[header])).join(',')),
+  ].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export const AttendancePage = () => {
   const { user, canManageAttendance, classId: userClassId, schoolId } = useAuth();
+  const { toast } = useToast();
 
   const [view, setView] = useState<'marking' | 'history' | 'reports'>(
     canManageAttendance ? 'marking' : 'history'
@@ -162,10 +206,18 @@ export const AttendancePage = () => {
           records,
         }),
       });
-      alert('Attendance saved successfully!');
+      toast({
+        tone: 'success',
+        title: 'Attendance saved',
+        description: `${records.length} records saved for ${selectedClass}.`,
+      });
     } catch (error) {
       console.error(error);
-      alert('Failed to save attendance');
+      toast({
+        tone: 'error',
+        title: 'Attendance save failed',
+        description: 'Please check your API connection and try again.',
+      });
     } finally {
       setSaving(false);
     }
@@ -176,6 +228,29 @@ export const AttendancePage = () => {
       (s.displayName || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       (s.email || '').toLowerCase().includes(debouncedSearch.toLowerCase())
   );
+
+  const dailySummary = students.reduce(
+    (summary, student) => {
+      const status = dailyRecords[student.uid] || 'absent';
+      summary[status] += 1;
+      return summary;
+    },
+    { present: 0, absent: 0, late: 0 }
+  );
+
+  const exportDailyAttendance = () => {
+    exportCsv(
+      `attendance-${selectedClass}-${selectedDate}.csv`,
+      students.map((student) => ({
+        date: selectedDate,
+        classId: selectedClass,
+        studentId: student.uid,
+        studentName: student.displayName || '',
+        email: student.email || '',
+        status: dailyRecords[student.uid] || 'absent',
+      }))
+    );
+  };
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -228,6 +303,30 @@ export const AttendancePage = () => {
       <div className="grid grid-cols-1 gap-8">
         {view === 'marking' ? (
           <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <StatCard
+                title="Present"
+                value={String(dailySummary.present)}
+                detail="Marked for selected day"
+                icon={CheckCircle2}
+                tone="emerald"
+              />
+              <StatCard
+                title="Late"
+                value={String(dailySummary.late)}
+                detail="Needs follow-up"
+                icon={Clock}
+                tone="cyan"
+              />
+              <StatCard
+                title="Absent"
+                value={String(dailySummary.absent)}
+                detail="Auto-filled if unmarked"
+                icon={XCircle}
+                tone="violet"
+              />
+            </div>
+
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
               <div className="space-y-1.5">
@@ -273,25 +372,13 @@ export const AttendancePage = () => {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                   Search Student
                 </label>
-                <div className="relative">
-                  <Search
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Filter by name or email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 pl-11 pr-4 py-3 rounded-2xl font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
-                  />
-                </div>
+                <SearchBar value={search} onChange={setSearch} placeholder="Filter by name or email..." />
               </div>
             </div>
 
             {/* Marking Table */}
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+              <div className="p-6 border-b border-slate-50 flex flex-col gap-3 bg-slate-50/50 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2">
                   <CheckSquare size={20} className="text-blue-600" />
                   Mark Attendance
@@ -299,12 +386,22 @@ export const AttendancePage = () => {
                     {filteredStudents.length} Students
                   </span>
                 </h3>
-                <button
-                  onClick={markAllPresent}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
-                >
-                  Mark All Present
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={markAllPresent}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
+                  >
+                    Mark All Present
+                  </button>
+                  <button
+                    onClick={exportDailyAttendance}
+                    disabled={students.length === 0}
+                    className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+                  >
+                    <Download size={14} />
+                    Export CSV
+                  </button>
+                </div>
               </div>
 
               {loading || studentsLoading ? (
@@ -342,18 +439,14 @@ export const AttendancePage = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-center gap-2">
-                              {[
-                                { id: 'present', icon: CheckCircle2, label: 'Present', color: 'emerald' },
-                                { id: 'absent', icon: XCircle, label: 'Absent', color: 'red' },
-                                { id: 'late', icon: Clock, label: 'Late', color: 'amber' },
-                              ].map((btn) => (
+                              {statusOptions.map((btn) => (
                                 <button
                                   key={btn.id}
                                   onClick={() => handleMark(s.uid, btn.id as any)}
                                   className={cn(
                                     'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border',
                                     dailyRecords[s.uid] === btn.id
-                                      ? `bg-${btn.color}-600 text-white border-${btn.color}-600 shadow-md shadow-${btn.color}-100`
+                                      ? btn.activeClass
                                       : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
                                   )}
                                 >
