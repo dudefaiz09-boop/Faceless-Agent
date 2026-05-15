@@ -76,32 +76,54 @@ This PR addresses critical production issues and implements missing features for
 
 ---
 
-### ✅ Part 3: Error Boundaries and Crash Prevention
+### ✅ Part 3: Assignments Crash Fix and Workflow Hardening
 
-**Problem:** Individual module errors could crash the entire application.
+**Problem:** Production `/assignments` page could crash with ErrorBoundary "Something went wrong" due to missing data guards and invalid assignment objects.
 
-**Solution:**
-- **ModuleErrorBoundary Component** (`apps/web/src/components/ModuleErrorBoundary.tsx`):
-  - React Error Boundary for graceful error handling
-  - Module-level isolation prevents full app crashes
-  - User-friendly error UI with:
-    - Clear error message
-    - Reload button
-    - Collapsible technical details for debugging
-  - Automatic error logging with module name
-  
-**Usage:**
-```tsx
-<ModuleErrorBoundary moduleName="Assignments">
-  <AssignmentsPage />
-</ModuleErrorBoundary>
-```
+**Changes Made:**
+
+**Frontend (`apps/web/src/pages/Assignments.tsx`):**
+- Added comprehensive null/undefined guards for assignment data
+- Changed `data: assignments` to `data: assignmentsData` with filtering
+- Filter out invalid assignments (missing id) before rendering
+- Added fallback values:
+  - `assignment.title || 'Untitled Assignment'`
+  - `assignment.dueDate || 'TBD'`
+  - `assignment.classId || 'All'`
+  - `assignment.description || 'No description provided.'`
+- Wrapped dueDate parsing in try-catch to prevent date errors
+- Added guards to FileUpload component (only render if uid and assignmentId exist)
+- Added dark mode text color classes for better visibility
+
+**Routing (`apps/web/src/App.tsx`):**
+- Imported `ModuleErrorBoundary`
+- Wrapped `<AssignmentsPage />` with `<ModuleErrorBoundary>` to prevent full app crashes
+- Individual module errors now show user-friendly error UI instead of crashing entire app
+
+**Backend (`apps/functions/src/routes/assignments.ts`):**
+- Enhanced GET `/assignments/:classId?` endpoint:
+  - Added default values for required fields (title, dueDate, classId, targetClasses, attachments)
+  - Ensures arrays are always arrays, not undefined
+  - Added error logging with context
+- Enhanced POST `/submit` endpoint:
+  - Added warning log when assignment not found
+  - Improved error logging with assignmentId and userId context
+  - AI grading failures no longer crash submission (submission still saved)
+
+**Error Boundary (`apps/web/src/components/ModuleErrorBoundary.tsx`):**
+- React Error Boundary for graceful error handling (created in Part 2)
+- Module-level isolation prevents full app crashes
+- User-friendly error UI with clear message, reload button, and collapsible error details
+- Automatic error logging with module name
 
 **Acceptance Criteria:**
-- ✅ Module errors don't crash entire app
-- ✅ User-friendly error messages displayed
-- ✅ Easy recovery with reload button
-- ✅ Technical details available for debugging
+- ✅ `/assignments` loads without crashes for all roles
+- ✅ Student sees only their class assignments (existing functionality preserved)
+- ✅ Teacher can create assignments (existing functionality preserved)
+- ✅ Parent can view linked student assignments (existing functionality preserved)
+- ✅ No full app crash - errors contained to module level
+- ✅ Missing/invalid data handled gracefully with fallbacks
+- ✅ Backend returns safe defaults for missing fields
 
 ---
 
