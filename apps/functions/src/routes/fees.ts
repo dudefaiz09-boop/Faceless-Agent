@@ -22,6 +22,14 @@ function hasFeeAccess(user: NonNullable<Express.Request['user']>) {
   return user.isAdmin || user.permissions.manageFees || user.roles.includes('accountant');
 }
 
+function canViewStudentFees(user: NonNullable<Express.Request['user']>, studentId: string) {
+  return (
+    hasFeeAccess(user) ||
+    studentId === user.uid ||
+    (user.permissions.viewOwnRecords && user.linkedStudentIds.includes(studentId))
+  );
+}
+
 function feeStatus(amountDue: number, amountPaid = 0): FeeRecord['status'] {
   if (amountPaid >= amountDue) return 'paid';
   if (amountPaid > 0) return 'partial';
@@ -159,7 +167,7 @@ router.post('/pay', async (req, res, next) => {
     if (!feeSnapshot.exists) return res.status(404).json({ error: 'Fee record not found' });
 
     const fee = feeSnapshot.data() as FeeRecord;
-    if (!hasFeeAccess(req.user) && fee.studentId !== req.user.uid) {
+    if (!canViewStudentFees(req.user, fee.studentId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -212,7 +220,7 @@ router.post('/pay', async (req, res, next) => {
 router.get('/:uid', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    if (!hasFeeAccess(req.user) && req.params.uid !== req.user.uid) {
+    if (!canViewStudentFees(req.user, req.params.uid)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

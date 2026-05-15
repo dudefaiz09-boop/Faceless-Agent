@@ -27,6 +27,14 @@ function canViewPerformance(user: NonNullable<Express.Request['user']>) {
   );
 }
 
+function canViewStudentPerformance(user: NonNullable<Express.Request['user']>, studentId: string) {
+  return (
+    studentId === user.uid ||
+    canViewPerformance(user) ||
+    (user.permissions.viewOwnRecords && user.linkedStudentIds.includes(studentId))
+  );
+}
+
 function stablePerformanceId(classId: string, studentId: string, subject: string, term: string) {
   return `${classId}_${studentId}_${subject}_${term}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
@@ -147,7 +155,7 @@ router.post('/upload', checkPermission('managePerformance'), async (req, res, ne
 router.get('/:studentId', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    if (req.params.studentId !== req.user.uid && !canViewPerformance(req.user)) {
+    if (!canViewStudentPerformance(req.user, req.params.studentId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

@@ -26,6 +26,14 @@ function canViewAttendance(user: NonNullable<Express.Request['user']>) {
   );
 }
 
+function canViewStudentAttendance(user: NonNullable<Express.Request['user']>, studentId: string) {
+  return (
+    studentId === user.uid ||
+    canViewAttendance(user) ||
+    (user.permissions.viewOwnRecords && user.linkedStudentIds.includes(studentId))
+  );
+}
+
 function requireAttendanceViewer(req: Express.Request, res: Express.Response, next: Express.NextFunction) {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   if (canViewAttendance(req.user)) return next();
@@ -71,7 +79,7 @@ router.get('/history/:uid', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const { uid } = req.params;
-    if (uid !== req.user.uid && !canViewAttendance(req.user)) {
+    if (!canViewStudentAttendance(req.user, uid)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

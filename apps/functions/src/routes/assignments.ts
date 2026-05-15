@@ -16,6 +16,16 @@ async function emitAssignmentNotification(input: NotificationInput) {
   }
 }
 
+function canViewStudentAssignments(user: NonNullable<Express.Request['user']>, studentId: string) {
+  return (
+    studentId === user.uid ||
+    user.isAdmin ||
+    user.permissions.manageAssignments ||
+    user.permissions.viewReports ||
+    (user.permissions.viewOwnRecords && user.linkedStudentIds.includes(studentId))
+  );
+}
+
 // Get assignment analytics for a class
 router.get('/report/:classId', checkPermission('manageAssignments'), async (req, res, next) => {
   try {
@@ -48,6 +58,11 @@ router.get('/report/:classId', checkPermission('manageAssignments'), async (req,
 // Get student submission history
 router.get('/history/:uid', async (req, res, next) => {
   try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!canViewStudentAssignments(req.user, req.params.uid)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const snapshot = await db.collection('submissions')
       .where('tenantId', '==', req.tenantId)
       .where('studentId', '==', req.params.uid)
