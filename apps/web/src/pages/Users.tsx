@@ -21,7 +21,6 @@ import {
   Layers3,
   Plus,
   Save,
-  Search,
   Shield,
   Upload,
   User as UserIcon,
@@ -32,6 +31,9 @@ import { apiClient } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { listDocuments, useDocuments } from '../lib/documents';
 import { cn } from '../lib/utils';
+import { SearchBar } from '../components/saas/SearchBar';
+import { StatCard } from '../components/saas/StatCard';
+import { useToast } from '../components/saas/ToastProvider';
 
 type UserStatus = 'active' | 'inactive';
 
@@ -121,6 +123,7 @@ function toForm(profile: UserProfile) {
 
 export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => {
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | UserStatus>('all');
@@ -212,8 +215,17 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         });
       }
       setIsUserModalOpen(false);
+      toast({
+        tone: 'success',
+        title: form.uid ? 'User updated' : 'User created',
+        description: `${form.displayName || form.email} is saved.`,
+      });
     } catch (error) {
-      alert((error as Error).message);
+      toast({
+        tone: 'error',
+        title: 'User save failed',
+        description: (error as Error).message,
+      });
     } finally {
       setSaving(false);
     }
@@ -226,8 +238,17 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
     try {
       await apiClient.request(`/api/users/${uid}/deactivate`, { method: 'PATCH' });
+      toast({
+        tone: 'success',
+        title: 'User deactivated',
+        description: `${profile.email || 'The user'} was marked inactive.`,
+      });
     } catch (error) {
-      alert((error as Error).message);
+      toast({
+        tone: 'error',
+        title: 'Deactivate failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -259,15 +280,21 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
           body: JSON.stringify({ users: usersToImport }),
         }
       );
-      alert(
-        `Import complete. Success: ${result.results.filter((item) => item.success).length}, Failed: ${
+      toast({
+        tone: 'success',
+        title: 'Import complete',
+        description: `Success: ${result.results.filter((item) => item.success).length}, Failed: ${
           result.results.filter((item) => !item.success).length
-        }`
-      );
+        }`,
+      });
       setBulkText('');
       setIsBulkModalOpen(false);
     } catch (error) {
-      alert((error as Error).message);
+      toast({
+        tone: 'error',
+        title: 'Import failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -282,9 +309,18 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
       setAuditLogs(logs);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
+      toast({
+        tone: 'error',
+        title: 'Audit logs unavailable',
+        description: 'Unable to load activity history right now.',
+      });
       setAuditLogs([]);
     }
   };
+
+  const activeCount = users.filter((profile) => (profile.status || 'active') === 'active').length;
+  const roleCount = new Set(users.map((profile) => getPrimaryRole(profile))).size;
+  const moduleAssignedCount = users.filter((profile) => (profile.assignedModules || []).length > 0).length;
 
   return (
     <div className="space-y-8">
@@ -330,16 +366,14 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         )}
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard title="Visible Users" value={String(users.length)} detail="After filters" icon={UserIcon} tone="blue" />
+        <StatCard title="Active" value={String(activeCount)} detail="Ready to sign in" icon={CheckCircle2} tone="emerald" />
+        <StatCard title="Module Assigned" value={String(moduleAssignedCount)} detail={`${roleCount} roles represented`} icon={Layers3} tone="violet" />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px_180px_220px] gap-3">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            placeholder="Search users..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="w-full bg-white border border-slate-200 pl-12 pr-4 py-3 rounded-2xl focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all shadow-sm"
-          />
-        </div>
+        <SearchBar value={search} onChange={setSearch} placeholder="Search users..." />
         <select
           value={roleFilter}
           onChange={(event) => setRoleFilter(event.target.value as 'all' | Role)}

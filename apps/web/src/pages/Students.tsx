@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   User as UserIcon,
   Shield,
-  Search,
   Plus,
   Upload,
   History,
@@ -21,6 +20,10 @@ import { useDebounce } from '../lib/hooks';
 import { StudentProfile, AuditLog, BulkImportResult } from '@educonnect/shared';
 import { listDocuments, useDocuments } from '../lib/documents';
 import { useAuth } from '../contexts/AuthContext';
+import { EmptyState } from '../components/saas/EmptyState';
+import { SearchBar } from '../components/saas/SearchBar';
+import { StatCard } from '../components/saas/StatCard';
+import { useToast } from '../components/saas/ToastProvider';
 
 type StudentDocument = StudentProfile & {
   id?: string;
@@ -40,6 +43,7 @@ function formatAuditTimestamp(timestamp: unknown) {
 
 export const StudentsPage = () => {
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const { data: userDocuments, loading } = useDocuments<StudentDocument>('users');
@@ -74,9 +78,9 @@ export const StudentsPage = () => {
       });
       setIsAddModalOpen(false);
       setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
-      alert('Student created successfully');
+      toast({ tone: 'success', title: 'Student created', description: `${formData.displayName} was added.` });
     } catch (error) {
-      alert('Error creating student: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Student creation failed', description: (error as Error).message });
     }
   };
 
@@ -95,9 +99,9 @@ export const StudentsPage = () => {
       });
       setSelectedStudent(null);
       setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
-      alert('Student updated successfully');
+      toast({ tone: 'success', title: 'Student updated', description: 'Profile changes were saved.' });
     } catch (error) {
-      alert('Error updating student: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Student update failed', description: (error as Error).message });
     }
   };
 
@@ -109,9 +113,9 @@ export const StudentsPage = () => {
       return;
     try {
       await apiClient.request(`/api/students/${uid}`, { method: 'DELETE' });
-      alert('Student deleted successfully');
+      toast({ tone: 'success', title: 'Student deleted', description: 'The record was removed.' });
     } catch (error) {
-      alert('Error deleting student: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Student delete failed', description: (error as Error).message });
     }
   };
 
@@ -133,11 +137,13 @@ export const StudentsPage = () => {
       );
       setIsBulkModalOpen(false);
       setBulkText('');
-      alert(
-        `Import completed. Success: ${result.results.filter((r: any) => r.success).length}, Failed: ${result.results.filter((r: any) => !r.success).length}`
-      );
+      toast({
+        tone: 'success',
+        title: 'Student import complete',
+        description: `Success: ${result.results.filter((r: any) => r.success).length}, Failed: ${result.results.filter((r: any) => !r.success).length}`,
+      });
     } catch (error) {
-      alert('Bulk import failed: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Bulk import failed', description: (error as Error).message });
     }
   };
 
@@ -152,6 +158,11 @@ export const StudentsPage = () => {
       setAuditLogs(logs);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
+      toast({
+        tone: 'error',
+        title: 'Audit logs unavailable',
+        description: 'Unable to load student activity history.',
+      });
       setAuditLogs([]);
     }
   };
@@ -165,6 +176,7 @@ export const StudentsPage = () => {
   });
 
   const classes = Array.from(new Set(students.map((s) => s.classId).filter(Boolean)));
+  const sectionCount = new Set(students.map((s) => s.section).filter(Boolean)).size;
 
   return (
     <div className="space-y-8">
@@ -207,17 +219,15 @@ export const StudentsPage = () => {
         )}
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard title="Students" value={String(students.length)} detail="Total enrolled" icon={GraduationCap} tone="blue" />
+        <StatCard title="Classes" value={String(classes.length)} detail="With assigned students" icon={Filter} tone="violet" />
+        <StatCard title="Sections" value={String(sectionCount)} detail="Across active classes" icon={Shield} tone="cyan" />
+      </div>
+
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white border border-slate-200 pl-14 pr-6 py-4 rounded-3xl focus:ring-4 focus:ring-blue-100 outline-none text-base transition-all shadow-sm font-medium"
-          />
-        </div>
+        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or email..." className="flex-1" />
 
         <div className="flex items-center gap-2 px-4 bg-white border border-slate-200 rounded-3xl shadow-sm">
           <Filter size={18} className="text-slate-400" />
@@ -318,6 +328,10 @@ export const StudentsPage = () => {
           ))}
         </AnimatePresence>
       </div>
+
+      {!loading && filtered.length === 0 && (
+        <EmptyState icon={GraduationCap} title="No students found" description="Adjust your search or class filter, or add a new student." />
+      )}
 
       {/* Add/Edit Modal */}
       <AnimatePresence>
