@@ -82,7 +82,6 @@ export const PerformancePage = () => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadStudentData();
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadClassReport();
     }
   }, [isStudent, loadStudentData, loadClassReport]);

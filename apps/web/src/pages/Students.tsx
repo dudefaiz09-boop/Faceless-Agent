@@ -140,7 +140,7 @@ export const StudentsPage = () => {
       toast({
         tone: 'success',
         title: 'Student import complete',
-        description: `Success: ${result.results.filter((r: any) => r.success).length}, Failed: ${result.results.filter((r: any) => !r.success).length}`,
+        description: `Success: ${result.results.filter((r) => r.success).length}, Failed: ${result.results.filter((r) => !r.success).length}`,
       });
     } catch (error) {
       toast({ tone: 'error', title: 'Bulk import failed', description: (error as Error).message });

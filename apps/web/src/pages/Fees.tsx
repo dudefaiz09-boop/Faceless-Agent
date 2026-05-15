@@ -49,6 +49,16 @@ interface FeeReport {
   }>;
 }
 
+interface FeeAccountResponse {
+  fees?: FeeRecord[];
+  payments?: PaymentRecord[];
+}
+
+function formatDate(value: PaymentRecord['paidAt']) {
+  const date = typeof value === 'object' && value !== null && 'toDate' in value ? value.toDate() : value;
+  return new Date(date || Date.now()).toLocaleDateString();
+}
+
 export const FeesPage = () => {
   const { user, isStudent, canManageFees, classId: userClassId } = useAuth();
   const { toast } = useToast();
@@ -72,9 +82,9 @@ export const FeesPage = () => {
   const loadStudentData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiClient.request<any>(`/api/fees/${user?.uid}`);
-      setFees(data.fees);
-      setPayments(data.payments);
+      const data = await apiClient.request<FeeAccountResponse>(`/api/fees/${user?.uid}`);
+      setFees(data.fees || []);
+      setPayments(data.payments || []);
     } catch (error) {
       console.error('Failed to load student fees:', error);
     } finally {
@@ -85,7 +95,7 @@ export const FeesPage = () => {
   const loadReport = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiClient.request<any>(`/api/fees/report/${selectedClass}`);
+      const data = await apiClient.request<FeeReport>(`/api/fees/report/${selectedClass}`);
       setReport(data);
     } catch (error) {
       console.error('Failed to load fee report:', error);
@@ -320,7 +330,7 @@ export const FeesPage = () => {
                       <div>
                         <p className="font-bold text-slate-900 text-sm">${p.amount}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase">
-                          {new Date((p.paidAt as any)?.toDate?.() || p.paidAt).toLocaleDateString()}
+                          {formatDate(p.paidAt)}
                         </p>
                       </div>
                       <button
@@ -541,7 +551,7 @@ export const FeesPage = () => {
                           <span className="text-sm font-bold text-slate-600">Overdue Count</span>
                         </div>
                         <span className="text-xl font-black text-red-600">
-                          {report?.records.filter((r: any) => r.status !== 'paid').length || 0}
+                          {report?.records.filter((record) => record.status !== 'paid').length || 0}
                         </span>
                       </div>
                     </div>

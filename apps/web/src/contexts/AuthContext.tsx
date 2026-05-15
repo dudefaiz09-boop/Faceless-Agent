@@ -75,6 +75,20 @@ interface AuthContextType {
   canManagePerformance: boolean;
 }
 
+type UserProfileData = {
+  role?: string;
+  roles?: string[];
+  permissions?: Record<string, boolean>;
+  schoolId?: string | null;
+  tenantId?: string | null;
+  classId?: string | null;
+  classIds?: string[];
+  subjectIds?: string[];
+  sectionIds?: string[];
+  assignedModules?: string[];
+  linkedStudentIds?: string[];
+};
+
 const AuthContext = createContext<AuthContextType>({
   user: null,
   role: null,
@@ -123,7 +137,7 @@ async function getProfile(uid: string) {
     .maybeSingle();
 
   if (error) throw error;
-  return (data?.data || {}) as Record<string, any>;
+  return (data?.data || {}) as UserProfileData;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

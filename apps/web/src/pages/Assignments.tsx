@@ -16,7 +16,11 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
-import { Assignment, AssignmentSubmission as Submission } from '@educonnect/shared-education';
+import {
+  ASSIGNMENT_STATUS,
+  Assignment,
+  AssignmentSubmission as Submission,
+} from '@educonnect/shared-education';
 import { useAssignments, useAssignmentSubmissions } from '@educonnect/shared-api';
 import { assignmentsService } from '../lib/api-client';
 import { FileUpload } from '../components/FileUpload';
@@ -94,7 +98,7 @@ export const AssignmentsPage = () => {
       await createAssignment({
         ...newAssignment,
         tenantId: schoolId || undefined,
-        status: 'published' as any,
+        status: ASSIGNMENT_STATUS.PUBLISHED,
         targetClasses: [newAssignment.classId],
         attachments: [],
         createdAt: new Date().toISOString(),

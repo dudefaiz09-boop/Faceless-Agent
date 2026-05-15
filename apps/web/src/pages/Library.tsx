@@ -44,6 +44,12 @@ interface BorrowRecord {
   returnedAt: TimestampLike | string | number | null;
 }
 
+function formatTimestamp(value: TimestampLike | string | number | null) {
+  if (!value) return 'N/A';
+  const date = typeof value === 'object' && 'toDate' in value ? value.toDate() : value;
+  return new Date(date).toLocaleDateString();
+}
+
 export const LibraryPage = () => {
   const { isStudent, canManageLibrary, user } = useAuth();
   const { toast } = useToast();
@@ -70,7 +76,7 @@ export const LibraryPage = () => {
 
   const loadResources = useCallback(async () => {
     try {
-      const data = await apiClient.request<any>('/api/library/resources', {});
+      const data = await apiClient.request<LibraryResource[]>('/api/library/resources', {});
       setResources(data);
     } catch (error) {
       console.error(error);
@@ -81,7 +87,7 @@ export const LibraryPage = () => {
 
   const loadMyHistory = useCallback(async () => {
     try {
-      const data = await apiClient.request<any>(`/api/library/borrow/history/${user?.uid}`);
+      const data = await apiClient.request<BorrowRecord[]>(`/api/library/borrow/history/${user?.uid}`);
       setBorrowHistory(data);
     } catch (error) {
       console.error(error);
@@ -395,7 +401,7 @@ export const LibraryPage = () => {
                             Resource ID: {record.resourceId.slice(-6)}
                           </p>
                           <p className="text-xs text-slate-400">
-                            Borrowed: {(record.borrowedAt as any)?.toDate?.().toLocaleDateString()}
+                            Borrowed: {formatTimestamp(record.borrowedAt)}
                           </p>
                         </div>
                       </div>

@@ -45,6 +45,18 @@ const performanceTrend = [
   { label: 'Art', value: 91 },
 ];
 
+type DashboardUser = {
+  role?: string;
+  roles?: string[];
+};
+
+type DashboardAnnouncement = {
+  id?: string;
+  title?: string;
+  content?: string;
+  createdAt?: string;
+};
+
 const roleCopy = {
   admin: {
     title: 'School Command Center',
@@ -98,11 +110,11 @@ const roleCopy = {
 
 export function DashboardPage() {
   const { role } = useAuth();
-  const { data: announcements } = useDocuments<any>('announcements', {
+  const { data: announcements } = useDocuments<DashboardAnnouncement>('announcements', {
     order: { field: 'createdAt', ascending: false },
     limit: 4,
   });
-  const { data: users } = useDocuments<any>('users');
+  const { data: users } = useDocuments<DashboardUser>('users');
   const copy = roleCopy[role || 'student'] || roleCopy.student;
   const students = users.filter((item) => item.role === 'student' || item.roles?.includes('student'));
   const teachers = users.filter((item) => item.role === 'teacher' || item.roles?.includes('teacher'));

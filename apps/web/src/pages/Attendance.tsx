@@ -39,6 +39,13 @@ type StudentDocument = Student & {
   tenantId?: string;
 };
 
+type AttendanceStatus = 'present' | 'absent' | 'late';
+
+type AttendanceReportEntry = {
+  date: string;
+  attendanceRate: number;
+};
+
 const statusOptions = [
   {
     id: 'present',
@@ -101,7 +108,7 @@ export const AttendancePage = () => {
 
   // History state
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<AttendanceReportEntry[]>([]);
 
   const { data: userDocuments, loading: studentsLoading } = useDocuments<StudentDocument>('users', {
     enabled: !!schoolId,
@@ -154,7 +161,10 @@ export const AttendancePage = () => {
   const loadReports = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiClient.request<any[]>(`/api/attendance/report/${selectedClass}`, {});
+      const data = await apiClient.request<AttendanceReportEntry[]>(
+        `/api/attendance/report/${selectedClass}`,
+        {}
+      );
       setReportData(data);
     } catch (error) {
       console.error(error);
@@ -441,7 +451,7 @@ export const AttendancePage = () => {
                               {statusOptions.map((btn) => (
                                 <button
                                   key={btn.id}
-                                  onClick={() => handleMark(s.uid, btn.id as any)}
+                                  onClick={() => handleMark(s.uid, btn.id as AttendanceStatus)}
                                   className={cn(
                                     'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border',
                                     dailyRecords[s.uid] === btn.id
