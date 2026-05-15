@@ -1,37 +1,137 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, CheckCircle2 } from 'lucide-react';
+import { Bell, CheckCircle2, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiClient } from '../../lib/api-client';
 import { useDocuments } from '../../lib/documents';
+import { cn } from '../../lib/utils';
+import { useToast } from './ToastProvider';
 
 interface NotificationRecord {
   id?: string;
   title?: string;
   message?: string;
   read?: boolean;
+  readBy?: string[];
+  href?: string | null;
+  targetUserIds?: string[];
+  targetRoles?: string[];
+  targetClasses?: string[];
+  schoolId?: string;
+  type?: string;
   createdAt?: string;
 }
 
 export function NotificationDropdown() {
+  const { user, role, roles, classIds, schoolId } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const { data } = useDocuments<NotificationRecord>('notifications', { limit: 8 });
-  const notifications = data.length
-    ? data
+  const [localReadIds, setLocalReadIds] = useState<Set<string>>(() => new Set());
+  const { data } = useDocuments<NotificationRecord>('notifications', {
+    limit: 20,
+    order: { field: 'createdAt', ascending: false },
+    realtime: true,
+  });
+  const visibleNotifications = useMemo(
+    () =>
+      data.filter((item) => {
+        const targetUserIds = item.targetUserIds || [];
+        const targetRoles = item.targetRoles || ['all'];
+        const targetClasses = item.targetClasses || ['all'];
+        const userMatch = targetUserIds.length === 0 || targetUserIds.includes(user?.uid || '');
+        const roleMatch =
+          targetRoles.includes('all') ||
+          [role, ...roles].filter(Boolean).some((candidate) => targetRoles.includes(candidate as string));
+        const classMatch =
+          targetClasses.includes('all') ||
+          classIds.some((classId) => targetClasses.includes(classId));
+        const schoolMatch = !item.schoolId || !schoolId || item.schoolId === schoolId;
+        return !item.read && userMatch && roleMatch && classMatch && schoolMatch;
+      }),
+    [classIds, data, role, roles, schoolId, user?.uid]
+  );
+
+  const notifications = visibleNotifications.length
+    ? visibleNotifications
     : [
         {
           id: 'demo-welcome',
           title: 'Realtime center ready',
           message: 'Announcements, chat, and admin events can surface here.',
-          read: false,
+          read: true,
+          readBy: user?.uid ? [user.uid] : [],
+          targetRoles: ['all'],
+          targetClasses: ['all'],
           createdAt: new Date().toISOString(),
         },
       ];
-  const unread = useMemo(() => notifications.filter((item) => !item.read).length, [notifications]);
+  const isRead = (item: NotificationRecord) =>
+    item.read ||
+    (item.id ? localReadIds.has(item.id) : false) ||
+    (user?.uid ? item.readBy?.includes(user.uid) : false);
+  const unread = useMemo(
+    () => notifications.filter((item) => !isRead(item)).length,
+    [notifications, user?.uid]
+  );
+
+  const markRead = async (item: NotificationRecord) => {
+    if (!item.id || item.id.startsWith('demo-') || isRead(item)) return;
+    setLocalReadIds((current) => new Set(current).add(item.id!));
+    try {
+      await apiClient.request(`/api/notifications/${item.id}/read`, { method: 'PATCH' });
+    } catch (error) {
+      setLocalReadIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id!);
+        return next;
+      });
+      toast({
+        tone: 'error',
+        title: 'Notification update failed',
+        description: error instanceof Error ? error.message : 'Unable to mark notification read.',
+      });
+    }
+  };
+
+  const markAllRead = async () => {
+    const ids = notifications.map((item) => item.id).filter(Boolean) as string[];
+    setLocalReadIds((current) => new Set([...current, ...ids]));
+    try {
+      await apiClient.request('/api/notifications/read-all', { method: 'PATCH' });
+      toast({
+        tone: 'success',
+        title: 'Notifications cleared',
+        description: 'Visible updates were marked as read.',
+      });
+    } catch (error) {
+      setLocalReadIds((current) => {
+        const next = new Set(current);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+      toast({
+        tone: 'error',
+        title: 'Notification update failed',
+        description: error instanceof Error ? error.message : 'Unable to mark all notifications read.',
+      });
+    }
+  };
+
+  const openNotification = async (item: NotificationRecord) => {
+    await markRead(item);
+    if (item.href) {
+      setOpen(false);
+      navigate(item.href);
+    }
+  };
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((value) => !value)}
-        className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+        className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
       >
         <Bell size={20} />
         {unread > 0 && (
@@ -46,21 +146,52 @@ export function NotificationDropdown() {
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            className="absolute right-0 z-50 mt-3 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur"
+            className="absolute right-0 z-50 mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
-                <p className="text-sm font-black text-slate-950">Notifications</p>
-                <p className="text-xs font-medium text-slate-500">{unread} unread updates</p>
+                <p className="text-sm font-black text-slate-950 dark:text-white">Notifications</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{unread} unread updates</p>
               </div>
-              <CheckCircle2 size={18} className="text-emerald-500" />
+              <button
+                onClick={markAllRead}
+                className="rounded-xl bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+                title="Mark all read"
+              >
+                <CheckCircle2 size={18} />
+              </button>
             </div>
             <div className="max-h-96 overflow-y-auto p-2">
               {notifications.map((item) => (
-                <div key={item.id} className="rounded-2xl p-3 hover:bg-slate-50">
-                  <p className="font-bold text-slate-900">{item.title || 'Notification'}</p>
-                  <p className="mt-1 text-sm font-medium text-slate-500">{item.message}</p>
-                </div>
+                <button
+                  key={item.id}
+                  onClick={() => void openNotification(item)}
+                  className={cn(
+                    'w-full rounded-2xl p-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-900',
+                    !isRead(item) && 'bg-blue-50/70 dark:bg-blue-950/30'
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={cn(
+                        'mt-1 h-2.5 w-2.5 shrink-0 rounded-full',
+                        isRead(item) ? 'bg-slate-200 dark:bg-slate-700' : 'bg-blue-600'
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-bold text-slate-900 dark:text-white">{item.title || 'Notification'}</p>
+                        {item.href && <ExternalLink size={12} className="shrink-0 text-slate-300" />}
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">{item.message}</p>
+                      {item.createdAt && (
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
               ))}
             </div>
           </motion.div>

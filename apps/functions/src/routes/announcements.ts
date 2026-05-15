@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 import { AnnouncementSchema } from '@educonnect/shared';
+import { createNotification } from '../lib/notifications.js';
 
 const router: Router = Router();
 
@@ -69,6 +70,18 @@ router.post('/', checkPermission('manageAnnouncements'), async (req, res, next) 
     };
 
     const docRef = await db.collection('announcements').add(announcement);
+    await createNotification({
+      title: `New announcement: ${title}`,
+      message: content.slice(0, 180),
+      type: 'announcement',
+      href: '/announcements',
+      targetRoles: announcement.targetRoles,
+      targetClasses: announcement.targetClasses,
+      schoolId: req.user.schoolId,
+      tenantId: req.tenantId,
+      actorId: req.user.uid,
+      metadata: { announcementId: docRef.id, priority: announcement.priority },
+    });
     res.json({ id: docRef.id, ...announcement });
   } catch (error) {
     next(error);
