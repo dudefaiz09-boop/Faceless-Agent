@@ -65,27 +65,7 @@ router.post('/', checkAdmin, async (req, res, next) => {
   }
 });
 
-router.patch('/:id/read', async (req, res, next) => {
-  try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-
-    const ref = db.collection('notifications').doc(req.params.id);
-    const snapshot = await ref.get();
-    if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
-
-    const notification = { id: snapshot.id, ...snapshot.data() };
-    if (!canSeeNotification(notification, req.user)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const readBy = Array.from(new Set([...(notification.readBy || []), req.user.uid]));
-    await ref.update({ readBy, updatedAt: new Date().toISOString() });
-    res.json({ success: true, readBy });
-  } catch (error) {
-    next(error);
-  }
-});
-
+// IMPORTANT: /read-all must come BEFORE /:id/read to prevent Express from treating "read-all" as an ID parameter
 router.patch('/read-all', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -108,6 +88,27 @@ router.patch('/read-all', async (req, res, next) => {
     );
 
     res.json({ success: true, count: visible.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/:id/read', async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const ref = db.collection('notifications').doc(req.params.id);
+    const snapshot = await ref.get();
+    if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
+
+    const notification = { id: snapshot.id, ...snapshot.data() };
+    if (!canSeeNotification(notification, req.user)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const readBy = Array.from(new Set([...(notification.readBy || []), req.user.uid]));
+    await ref.update({ readBy, updatedAt: new Date().toISOString() });
+    res.json({ success: true, readBy });
   } catch (error) {
     next(error);
   }
