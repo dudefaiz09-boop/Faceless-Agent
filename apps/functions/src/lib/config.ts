@@ -15,8 +15,8 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   SUPABASE_UPLOADS_BUCKET: z.string().default('educonnect-uploads'),
 
-  // Gemini API. Keep this separate from hosting so the app can disable AI without changing cloud.
-  GEMINI_API_KEY: z.string().optional(),
+  // Free AI provider keys. Keep these server-side only.
+  OPENROUTER_API_KEY: z.string().optional(),
 });
 
 /**

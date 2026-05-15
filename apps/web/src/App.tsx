@@ -25,6 +25,9 @@ import { cn } from './lib/utils';
 import { ModuleGuard } from './components/ModuleGuard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { canAccessModule, type ModuleKey } from '@educonnect/shared';
+import { CommandPalette } from './components/saas/CommandPalette';
+import { NotificationDropdown } from './components/saas/NotificationDropdown';
+import { DashboardPage } from './pages/Dashboard';
 
 // --- Lazy loaded pages ---
 const AnnouncementsPage = lazy(() =>
@@ -155,7 +158,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const handleLogout = () => supabase.auth.signOut();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-[#f8fafc] flex text-slate-950">
+      <CommandPalette />
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -172,16 +176,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-50 transform lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out px-4 py-8',
+          'fixed inset-y-0 left-0 w-72 bg-white/85 border-r border-white/80 z-50 transform lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out px-4 py-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl',
           'flex flex-col',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <div className="flex items-center gap-3 px-4 mb-8 shrink-0">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
+          <div className="w-11 h-11 bg-gradient-to-br from-blue-600 via-violet-600 to-cyan-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
             <GraduationCap size={24} />
           </div>
-          <span className="text-xl font-bold text-slate-900 tracking-tight">EduConnect</span>
+          <div>
+            <span className="block text-xl font-black text-slate-950 tracking-tight">EduConnect</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">AI ERP</span>
+          </div>
         </div>
 
         <nav className="space-y-1 flex-1 overflow-y-auto pr-1">
@@ -205,14 +212,20 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 lg:px-10">
+        <header className="h-20 bg-white/75 border-b border-white/80 flex items-center justify-between px-6 lg:px-10 backdrop-blur-xl">
           <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600">
             <Menu size={24} />
           </button>
 
-          <div className="flex-1" />
+          <button className="hidden md:flex h-11 min-w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-semibold text-slate-400 shadow-sm">
+            <span className="flex-1">Search or press command palette</span>
+            <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">Ctrl K</kbd>
+          </button>
+
+          <div className="flex-1 md:hidden" />
 
           <div className="flex items-center gap-4">
+            <NotificationDropdown />
             <div className="text-right hidden sm:block">
               <p className="text-sm font-semibold text-slate-900">{user?.displayName}</p>
               <p className="text-xs text-slate-500 capitalize">{role}</p>
@@ -227,7 +240,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-6 lg:p-10 space-y-8">{children}</div>
+        <div className="flex-1 overflow-auto bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.08),transparent_30%)] p-4 md:p-6 lg:p-8 space-y-8">
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -472,7 +487,7 @@ const AppContent = () => {
             path="/"
             element={
               <ModuleGuard module="dashboard">
-                <Dashboard />
+                <DashboardPage />
               </ModuleGuard>
             }
           />

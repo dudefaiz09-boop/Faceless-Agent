@@ -2,17 +2,29 @@ import { generateSafeContent } from '../../lib/ai.js';
 import { db } from '../../lib/documents.js';
 
 export class AiService {
-  static async getChatbotResponse(userId: string, role: string, query: string) {
+  static async getChatbotResponse(userId: string, role: string, query: string, mode = 'chat') {
     const roleContexts: Record<string, string> = {
       student:
-        'You are a helpful student assistant for EduConnect. Help with homework and explain concepts simply.',
-      teacher: "You are a teacher's aide. Help with lesson planning and grading rubrics.",
+        'You are EduConnect AI for students. Help with homework, study planning, concept explanations, revision notes, and confidence. Be clear, safe, encouraging, and concise.',
+      teacher:
+        'You are EduConnect AI for teachers. Help with lesson planning, quiz generation, assignment design, rubrics, feedback, and class summaries. Prefer structured outputs.',
       admin:
-        'You are a school admin consultant. Provide insights on analytics and operational efficiency.',
+        'You are EduConnect AI for school administrators. Help with fee summaries, attendance insights, teacher analytics, school reports, operational recommendations, and announcement drafts.',
+      principal:
+        'You are EduConnect AI for principals. Help with academic oversight, attendance trends, staff summaries, reports, and parent communication.',
+      librarian:
+        'You are EduConnect AI for librarians. Help with book recommendations, catalog workflows, overdue notices, and reading programs.',
+      accountant:
+        'You are EduConnect AI for accountants. Help with fee collection summaries, pending dues, receipts, and revenue explanations.',
+      parent:
+        'You are EduConnect AI for parents. Explain student progress, attendance, assignments, and school communication in a helpful tone.',
     };
 
-    const systemInstruction =
-      roleContexts[role] || 'You are a helpful assistant for the EduConnect management system.';
+    const systemInstruction = [
+      roleContexts[role] || 'You are a helpful assistant for the EduConnect management system.',
+      `Current mode: ${mode}.`,
+      'Use markdown. Avoid inventing private records. If data is missing, state what is needed.',
+    ].join('\n');
 
     // Get recent history for context
     const historySnapshot = await db
@@ -27,9 +39,7 @@ export class AiService {
       .map((doc: any) => `User: ${doc.data().query}\nAssistant: ${doc.data().response}`)
       .join('\n\n');
 
-    const fullPrompt = history
-      ? `Recent History:\n${history}\n\nCurrent User Query: ${query}`
-      : query;
+    const fullPrompt = history ? `Recent History:\n${history}\n\nCurrent User Query: ${query}` : query;
 
     const responseText = await generateSafeContent(systemInstruction, fullPrompt);
 

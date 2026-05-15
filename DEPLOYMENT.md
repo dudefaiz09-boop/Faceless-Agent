@@ -66,10 +66,11 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=https://your-web-project.vercel.app
-GEMINI_API_KEY=your_gemini_key_if_using_ai
+OPENROUTER_API_KEY=your_openrouter_key_if_using_ai
+OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
 ```
 
-`GEMINI_API_KEY` is optional. Omit it if AI features are not being used.
+`OPENROUTER_API_KEY` is optional. Omit it if AI features are not being used. Keep it only in the API project.
 
 ## Supabase Setup
 
@@ -119,7 +120,8 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=http://localhost:5173
-GEMINI_API_KEY=your_gemini_key_if_using_ai
+OPENROUTER_API_KEY=your_openrouter_key_if_using_ai
+OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
 ```
 
 ## Deployment Order

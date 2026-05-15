@@ -73,10 +73,11 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=https://your-web-project.vercel.app
-GEMINI_API_KEY=your_gemini_key_if_using_ai
+OPENROUTER_API_KEY=your_openrouter_key_if_using_ai
+OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
 ```
 
-`GEMINI_API_KEY` is optional.
+`OPENROUTER_API_KEY` is optional and must stay server-side in the API project.
 
 After deploy, verify:
 

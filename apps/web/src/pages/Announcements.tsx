@@ -1,292 +1,411 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import {
+  AlertCircle,
+  Bell,
+  Calendar,
+  Filter,
+  Megaphone,
+  Pin,
+  Plus,
+  Search,
+  Send,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
-import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Trash2, Send, X, AlertCircle, Calendar, Eye, Clock } from 'lucide-react';
-import { Card, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { PageHeader } from '../components/ui/PageHeader';
-import { useAnnouncements } from '@educonnect/shared-api';
-import { announcementsService } from '../lib/api-client';
+import { apiClient } from '../lib/api-client';
+import { useDebounce } from '../lib/hooks';
+import { useDocuments } from '../lib/documents';
+import { EmptyState } from '../components/saas/EmptyState';
+import { LoadingSkeleton } from '../components/saas/LoadingSkeleton';
+import { cn } from '../lib/utils';
+
+interface Announcement {
+  id: string;
+  title?: string;
+  content?: string;
+  authorId?: string;
+  authorName?: string;
+  targetClasses?: string[];
+  targetRoles?: string[];
+  category?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  pinned?: boolean;
+  status?: string;
+  createdAt?: string;
+  timestamp?: string;
+  scheduledFor?: string | null;
+}
+
+const priorities = {
+  low: 'bg-slate-100 text-slate-600',
+  normal: 'bg-blue-50 text-blue-700',
+  high: 'bg-amber-50 text-amber-700',
+  urgent: 'bg-red-50 text-red-700',
+};
 
 export const AnnouncementsPage = () => {
-  const { isAdmin, isTeacher, user, schoolId } = useAuth();
-  const {
-    data: announcements = [],
-    isLoading: loading,
-    createAnnouncement,
-    isCreating: submitting,
-    deleteAnnouncement,
-  } = useAnnouncements(announcementsService, schoolId);
-
+  const { isAdmin, isTeacher, user, role, classIds } = useAuth();
+  const canPost = isAdmin || isTeacher || role === 'principal';
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [submitting, setSubmitting] = useState(false);
+  const debouncedSearch = useDebounce(search, 250);
+  const { data: records, loading } = useDocuments<Announcement>('announcements', {
+    order: { field: 'createdAt', ascending: false },
+    realtime: true,
+  });
 
-  // Form State
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [targetClassesInput, setTargetClassesInput] = useState('all');
-  const [targetRolesInput, setTargetRolesInput] = useState('all');
-  const [isScheduled, setIsScheduled] = useState(false);
-  const [scheduledFor, setScheduledFor] = useState('');
+  const [form, setForm] = useState({
+    title: '',
+    content: '',
+    targetClasses: 'all',
+    targetRoles: 'all',
+    category: 'general',
+    priority: 'normal' as Announcement['priority'],
+    pinned: false,
+    isScheduled: false,
+    scheduledFor: '',
+  });
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !content) return;
+  const announcements = useMemo(() => {
+    return records
+      .filter((announcement) => announcement.status !== 'archived')
+      .filter((announcement) => {
+        const targetRoles = announcement.targetRoles || ['all'];
+        const targetClasses = announcement.targetClasses || ['all'];
+        const roleMatch = targetRoles.includes('all') || targetRoles.includes(role || 'student');
+        const classMatch =
+          targetClasses.includes('all') ||
+          (classIds || []).some((classId) => targetClasses.includes(classId));
+        const searchMatch = `${announcement.title || ''} ${announcement.content || ''}`
+          .toLowerCase()
+          .includes(debouncedSearch.toLowerCase());
+        const categoryMatch =
+          categoryFilter === 'all' || (announcement.category || 'general') === categoryFilter;
+        return roleMatch && classMatch && searchMatch && categoryMatch;
+      })
+      .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
+  }, [categoryFilter, classIds, debouncedSearch, records, role]);
 
+  const categories = Array.from(
+    new Set(records.map((announcement) => announcement.category || 'general'))
+  );
+
+  const createAnnouncement = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
     try {
-      const targetClasses = targetClassesInput
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s !== '');
-      const targetRoles = targetRolesInput
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s !== '');
-
-      await createAnnouncement({
-        title,
-        content,
-        targetClasses: targetClasses.length > 0 ? targetClasses : ['all'],
-        targetRoles: targetRoles.length > 0 ? targetRoles : ['all'],
-        isScheduled,
-        scheduledFor: isScheduled ? new Date(scheduledFor).toISOString() : undefined,
-        visibility: targetClasses.includes('all') ? 'school' : 'class',
-        priority: 'normal',
+      await apiClient.request('/api/announcements', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: form.title,
+          content: form.content,
+          targetClasses: form.targetClasses.split(',').map((item) => item.trim()).filter(Boolean),
+          targetRoles: form.targetRoles.split(',').map((item) => item.trim()).filter(Boolean),
+          visibility: form.targetClasses.includes('all') ? 'school' : 'class',
+          category: form.category,
+          priority: form.priority,
+          pinned: form.pinned,
+          isScheduled: form.isScheduled,
+          scheduledFor: form.isScheduled && form.scheduledFor ? new Date(form.scheduledFor).toISOString() : null,
+        }),
       });
       setIsModalOpen(false);
-      setTitle('');
-      setContent('');
-      setTargetClassesInput('all');
-      setTargetRolesInput('all');
-      setIsScheduled(false);
-      setScheduledFor('');
+      setForm({
+        title: '',
+        content: '',
+        targetClasses: 'all',
+        targetRoles: 'all',
+        category: 'general',
+        priority: 'normal',
+        pinned: false,
+        isScheduled: false,
+        scheduledFor: '',
+      });
     } catch (error) {
-      console.error('Failed to create announcement:', error);
+      alert((error as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+  const deleteAnnouncement = async (id: string) => {
+    if (!window.confirm('Archive this announcement?')) return;
     try {
-      await deleteAnnouncement(id);
+      await apiClient.request(`/api/announcements/${id}`, { method: 'DELETE' });
     } catch (error) {
-      console.error('Failed to delete announcement:', error);
+      alert((error as Error).message);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      <PageHeader
-        title="Announcements"
-        description="Stay updated with the latest news and updates."
-      >
-        {(isAdmin || isTeacher) && (
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus size={20} />
-            New Post
-          </Button>
-        )}
-      </PageHeader>
+    <div className="mx-auto max-w-7xl space-y-7">
+      <section className="relative overflow-hidden rounded-[36px] bg-slate-950 p-6 text-white shadow-2xl shadow-blue-950/20 md:p-8">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.5),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.35),transparent_36%)]" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
+              <Bell size={14} />
+              Realtime announcements
+            </p>
+            <h1 className="text-4xl font-black tracking-tight md:text-6xl">School Updates</h1>
+            <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-300">
+              Priority-aware broadcasts, role targeting, scheduling, and instant delivery for the whole school.
+            </p>
+          </div>
+          {canPost && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-black text-slate-950 shadow-xl shadow-blue-950/20 hover:bg-cyan-50"
+            >
+              <Plus size={18} />
+              New Announcement
+            </button>
+          )}
+        </div>
+      </section>
+
+      <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search announcements..."
+            className="h-14 w-full rounded-2xl border border-white bg-white/85 pl-11 pr-4 text-sm font-semibold text-slate-900 shadow-sm outline-none ring-blue-100 transition focus:ring-4"
+          />
+        </div>
+        <div className="relative">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            className="h-14 w-full rounded-2xl border border-white bg-white/85 pl-11 pr-4 text-sm font-black text-slate-600 shadow-sm outline-none"
+          >
+            <option value="all">All categories</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <LoadingSkeleton rows={4} />
       ) : announcements.length === 0 ? (
-        <Card className="p-20 flex flex-col items-center justify-center text-center gap-4 border-dashed border-2">
-          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
-            <AlertCircle size={32} />
-          </div>
-          <p className="text-lg font-medium text-slate-600">No announcements yet.</p>
-          <p className="text-slate-400 text-sm max-w-xs">
-            When announcements are posted, they will appear here for everyone to see.
-          </p>
-        </Card>
+        <EmptyState
+          icon={Megaphone}
+          title="No announcements found"
+          description="Try changing filters, or create a new announcement for your audience."
+        />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-5 lg:grid-cols-2">
           <AnimatePresence mode="popLayout">
-            {announcements.map((ann, i) => (
-              <motion.div
-                key={ann.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: i * 0.05 }}
+            {announcements.map((announcement, index) => (
+              <motion.article
+                key={announcement.id}
+                layout
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ delay: Math.min(index * 0.03, 0.18) }}
+                className={cn(
+                  'group relative overflow-hidden rounded-[30px] border bg-white/90 p-6 shadow-xl shadow-slate-200/60 backdrop-blur',
+                  announcement.pinned ? 'border-blue-200' : 'border-white/70'
+                )}
               >
-                <Card className="group hover:shadow-md transition-all duration-200">
-                  <CardContent className="p-6 md:p-8">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h2 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                            {ann.title}
-                          </h2>
-                          {ann.isScheduled && (
-                            <span className="text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1">
-                              <Clock size={10} /> Scheduled
-                            </span>
-                          )}
-                          {ann.targetClasses && (
-                            <div className="flex gap-1">
-                              {ann.targetClasses.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                          {ann.authorName} •{' '}
-                          {new Date((ann as any).createdAt).toLocaleDateString(undefined, {
-                            dateStyle: 'long',
-                          })}
-                          {ann.isScheduled &&
-                            ann.scheduledFor &&
-                            ` (Publishes ${new Date(ann.scheduledFor).toLocaleString()})`}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {(isAdmin || isTeacher) && (
-                          <button
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors mr-2"
-                          >
-                            <Eye size={14} />
-                            {ann.views?.length || 0} Views
-                          </button>
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-blue-50 via-white to-transparent" />
+                <div className="relative space-y-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        {announcement.pinned && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white">
+                            <Pin size={11} />
+                            Pinned
+                          </span>
                         )}
-                        {(isAdmin || ann.authorId === user?.uid) && (
-                          <button
-                            onClick={() => handleDelete(ann.id)}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        )}
+                        <span
+                          className={cn(
+                            'rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest',
+                            priorities[announcement.priority || 'normal']
+                          )}
+                        >
+                          {announcement.priority || 'normal'}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          {announcement.category || 'general'}
+                        </span>
                       </div>
+                      <h2 className="text-2xl font-black tracking-tight text-slate-950 group-hover:text-blue-700">
+                        {announcement.title || 'Untitled announcement'}
+                      </h2>
+                      <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {announcement.authorName || 'EduConnect'} •{' '}
+                        {formatDistanceToNow(
+                          new Date(announcement.createdAt || announcement.timestamp || Date.now()),
+                          { addSuffix: true }
+                        )}
+                      </p>
                     </div>
-                    <div className="text-slate-600 leading-relaxed whitespace-pre-wrap">
-                      {ann.content}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    {(isAdmin || announcement.authorId === user?.uid) && (
+                      <button
+                        onClick={() => deleteAnnouncement(announcement.id)}
+                        className="rounded-2xl bg-red-50 p-3 text-red-600 opacity-0 transition group-hover:opacity-100"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="whitespace-pre-wrap text-sm font-medium leading-7 text-slate-600">
+                    {announcement.content || 'No details provided.'}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                    {(announcement.targetRoles || ['all']).map((target) => (
+                      <span key={target} className="rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">
+                        {target}
+                      </span>
+                    ))}
+                    {(announcement.targetClasses || ['all']).map((target) => (
+                      <span key={target} className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-700">
+                        {target}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </motion.article>
             ))}
           </AnimatePresence>
         </div>
       )}
 
-      {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center p-6 z-[100]">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-md"
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+            <motion.form
+              onSubmit={createAnnouncement}
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[34px] bg-white p-6 shadow-2xl md:p-8"
             >
-              <div className="p-6 md:p-8 bg-blue-600 text-white flex items-center justify-between">
-                <h3 className="text-xl font-bold">New Announcement</h3>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                >
-                  <X size={24} />
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-950">Create Announcement</h2>
+                  <p className="text-sm font-medium text-slate-500">Target the right audience with a polished update.</p>
+                </div>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-2xl bg-slate-100 p-3 text-slate-500">
+                  <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreate} className="p-8 space-y-6">
-                <Input
-                  label="Title"
-                  autoFocus
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter a catchy title..."
-                />
-
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-                    Content
-                  </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2 md:col-span-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">Title</span>
+                  <input
+                    required
+                    value={form.title}
+                    onChange={(event) => setForm({ ...form, title: event.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none focus:ring-4 focus:ring-blue-100"
+                  />
+                </label>
+                <label className="space-y-2 md:col-span-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">Content</span>
                   <textarea
                     required
-                    rows={6}
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Provide the details here. You can use markdown."
-                    className="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all resize-none placeholder:text-slate-400"
+                    rows={7}
+                    value={form.content}
+                    onChange={(event) => setForm({ ...form, content: event.target.value })}
+                    className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold leading-7 outline-none focus:ring-4 focus:ring-blue-100"
                   />
-                </div>
+                </label>
+                <FormInput label="Target classes" value={form.targetClasses} onChange={(value) => setForm({ ...form, targetClasses: value })} />
+                <FormInput label="Target roles" value={form.targetRoles} onChange={(value) => setForm({ ...form, targetRoles: value })} />
+                <FormInput label="Category" value={form.category} onChange={(value) => setForm({ ...form, category: value })} />
+                <label className="space-y-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">Priority</span>
+                  <select
+                    value={form.priority}
+                    onChange={(event) => setForm({ ...form, priority: event.target.value as Announcement['priority'] })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none"
+                  >
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </label>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Input
-                      label="Target Classes"
-                      value={targetClassesInput}
-                      onChange={(e) => setTargetClassesInput(e.target.value)}
-                      placeholder="all, 10A, 9B"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      label="Target Roles"
-                      value={targetRolesInput}
-                      onChange={(e) => setTargetRolesInput(e.target.value)}
-                      placeholder="all, student, parent"
-                    />
-                  </div>
-                </div>
+              <div className="mt-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-2">
+                <label className="flex items-center gap-3 text-sm font-black text-slate-700">
+                  <input type="checkbox" checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} />
+                  Pin announcement
+                </label>
+                <label className="flex items-center gap-3 text-sm font-black text-slate-700">
+                  <input type="checkbox" checked={form.isScheduled} onChange={(event) => setForm({ ...form, isScheduled: event.target.checked })} />
+                  <Calendar size={16} />
+                  Schedule
+                </label>
+                {form.isScheduled && (
+                  <input
+                    type="datetime-local"
+                    value={form.scheduledFor}
+                    onChange={(event) => setForm({ ...form, scheduledFor: event.target.value })}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none md:col-span-2"
+                  />
+                )}
+              </div>
 
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isScheduled}
-                      onChange={(e) => setIsScheduled(e.target.checked)}
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                      <Calendar size={16} /> Schedule for later
-                    </span>
-                  </label>
-
-                  {isScheduled && (
-                    <Input
-                      type="datetime-local"
-                      label="Publish Date & Time"
-                      required={isScheduled}
-                      value={scheduledFor}
-                      onChange={(e) => setScheduledFor(e.target.value)}
-                    />
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  isLoading={submitting}
-                  className="w-full py-4"
-                >
-                  <Send size={20} />
-                  {isScheduled ? 'Schedule Announcement' : 'Post Announcement'}
-                </Button>
-              </form>
-            </motion.div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-xl shadow-blue-100 disabled:opacity-60"
+              >
+                {submitting ? <Sparkles className="animate-pulse" size={18} /> : <Send size={18} />}
+                {submitting ? 'Publishing...' : 'Publish Announcement'}
+              </button>
+            </motion.form>
           </div>
         )}
       </AnimatePresence>
     </div>
   );
 };
+
+function FormInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="space-y-2">
+      <span className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none focus:ring-4 focus:ring-blue-100"
+      />
+    </label>
+  );
+}
