@@ -11,7 +11,7 @@ export interface NotificationAudience {
 export interface NotificationInput extends NotificationAudience {
   title: string;
   message: string;
-  type?: 'announcement' | 'assignment' | 'attendance' | 'fee' | 'system';
+  type?: 'announcement' | 'assignment' | 'attendance' | 'fee' | 'chat' | 'system';
   href?: string;
   actorId?: string;
   metadata?: Record<string, unknown>;
