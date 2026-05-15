@@ -1,6 +1,7 @@
 import * as esbuild from 'esbuild';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { writeFile } from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,16 @@ async function runBuild() {
       entryPoints: ['./src/standalone.ts'],
       outfile: path.join(__dirname, 'dist/standalone.js'),
     });
+
+    await writeFile(
+      path.join(__dirname, 'dist/index.d.ts'),
+      "import type { Express } from 'express';\ndeclare const app: Express;\nexport default app;\n"
+    );
+
+    await writeFile(
+      path.join(__dirname, 'dist/standalone.d.ts'),
+      "import type { Server } from 'node:http';\ndeclare const server: Server;\nexport default server;\n"
+    );
 
     console.log('✅ Build complete!');
   } catch (error) {
