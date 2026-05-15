@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User as UserIcon,
-  Search,
   Plus,
   Upload,
   History,
@@ -20,6 +19,10 @@ import { useDebounce } from '../lib/hooks';
 import { TeacherProfile, AuditLog, BulkImportResult } from '@educonnect/shared';
 import { listDocuments, useDocuments } from '../lib/documents';
 import { useAuth } from '../contexts/AuthContext';
+import { EmptyState } from '../components/saas/EmptyState';
+import { SearchBar } from '../components/saas/SearchBar';
+import { StatCard } from '../components/saas/StatCard';
+import { useToast } from '../components/saas/ToastProvider';
 
 type TeacherDocument = TeacherProfile & {
   id?: string;
@@ -49,6 +52,7 @@ function teacherClasses(teacher: TeacherDocument) {
 
 export const TeachersPage = () => {
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const { data: userDocuments, loading } = useDocuments<TeacherDocument>('users');
@@ -92,9 +96,9 @@ export const TeachersPage = () => {
       });
       setIsAddModalOpen(false);
       setFormData({ email: '', password: '', displayName: '', subjects: '', classes: '' });
-      alert('Teacher created successfully');
+      toast({ tone: 'success', title: 'Teacher created', description: `${formData.displayName} was added.` });
     } catch (error) {
-      alert('Error creating teacher: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Teacher creation failed', description: (error as Error).message });
     }
   };
 
@@ -119,9 +123,9 @@ export const TeachersPage = () => {
       });
       setSelectedTeacher(null);
       setFormData({ email: '', password: '', displayName: '', subjects: '', classes: '' });
-      alert('Teacher updated successfully');
+      toast({ tone: 'success', title: 'Teacher updated', description: 'Faculty assignment changes were saved.' });
     } catch (error) {
-      alert('Error updating teacher: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Teacher update failed', description: (error as Error).message });
     }
   };
 
@@ -133,9 +137,9 @@ export const TeachersPage = () => {
       return;
     try {
       await apiClient.request(`/api/teachers/${uid}`, { method: 'DELETE' });
-      alert('Teacher deleted successfully');
+      toast({ tone: 'success', title: 'Teacher deleted', description: 'The faculty record was removed.' });
     } catch (error) {
-      alert('Error deleting teacher: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Teacher delete failed', description: (error as Error).message });
     }
   };
 
@@ -165,11 +169,13 @@ export const TeachersPage = () => {
       );
       setIsBulkModalOpen(false);
       setBulkText('');
-      alert(
-        `Import completed. Success: ${result.results.filter((r) => r.success).length}, Failed: ${result.results.filter((r) => !r.success).length}`
-      );
+      toast({
+        tone: 'success',
+        title: 'Faculty import complete',
+        description: `Success: ${result.results.filter((r) => r.success).length}, Failed: ${result.results.filter((r) => !r.success).length}`,
+      });
     } catch (error) {
-      alert('Bulk import failed: ' + (error as Error).message);
+      toast({ tone: 'error', title: 'Bulk import failed', description: (error as Error).message });
     }
   };
 
@@ -184,6 +190,11 @@ export const TeachersPage = () => {
       setAuditLogs(logs);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
+      toast({
+        tone: 'error',
+        title: 'Audit logs unavailable',
+        description: 'Unable to load faculty activity history.',
+      });
       setAuditLogs([]);
     }
   };
@@ -194,6 +205,8 @@ export const TeachersPage = () => {
       t.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       teacherSubjects(t).some((s) => s.toLowerCase().includes(debouncedSearch.toLowerCase()))
   );
+  const subjectCount = new Set(teachers.flatMap(teacherSubjects).filter(Boolean)).size;
+  const classCount = new Set(teachers.flatMap(teacherClasses).filter(Boolean)).size;
 
   return (
     <div className="space-y-8">
@@ -236,16 +249,14 @@ export const TeachersPage = () => {
         )}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input
-          placeholder="Search by name, email, or subject..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-white border border-slate-200 pl-14 pr-6 py-4 rounded-3xl focus:ring-4 focus:ring-blue-100 outline-none text-base transition-all shadow-sm font-medium"
-        />
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard title="Teachers" value={String(teachers.length)} detail="Faculty records" icon={UserIcon} tone="blue" />
+        <StatCard title="Subjects" value={String(subjectCount)} detail="Covered by faculty" icon={BookOpen} tone="violet" />
+        <StatCard title="Classes" value={String(classCount)} detail="Assigned classrooms" icon={Briefcase} tone="cyan" />
       </div>
+
+      {/* Search */}
+      <SearchBar value={search} onChange={setSearch} placeholder="Search by name, email, or subject..." />
 
       {/* Teacher List */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -353,6 +364,10 @@ export const TeachersPage = () => {
           ))}
         </AnimatePresence>
       </div>
+
+      {!loading && filtered.length === 0 && (
+        <EmptyState icon={UserIcon} title="No teachers found" description="Adjust search terms or add a new faculty record." />
+      )}
 
       {/* Add/Edit Modal */}
       <AnimatePresence>

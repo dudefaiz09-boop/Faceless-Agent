@@ -4,7 +4,7 @@ import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   BarChart3, TrendingUp, Award, Brain, 
-  Upload, Search, Download, 
+  Upload, Download,
   ChevronRight, Sparkles, Target, AlertCircle,
   FileText, Users, X
 } from 'lucide-react';
@@ -14,6 +14,9 @@ import {
   AreaChart, Area, XAxis, YAxis, 
   CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell 
 } from 'recharts';
+import { DataTable, type DataTableColumn } from '../components/saas/DataTable';
+import { SearchBar } from '../components/saas/SearchBar';
+import { useToast } from '../components/saas/ToastProvider';
 
 interface PerformanceRecord {
   id: string;
@@ -33,6 +36,7 @@ interface PerformanceReport {
 
 export const PerformancePage = () => {
   const { user, isStudent, canManagePerformance, classId: userClassId } = useAuth();
+  const { toast } = useToast();
   const [records, setRecords] = useState<PerformanceRecord[]>([]);
   const [report, setReport] = useState<PerformanceReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +48,7 @@ export const PerformancePage = () => {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadText, setUploadText] = useState('');
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [scoreSearch, setScoreSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
@@ -107,6 +112,11 @@ export const PerformancePage = () => {
       });
 
       setUploadSuccess(true);
+      toast({
+        tone: 'success',
+        title: 'Scores imported',
+        description: `${batchRecords.length} performance records were uploaded for ${selectedClass}.`,
+      });
       setTimeout(() => {
         setIsUploadOpen(false);
         setUploadText('');
@@ -116,6 +126,11 @@ export const PerformancePage = () => {
       }, 2000);
     } catch (error) {
       console.error('Performance upload failed:', error);
+      toast({
+        tone: 'error',
+        title: 'Score import failed',
+        description: error instanceof Error ? error.message : 'Upload failed. Please try again.',
+      });
       setUploadError([{
         line: 0,
         message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
@@ -151,6 +166,54 @@ export const PerformancePage = () => {
 
   const [randomRank] = useState(() => Math.floor(Math.random() * 100) + 1);
   const globalRank = report?.globalRank || randomRank;
+  const filteredRecords = records.filter((record) => {
+    const query = scoreSearch.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      record.studentId.toLowerCase().includes(query) ||
+      record.subject.toLowerCase().includes(query) ||
+      record.term.toLowerCase().includes(query) ||
+      record.grade.toLowerCase().includes(query)
+    );
+  });
+
+  const scoreColumns: Array<DataTableColumn<PerformanceRecord>> = [
+    {
+      key: 'studentId',
+      header: 'UID',
+      render: (record) => <span className="font-bold text-slate-700 dark:text-slate-200">{record.studentId}</span>,
+    },
+    {
+      key: 'subject',
+      header: 'Subject',
+      render: (record) => <span className="font-semibold text-slate-600 dark:text-slate-300">{record.subject}</span>,
+    },
+    {
+      key: 'score',
+      header: 'Score',
+      align: 'center',
+      render: (record) => <span className="font-black text-slate-900 dark:text-white">{record.score}%</span>,
+    },
+    {
+      key: 'grade',
+      header: 'Grade',
+      align: 'center',
+      render: (record) => (
+        <span
+          className={cn(
+            'text-[10px] font-black uppercase px-3 py-1 rounded-full',
+            record.score >= 80
+              ? 'bg-emerald-50 text-emerald-600'
+              : record.score >= 60
+                ? 'bg-amber-50 text-amber-600'
+                : 'bg-red-50 text-red-600'
+          )}
+        >
+          {record.grade}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -388,78 +451,24 @@ export const PerformancePage = () => {
               <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
                 <div className="p-8 border-b border-slate-100 flex items-center justify-between">
                   <h3 className="text-xl font-bold text-slate-900">Student Scores</h3>
-                  <div className="relative">
-                    <Search
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      className="bg-slate-50 border-none pl-10 pr-4 py-2 rounded-xl text-sm outline-none w-64"
-                      placeholder="Search student UID..."
+                  <div className="w-full sm:w-72">
+                    <SearchBar
+                      value={scoreSearch}
+                      onChange={setScoreSearch}
+                      placeholder="Search scores..."
                     />
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-slate-50/50">
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          UID
-                        </th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Subject
-                        </th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                          Score
-                        </th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                          Grade
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {loading ? (
-                        <tr>
-                          <td colSpan={4} className="p-20 text-center text-slate-400">
-                            Loading scores...
-                          </td>
-                        </tr>
-                      ) : records.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="p-20 text-center text-slate-400">
-                            No records found for this class.
-                          </td>
-                        </tr>
-                      ) : (
-                        records.map((r) => (
-                          <tr key={r.id} className="hover:bg-slate-50/30 transition-colors">
-                            <td className="px-8 py-5 font-bold text-slate-700">{r.studentId}</td>
-                            <td className="px-8 py-5 text-sm font-medium text-slate-600">
-                              {r.subject}
-                            </td>
-                            <td className="px-8 py-5 text-center font-black text-slate-900">
-                              {r.score}%
-                            </td>
-                            <td className="px-8 py-5 text-center">
-                              <span
-                                className={cn(
-                                  'text-[10px] font-black uppercase px-3 py-1 rounded-full',
-                                  r.score >= 80
-                                    ? 'bg-emerald-50 text-emerald-600'
-                                    : r.score >= 60
-                                      ? 'bg-amber-50 text-amber-600'
-                                      : 'bg-red-50 text-red-600'
-                                )}
-                              >
-                                {r.grade}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                {loading ? (
+                  <div className="p-20 text-center text-slate-400">Loading scores...</div>
+                ) : (
+                  <DataTable
+                    columns={scoreColumns}
+                    rows={filteredRecords}
+                    getRowKey={(record) => record.id}
+                    emptyMessage="No score records match this class or search."
+                  />
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
