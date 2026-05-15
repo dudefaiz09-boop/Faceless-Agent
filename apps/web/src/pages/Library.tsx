@@ -4,7 +4,6 @@ import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Book,
-  Search,
   Plus,
   Download,
   BookOpen,
@@ -16,6 +15,10 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDebounce } from '../lib/hooks';
+import { EmptyState } from '../components/saas/EmptyState';
+import { SearchBar } from '../components/saas/SearchBar';
+import { StatCard } from '../components/saas/StatCard';
+import { useToast } from '../components/saas/ToastProvider';
 
 interface TimestampLike {
   toDate: () => Date;
@@ -43,6 +46,7 @@ interface BorrowRecord {
 
 export const LibraryPage = () => {
   const { isStudent, canManageLibrary, user } = useAuth();
+  const { toast } = useToast();
 
   const [resources, setResources] = useState<LibraryResource[]>([]);
   const [borrowHistory, setBorrowHistory] = useState<BorrowRecord[]>([]);
@@ -111,8 +115,17 @@ export const LibraryPage = () => {
       setIsUploadModalOpen(false);
       loadResources();
       setUploadData({ title: '', subject: '', grade: '', fileUrl: '', tags: '' });
+      toast({
+        tone: 'success',
+        title: 'Resource added',
+        description: `${uploadData.title} is now available in the catalog.`,
+      });
     } catch {
-      alert('Upload failed');
+      toast({
+        tone: 'error',
+        title: 'Upload failed',
+        description: 'Please check the resource fields and try again.',
+      });
     }
   };
 
@@ -122,10 +135,18 @@ export const LibraryPage = () => {
         method: 'POST',
         body: JSON.stringify({ resourceId }),
       });
-      alert('Book borrowed successfully!');
+      toast({
+        tone: 'success',
+        title: 'Book borrowed',
+        description: 'Your library history has been updated.',
+      });
       loadMyHistory();
     } catch {
-      alert('Borrowing failed');
+      toast({
+        tone: 'error',
+        title: 'Borrowing failed',
+        description: 'This resource may already be borrowed or unavailable.',
+      });
     }
   };
 
@@ -136,11 +157,20 @@ export const LibraryPage = () => {
         body: JSON.stringify({ recordId }),
       });
       loadMyHistory();
+      toast({
+        tone: 'success',
+        title: 'Book returned',
+        description: 'The borrowing record was marked as returned.',
+      });
       if (canManageLibrary) {
         // Refresh all if admin/teacher
       }
     } catch {
-      alert('Return failed');
+      toast({
+        tone: 'error',
+        title: 'Return failed',
+        description: 'Unable to update this borrowing record.',
+      });
     }
   };
 
@@ -200,21 +230,21 @@ export const LibraryPage = () => {
         </div>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard title="Catalog" value={String(resources.length)} detail="Digital resources" icon={BookOpen} tone="blue" />
+        <StatCard title="Subjects" value={String(subjects.length - 1)} detail="Available filters" icon={Filter} tone="violet" />
+        <StatCard title="Borrowed" value={String(borrowHistory.filter((item) => item.status === 'borrowed').length)} detail="Active checkouts" icon={Clock} tone="cyan" />
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Filters Sidebar */}
         <div className="lg:w-64 space-y-6 shrink-0">
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Search size={14} />
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
                 Search
               </label>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Title, tags..."
-                className="w-full bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 text-sm font-medium"
-              />
+              <SearchBar value={search} onChange={setSearch} placeholder="Title, tags..." />
             </div>
 
             <div className="space-y-3">
@@ -265,9 +295,12 @@ export const LibraryPage = () => {
                   <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : filteredResources.length === 0 ? (
-                <div className="col-span-full bg-white p-20 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center gap-4 text-center">
-                  <BookOpen size={48} className="text-slate-200" />
-                  <p className="text-slate-400 font-medium">No resources found in the library.</p>
+                <div className="col-span-full">
+                  <EmptyState
+                    icon={BookOpen}
+                    title="No resources found"
+                    description="Try another subject filter or add a new resource to the catalog."
+                  />
                 </div>
               ) : (
                 filteredResources.map((res, i) => (
@@ -335,9 +368,11 @@ export const LibraryPage = () => {
               <h2 className="text-xl font-bold text-slate-900">Borrowing History</h2>
               <div className="grid gap-4">
                 {borrowHistory.length === 0 ? (
-                  <div className="bg-white p-20 rounded-3xl text-center text-slate-400 border border-slate-100">
-                    No borrowing history found.
-                  </div>
+                  <EmptyState
+                    icon={Clock}
+                    title="No borrowing history"
+                    description="Borrowed books and return status will appear here."
+                  />
                 ) : (
                   borrowHistory.map((record) => (
                     <div

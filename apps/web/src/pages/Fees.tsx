@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   CreditCard, Upload, Download, History, 
   AlertCircle, TrendingUp, Users,
-  DollarSign, Search,
+  DollarSign,
   PieChart as PieChartIcon, FileText, Send, X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -14,6 +14,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
+import { DataTable, type DataTableColumn } from '../components/saas/DataTable';
+import { SearchBar } from '../components/saas/SearchBar';
+import { useToast } from '../components/saas/ToastProvider';
 
 interface FeeRecord {
   id: string;
@@ -48,6 +51,7 @@ interface FeeReport {
 
 export const FeesPage = () => {
   const { user, isStudent, canManageFees, classId: userClassId } = useAuth();
+  const { toast } = useToast();
 
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -61,6 +65,7 @@ export const FeesPage = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadText, setUploadText] = useState('');
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [feeSearch, setFeeSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
@@ -124,6 +129,11 @@ export const FeesPage = () => {
       });
 
       setUploadSuccess(true);
+      toast({
+        tone: 'success',
+        title: 'Fee records imported',
+        description: `${records.length} records were added for ${selectedClass}.`,
+      });
       setTimeout(() => {
         setIsUploadModalOpen(false);
         setUploadText('');
@@ -132,6 +142,11 @@ export const FeesPage = () => {
       }, 2000);
     } catch (error) {
       console.error('Upload failed:', error);
+      toast({
+        tone: 'error',
+        title: 'Import failed',
+        description: 'Fix the CSV validation errors and try again.',
+      });
       setUploadError([{
         line: 0,
         message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
@@ -146,11 +161,19 @@ export const FeesPage = () => {
         method: 'POST',
         body: JSON.stringify({ feeId, amount, method: 'online' }),
       });
-      alert('Payment successful!');
+      toast({
+        tone: 'success',
+        title: 'Payment recorded',
+        description: `$${amount} was recorded successfully.`,
+      });
       loadStudentData();
     } catch (error) {
       console.error('Payment failed:', error);
-      alert('Payment failed. Please try again.');
+      toast({
+        tone: 'error',
+        title: 'Payment failed',
+        description: 'Please try again or contact the accounts office.',
+      });
     }
   };
 
@@ -163,6 +186,45 @@ export const FeesPage = () => {
         { name: 'Pending', value: report.pending, color: '#ef4444' },
       ]
     : [];
+
+  const filteredFeeRecords = (report?.records || []).filter((record) =>
+    record.studentId.toLowerCase().includes(feeSearch.trim().toLowerCase())
+  );
+
+  const feeColumns: Array<DataTableColumn<FeeReport['records'][number]>> = [
+    {
+      key: 'studentId',
+      header: 'Student ID',
+      render: (record) => <span className="font-bold text-slate-700 dark:text-slate-200">{record.studentId}</span>,
+    },
+    {
+      key: 'amountDue',
+      header: 'Due',
+      align: 'right',
+      render: (record) => <span className="font-black text-slate-900 dark:text-white">${record.amountDue}</span>,
+    },
+    {
+      key: 'amountPaid',
+      header: 'Paid',
+      align: 'right',
+      render: (record) => <span className="font-black text-emerald-600">${record.amountPaid}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      align: 'center',
+      render: (record) => (
+        <span
+          className={cn(
+            'text-[9px] font-black uppercase px-2 py-1 rounded-full',
+            record.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+          )}
+        >
+          {record.status}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -410,76 +472,24 @@ export const FeesPage = () => {
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                   <h3 className="text-xl font-bold text-slate-900">Student Fee Records</h3>
-                  <div className="relative">
-                    <Search
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      className="bg-slate-50 border-none pl-10 pr-4 py-2 rounded-xl text-sm outline-none w-64"
+                  <div className="w-full sm:w-72">
+                    <SearchBar
+                      value={feeSearch}
+                      onChange={setFeeSearch}
                       placeholder="Search student ID..."
                     />
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-slate-50/50">
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Student ID
-                        </th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                          Due
-                        </th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                          Paid
-                        </th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {loading ? (
-                        <tr>
-                          <td colSpan={4} className="p-20 text-center text-slate-400">
-                            Loading data...
-                          </td>
-                        </tr>
-                      ) : !report?.records || report.records.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="p-20 text-center text-slate-400">
-                            No records for this class.
-                          </td>
-                        </tr>
-                      ) : (
-                        report.records.map((r: any, i: number) => (
-                          <tr key={i} className="hover:bg-slate-50/30 transition-colors">
-                            <td className="px-8 py-4 font-bold text-slate-700">{r.studentId}</td>
-                            <td className="px-8 py-4 font-black text-slate-900 text-right">
-                              ${r.amountDue}
-                            </td>
-                            <td className="px-8 py-4 font-black text-emerald-600 text-right">
-                              ${r.amountPaid}
-                            </td>
-                            <td className="px-8 py-4 text-center">
-                              <span
-                                className={cn(
-                                  'text-[9px] font-black uppercase px-2 py-1 rounded-full',
-                                  r.status === 'paid'
-                                    ? 'bg-emerald-50 text-emerald-600'
-                                    : 'bg-red-50 text-red-600'
-                                )}
-                              >
-                                {r.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                {loading ? (
+                  <div className="p-20 text-center text-slate-400">Loading data...</div>
+                ) : (
+                  <DataTable
+                    columns={feeColumns}
+                    rows={filteredFeeRecords}
+                    getRowKey={(record) => record.studentId}
+                    emptyMessage="No fee records match this class or search."
+                  />
+                )}
               </div>
             ) : (
               <div className="space-y-6">

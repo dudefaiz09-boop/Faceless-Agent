@@ -11,6 +11,8 @@ import {
   GraduationCap,
   ChevronRight,
   ExternalLink,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
@@ -18,12 +20,18 @@ import { Assignment, AssignmentSubmission as Submission } from '@educonnect/shar
 import { useAssignments, useAssignmentSubmissions } from '@educonnect/shared-api';
 import { assignmentsService } from '../lib/api-client';
 import { FileUpload } from '../components/FileUpload';
+import { EmptyState } from '../components/saas/EmptyState';
+import { SearchBar } from '../components/saas/SearchBar';
+import { StatCard } from '../components/saas/StatCard';
+import { useToast } from '../components/saas/ToastProvider';
 
 export const AssignmentsPage = () => {
   const { user, isStudent, canManageAssignments, classId: userClassId, schoolId } = useAuth();
+  const { toast } = useToast();
   const uid = user?.uid;
 
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const {
@@ -93,8 +101,17 @@ export const AssignmentsPage = () => {
       });
       setIsModalOpen(false);
       setNewAssignment({ ...newAssignment, title: '', description: '' });
+      toast({
+        tone: 'success',
+        title: 'Assignment created',
+        description: `${newAssignment.title} was published for ${newAssignment.classId}.`,
+      });
     } catch {
-      alert('Failed to create assignment');
+      toast({
+        tone: 'error',
+        title: 'Assignment creation failed',
+        description: 'Check required fields and try again.',
+      });
     }
   };
 
@@ -108,8 +125,17 @@ export const AssignmentsPage = () => {
         teacherFeedback: gradingState.feedback,
       });
       setGradingState(null);
+      toast({
+        tone: 'success',
+        title: 'Grade published',
+        description: 'The student can now view the final feedback.',
+      });
     } catch {
-      alert('Grading failed');
+      toast({
+        tone: 'error',
+        title: 'Grading failed',
+        description: 'Unable to publish this grade right now.',
+      });
     }
   };
 
@@ -125,20 +151,45 @@ export const AssignmentsPage = () => {
       setSubmissionFileUrl('');
       setSelectedAssignment(null);
       loadMyHistory();
+      toast({
+        tone: 'success',
+        title: 'Submission uploaded',
+        description: 'Your work was submitted and queued for review.',
+      });
     } catch {
-      alert('Submission failed');
+      toast({
+        tone: 'error',
+        title: 'Submission failed',
+        description: 'Please check your answer or attachment and try again.',
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const filteredAssignments = assignments.filter((assignment) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      assignment.title.toLowerCase().includes(query) ||
+      (assignment.description || '').toLowerCase().includes(query) ||
+      (assignment.classId || '').toLowerCase().includes(query)
+    );
+  });
+
+  const submittedCount = Object.keys(mySubmissions).length;
+  const dueSoonCount = assignments.filter((assignment) => {
+    const due = new Date(assignment.dueDate).getTime();
+    return Number.isFinite(due) && due - Date.now() <= 7 * 86400000 && due >= Date.now();
+  }).length;
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Assignments</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight dark:text-white">Assignments</h1>
+          <p className="text-slate-500 mt-1 dark:text-slate-400">
             {isStudent
               ? 'Track your coursework and submit your work.'
               : 'Manage assignments and grade student submissions.'}
@@ -150,7 +201,7 @@ export const AssignmentsPage = () => {
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="bg-white border border-slate-200 px-4 py-3 rounded-2xl font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-100 outline-none"
+              className="bg-white border border-slate-200 px-4 py-3 rounded-2xl font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-100 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
             >
               <option value="10A">Class 10A</option>
               <option value="10B">Class 10B</option>
@@ -169,20 +220,29 @@ export const AssignmentsPage = () => {
         </div>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard title="Published" value={String(assignments.length)} detail={`Class ${selectedClass}`} icon={FileText} tone="blue" />
+        <StatCard title={isStudent ? 'Submitted' : 'Submissions'} value={String(isStudent ? submittedCount : submissions.length)} detail={isStudent ? 'Completed by you' : 'For selected assignment'} icon={CheckCircle2} tone="emerald" />
+        <StatCard title="Due Soon" value={String(dueSoonCount)} detail="Within the next week" icon={Clock} tone="cyan" />
+      </div>
+
+      <SearchBar value={search} onChange={setSearch} placeholder="Search assignments by title, class, or description..." />
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : assignments.length === 0 ? (
-            <div className="bg-white p-20 rounded-3xl border border-dashed border-slate-200 flex flex-col items-center gap-4 text-center">
-              <FileText size={48} className="text-slate-200" />
-              <p className="text-slate-500 font-medium">No assignments posted for this class.</p>
-            </div>
+          ) : filteredAssignments.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No assignments found"
+              description="Try a different search term or create a new assignment for this class."
+            />
           ) : (
             <div className="grid gap-4">
-              {assignments.map((assignment) => {
+              {filteredAssignments.map((assignment) => {
                 const mySub = mySubmissions[assignment.id];
                 return (
                   <motion.div
@@ -190,10 +250,10 @@ export const AssignmentsPage = () => {
                     layoutId={assignment.id}
                     onClick={() => setSelectedAssignment(assignment)}
                     className={cn(
-                      'bg-white p-6 rounded-3xl border transition-all cursor-pointer group',
+                      'bg-white p-6 rounded-3xl border transition-all cursor-pointer group dark:bg-slate-900',
                       selectedAssignment?.id === assignment.id
                         ? 'border-blue-500 shadow-xl shadow-blue-50'
-                        : 'border-slate-100 hover:border-blue-200 shadow-sm'
+                        : 'border-slate-100 hover:border-blue-200 shadow-sm dark:border-slate-800'
                     )}
                   >
                     <div className="flex items-start justify-between">

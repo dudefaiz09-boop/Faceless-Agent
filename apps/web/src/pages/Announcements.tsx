@@ -21,6 +21,7 @@ import { useDebounce } from '../lib/hooks';
 import { useDocuments } from '../lib/documents';
 import { EmptyState } from '../components/saas/EmptyState';
 import { LoadingSkeleton } from '../components/saas/LoadingSkeleton';
+import { useToast } from '../components/saas/ToastProvider';
 import { cn } from '../lib/utils';
 
 interface Announcement {
@@ -49,6 +50,7 @@ const priorities = {
 
 export const AnnouncementsPage = () => {
   const { isAdmin, isTeacher, user, role, classIds } = useAuth();
+  const { toast } = useToast();
   const canPost = isAdmin || isTeacher || role === 'principal';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -127,8 +129,17 @@ export const AnnouncementsPage = () => {
         isScheduled: false,
         scheduledFor: '',
       });
+      toast({
+        tone: 'success',
+        title: 'Announcement posted',
+        description: 'The update is now visible to the selected audience.',
+      });
     } catch (error) {
-      alert((error as Error).message);
+      toast({
+        tone: 'error',
+        title: 'Announcement not posted',
+        description: (error as Error).message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -139,7 +150,11 @@ export const AnnouncementsPage = () => {
     try {
       await apiClient.request(`/api/announcements/${id}`, { method: 'DELETE' });
     } catch (error) {
-      alert((error as Error).message);
+      toast({
+        tone: 'error',
+        title: 'Archive failed',
+        description: (error as Error).message,
+      });
     }
   };
 
