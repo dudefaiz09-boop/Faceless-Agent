@@ -59,6 +59,8 @@ Quick deploy checks:
 ./deploy.sh android    # Build Android release
 ```
 
+Demo data can be seeded from the manual `Seed Supabase Demo Data` GitHub Actions workflow after adding `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as repository secrets.
+
 ## Testing
 
 Run the monorepo test pipeline:

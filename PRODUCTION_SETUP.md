@@ -32,6 +32,13 @@ pnpm seed:supabase -- --dry-run
 pnpm seed:supabase
 ```
 
+Or seed from GitHub Actions:
+
+1. Add repository secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+2. Open Actions.
+3. Run `Seed Supabase Demo Data`.
+4. Use `dry_run=true` first, then run again with `dry_run=false`.
+
 Keep `SUPABASE_SERVICE_ROLE_KEY` only in local backend `.env` files or backend hosting secrets. Never add it to the web project.
 
 ## 2. Vercel API
