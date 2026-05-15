@@ -10,7 +10,7 @@
     "test": "echo 'No mobile tests yet' && exit 0",
     "android": "react-native run-android",
     "ios": "react-native run-ios",
-    "lint": "../../node_modules/.bin/eslint .",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "build:android": "cd android && ./gradlew assembleRelease"
   },

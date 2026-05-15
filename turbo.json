@@ -10,7 +10,7 @@
     "VITE_SUPABASE_ANON_KEY",
     "VITE_SUPABASE_UPLOADS_BUCKET",
     "VITE_API_BASE_URL",
-    "GEMINI_API_KEY"
+    "OPENROUTER_API_KEY"
   ],
   "tasks": {
     "build": {
