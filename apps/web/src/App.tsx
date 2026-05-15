@@ -27,6 +27,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { canAccessModule, type ModuleKey } from '@educonnect/shared';
 import { CommandPalette } from './components/saas/CommandPalette';
 import { NotificationDropdown } from './components/saas/NotificationDropdown';
+import { ThemeToggle } from './components/saas/ThemeToggle';
 import { DashboardPage } from './pages/Dashboard';
 
 // --- Lazy loaded pages ---
@@ -76,7 +77,7 @@ const SidebarLink = ({
       'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
       active
         ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-        : 'text-slate-600 hover:bg-slate-100'
+        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
     )}
   >
     <Icon size={20} className="shrink-0" />
@@ -158,7 +159,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const handleLogout = () => supabase.auth.signOut();
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex text-slate-950">
+    <div className="min-h-screen bg-[#f8fafc] flex text-slate-950 dark:bg-slate-950 dark:text-slate-100">
       <CommandPalette />
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
@@ -176,7 +177,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 w-72 bg-white/85 border-r border-white/80 z-50 transform lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out px-4 py-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl',
+          'fixed inset-y-0 left-0 w-72 bg-white/85 border-r border-white/80 z-50 transform lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out px-4 py-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:bg-slate-950/90 dark:border-slate-800 dark:shadow-none',
           'flex flex-col',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
@@ -186,7 +187,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <GraduationCap size={24} />
           </div>
           <div>
-            <span className="block text-xl font-black text-slate-950 tracking-tight">EduConnect</span>
+            <span className="block text-xl font-black text-slate-950 tracking-tight dark:text-white">EduConnect</span>
             <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">AI ERP</span>
           </div>
         </div>
@@ -202,7 +203,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <div className="pt-4 shrink-0">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200 dark:text-slate-300 dark:hover:bg-red-950/40"
           >
             <LogOut size={20} />
             <span className="font-medium">Sign Out</span>
@@ -212,23 +213,24 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-20 bg-white/75 border-b border-white/80 flex items-center justify-between px-6 lg:px-10 backdrop-blur-xl">
+        <header className="h-20 bg-white/75 border-b border-white/80 flex items-center justify-between px-6 lg:px-10 backdrop-blur-xl dark:bg-slate-950/75 dark:border-slate-800">
           <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600">
             <Menu size={24} />
           </button>
 
-          <button className="hidden md:flex h-11 min-w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-semibold text-slate-400 shadow-sm">
+          <button className="hidden md:flex h-11 min-w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-semibold text-slate-400 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500">
             <span className="flex-1">Search or press command palette</span>
-            <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">Ctrl K</kbd>
+            <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">Ctrl K</kbd>
           </button>
 
           <div className="flex-1 md:hidden" />
 
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <NotificationDropdown />
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-slate-900">{user?.displayName}</p>
-              <p className="text-xs text-slate-500 capitalize">{role}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.displayName}</p>
+              <p className="text-xs text-slate-500 capitalize dark:text-slate-400">{role}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-slate-100">
               <img
@@ -240,7 +242,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.08),transparent_30%)] p-4 md:p-6 lg:p-8 space-y-8">
+        <div className="flex-1 overflow-auto bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.08),transparent_30%)] p-4 md:p-6 lg:p-8 space-y-8 dark:bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(6,182,212,0.12),transparent_30%)]">
           {children}
         </div>
       </main>
