@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 import { logger } from '@educonnect/logger';
-import { ai, GEMINI_MODEL, isAiEnabled } from '../lib/ai.js';
+import { generateSafeContent, isAiEnabled } from '../lib/ai.js';
 import { AssignmentAnalytics } from '@educonnect/shared-analytics';
 
 const router: Router = Router();
@@ -147,7 +147,7 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
     // Trigger AI Grading
     try {
       if (!isAiEnabled) {
-        logger.info({ assignmentId }, 'Skipping AI grading because GEMINI_API_KEY is not configured');
+        logger.info({ assignmentId }, 'Skipping AI grading because OPENROUTER_API_KEY is not configured');
         return res.json({ success: true, id: docId });
       }
 
@@ -158,16 +158,13 @@ ${fileUrl ? `Attached File URL: ${fileUrl}` : ''}
 ${rubricText}
 Respond strictly in JSON format: { "score": number, "feedback": "string" }`;
 
-      const result = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: 'application/json',
-        }
-      });
-
-      const responseText = result.text || '{}';
-      const aiResult = JSON.parse(responseText);
+      const responseText = await generateSafeContent(
+        'You are a strict assignment grading assistant. Return only valid JSON.',
+        prompt,
+        { temperature: 0.1, maxOutputTokens: 500 }
+      );
+      const cleanedResponse = responseText.replace(/```json|```/g, '').trim();
+      const aiResult = JSON.parse(cleanedResponse || '{}');
       await submissionRef.update({
         aiScore: aiResult.score || null,
         aiFeedback: aiResult.feedback || null,

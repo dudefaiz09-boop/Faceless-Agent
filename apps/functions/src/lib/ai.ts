@@ -1,15 +1,38 @@
-import { GoogleGenAI } from '@google/genai';
 import { AppError } from '../middleware/error.js';
 import { env } from './config.js';
 
-const geminiApiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+const openRouterApiKey = env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
+const openRouterModel = process.env.OPENROUTER_MODEL || 'mistralai/mistral-7b-instruct:free';
+const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
-export const ai = new GoogleGenAI({
-  apiKey: geminiApiKey || 'missing-gemini-api-key',
-});
+export const AI_MODEL = openRouterModel;
+export const isAiEnabled = !!openRouterApiKey;
 
-export const GEMINI_MODEL = 'gemini-2.5-flash';
-export const isAiEnabled = !!geminiApiKey;
+function fallbackResponse(userPrompt: string) {
+  const trimmed = userPrompt.trim().replace(/\s+/g, ' ').slice(0, 220);
+  return [
+    'AI is running in offline-safe mode because OPENROUTER_API_KEY is not configured.',
+    '',
+    trimmed
+      ? `Here is a practical starting point for: "${trimmed}"`
+      : 'Ask a focused question and I will help you break it down.',
+    '',
+    '- Identify the goal and the deadline.',
+    '- Break the work into 3-5 concrete steps.',
+    '- Track blockers early and ask a teacher or admin for help when needed.',
+  ].join('\n');
+}
+
+function getMessageText(payload: any) {
+  const message = payload?.choices?.[0]?.message?.content;
+  if (Array.isArray(message)) {
+    return message
+      .map((part) => (typeof part === 'string' ? part : part?.text || ''))
+      .join('')
+      .trim();
+  }
+  return typeof message === 'string' ? message.trim() : '';
+}
 
 /**
  * Safe AI Wrapper
@@ -24,36 +47,60 @@ export async function generateSafeContent(
   retries = 2
 ): Promise<string> {
   if (!isAiEnabled) {
-    throw new AppError('AI features are disabled until GEMINI_API_KEY is configured.', 503);
+    return fallbackResponse(userPrompt);
   }
 
   try {
-    const options: any = {
-      model: GEMINI_MODEL,
-      config: {
-        maxOutputTokens: 1000,
-        temperature: 0.2, // Lowered for more deterministic output
-        topP: 0.9,
-        systemInstruction: systemInstruction,
-        ...config,
-      },
-    };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
-    const result = await ai.models.generateContent({
-      ...options,
-      contents: [{ role: 'user', parts: [{ text: `User Query (Unsafe): ${userPrompt}` }] }],
+    const response = await fetch(openRouterUrl, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${openRouterApiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://educonnect-web-iota.vercel.app',
+        'X-Title': 'EduConnect AI',
+      },
+      body: JSON.stringify({
+        model: openRouterModel,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: config.maxOutputTokens || 900,
+        temperature: config.temperature ?? 0.35,
+        top_p: config.topP ?? 0.9,
+      }),
     });
 
-    return result.text || '';
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      if ((response.status === 429 || response.status >= 500) && retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
+      }
+      const body = await response.text().catch(() => '');
+      throw new AppError(`AI provider error ${response.status}: ${body.slice(0, 160)}`, 502);
+    }
+
+    const payload = await response.json();
+    const text = getMessageText(payload);
+
+    if (!text) {
+      throw new AppError('AI provider returned an empty response.', 502);
+    }
+
+    return text;
   } catch (error: any) {
-    // Quota and backoff handling
-    if (error.status === 429 && retries > 0) {
-      console.warn(`[AI] Rate limit hit. Retrying in 2s... (${retries} retries left)`);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (error?.name === 'AbortError' && retries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
       return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
     }
 
     console.error('[AI] Generation failed:', error);
-    throw new AppError('Failed to generate AI content due to a system error.', 500);
+    return fallbackResponse(userPrompt);
   }
 }

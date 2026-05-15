@@ -4,7 +4,7 @@ import { AiService } from './ai.service.js';
 export class AiController {
   static async queryChatbot(req: Request, res: Response, next: NextFunction) {
     try {
-      const { query } = req.body;
+      const { query, mode } = req.body;
       const user = req.user;
 
       if (!user) {
@@ -13,8 +13,9 @@ export class AiController {
 
       const { id, response } = await AiService.getChatbotResponse(
         user.uid,
-        user.roles[0] || 'student',
-        query
+        user.role || user.roles[0] || 'student',
+        query,
+        mode
       );
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
