@@ -2,6 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { apiClient } from '../lib/api-client';
 
+type ApiDataResponse<T> = T | { success?: boolean; data?: T };
+
+function unwrapApiData<T>(response: ApiDataResponse<T>) {
+  return typeof response === 'object' && response !== null && 'data' in response && response.data
+    ? response.data
+    : (response as T);
+}
+
 /**
  * Custom hook to debounce a value.
  */
@@ -46,7 +54,7 @@ export function useChatbot() {
 export function useStudentProfile(uid?: string) {
   return useQuery({
     queryKey: ['student', uid],
-    queryFn: () => apiClient.request(`/api/students/${uid}`),
+    queryFn: async () => unwrapApiData(await apiClient.request(`/api/students/${uid}`)),
     enabled: !!uid,
   });
 }

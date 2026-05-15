@@ -18,6 +18,12 @@ import {
   Submission,
 } from '@educonnect/shared-education';
 
+type StudentProfileResponse = StudentProfile | { success?: boolean; data?: StudentProfile };
+
+function unwrapStudentProfile(response: StudentProfileResponse): StudentProfile {
+  return 'data' in response && response.data ? response.data : (response as StudentProfile);
+}
+
 export const ParentPortal = () => {
   const { linkedStudentIds } = useAuth();
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
@@ -42,9 +48,10 @@ export const ParentPortal = () => {
       setLoading(true);
       try {
         // Fetch student profile
-        const profile = await apiClient.request<StudentProfile>(
+        const profileResponse = await apiClient.request<StudentProfileResponse>(
           `/api/students/${selectedStudentId}`
         );
+        const profile = unwrapStudentProfile(profileResponse);
         setStudentData(profile);
 
         // Fetch attendance
