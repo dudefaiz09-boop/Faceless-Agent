@@ -44,7 +44,9 @@ export function NotificationDropdown() {
         const userMatch = targetUserIds.length === 0 || targetUserIds.includes(user?.uid || '');
         const roleMatch =
           targetRoles.includes('all') ||
-          [role, ...roles].filter(Boolean).some((candidate) => targetRoles.includes(candidate as string));
+          [role, ...roles]
+            .filter(Boolean)
+            .some((candidate) => targetRoles.includes(candidate as string));
         const classMatch =
           targetClasses.includes('all') ||
           classIds.some((classId) => targetClasses.includes(classId));
@@ -112,7 +114,8 @@ export function NotificationDropdown() {
       toast({
         tone: 'error',
         title: 'Notification update failed',
-        description: error instanceof Error ? error.message : 'Unable to mark all notifications read.',
+        description:
+          error instanceof Error ? error.message : 'Unable to mark all notifications read.',
       });
     }
   };
@@ -128,7 +131,7 @@ export function NotificationDropdown() {
   const deleteNotification = async (item: NotificationRecord, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!item.id || item.id.startsWith('demo-')) return;
-    
+
     try {
       await apiClient.request(`/api/notifications/${item.id}`, { method: 'DELETE' });
       toast({
@@ -193,7 +196,9 @@ export function NotificationDropdown() {
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <p className="text-sm font-black text-slate-950 dark:text-white">Notifications</p>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{unread} unread updates</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {unread} unread updates
+                </p>
               </div>
               <button
                 onClick={markAllRead}
@@ -225,10 +230,16 @@ export function NotificationDropdown() {
                       />
                       <div className="min-w-0 flex-1 pr-8">
                         <div className="flex items-center gap-2">
-                          <p className="truncate font-bold text-slate-900 dark:text-white">{item.title || 'Notification'}</p>
-                          {item.href && <ExternalLink size={12} className="shrink-0 text-slate-300" />}
+                          <p className="truncate font-bold text-slate-900 dark:text-white">
+                            {item.title || 'Notification'}
+                          </p>
+                          {item.href && (
+                            <ExternalLink size={12} className="shrink-0 text-slate-300" />
+                          )}
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">{item.message}</p>
+                        <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                          {item.message}
+                        </p>
                         {item.createdAt && (
                           <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                             {new Date(item.createdAt).toLocaleString()}

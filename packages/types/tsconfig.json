@@ -5,7 +5,7 @@
     "paths": {
       "@educonnect/*": ["../../packages/*/src/index.ts"]
     },
-    "outDir": "dist",
+    "outDir": "dist"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

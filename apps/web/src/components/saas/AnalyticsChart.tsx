@@ -43,7 +43,12 @@ export function AnalyticsChart({
               </linearGradient>
             </defs>
             <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: '#64748b', fontSize: 12 }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
             <Tooltip
               cursor={{ stroke: '#2563eb', strokeWidth: 1 }}

@@ -4,7 +4,7 @@
  */
 export { getUserRole, hasPermission } from '../roles.js';
 export declare const AUTH_EVENTS: {
-    readonly SIGNED_IN: "signed_in";
-    readonly SIGNED_OUT: "signed_out";
-    readonly TOKEN_REFRESHED: "token_refreshed";
+  readonly SIGNED_IN: 'signed_in';
+  readonly SIGNED_OUT: 'signed_out';
+  readonly TOKEN_REFRESHED: 'token_refreshed';
 };

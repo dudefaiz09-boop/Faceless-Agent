@@ -58,7 +58,11 @@ export const AnnouncementsPage = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [submitting, setSubmitting] = useState(false);
   const debouncedSearch = useDebounce(search, 250);
-  const { data: records, loading, reload } = useDocuments<Announcement>('announcements', {
+  const {
+    data: records,
+    loading,
+    reload,
+  } = useDocuments<Announcement>('announcements', {
     order: { field: 'createdAt', ascending: false },
     realtime: true,
   });
@@ -119,14 +123,23 @@ export const AnnouncementsPage = () => {
         body: JSON.stringify({
           title: form.title,
           content: form.content,
-          targetClasses: form.targetClasses.split(',').map((item) => item.trim()).filter(Boolean),
-          targetRoles: form.targetRoles.split(',').map((item) => item.trim()).filter(Boolean),
+          targetClasses: form.targetClasses
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean),
+          targetRoles: form.targetRoles
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean),
           visibility: form.targetClasses.includes('all') ? 'school' : 'class',
           category: form.category,
           priority: form.priority,
           pinned: form.pinned,
           isScheduled: form.isScheduled,
-          scheduledFor: form.isScheduled && form.scheduledFor ? new Date(form.scheduledFor).toISOString() : null,
+          scheduledFor:
+            form.isScheduled && form.scheduledFor
+              ? new Date(form.scheduledFor).toISOString()
+              : null,
         }),
       });
       setIsModalOpen(false);
@@ -193,7 +206,8 @@ export const AnnouncementsPage = () => {
             </p>
             <h1 className="text-4xl font-black tracking-tight md:text-6xl">School Updates</h1>
             <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-300">
-              Priority-aware broadcasts, role targeting, scheduling, and instant delivery for the whole school.
+              Priority-aware broadcasts, role targeting, scheduling, and instant delivery for the
+              whole school.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -329,12 +343,18 @@ export const AnnouncementsPage = () => {
 
                   <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                     {(announcement.targetRoles || ['all']).map((target) => (
-                      <span key={target} className="rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">
+                      <span
+                        key={target}
+                        className="rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-700"
+                      >
                         {target}
                       </span>
                     ))}
                     {(announcement.targetClasses || ['all']).map((target) => (
-                      <span key={target} className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-700">
+                      <span
+                        key={target}
+                        className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-black text-cyan-700"
+                      >
                         {target}
                       </span>
                     ))}
@@ -366,16 +386,24 @@ export const AnnouncementsPage = () => {
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h2 className="text-3xl font-black text-slate-950">Create Announcement</h2>
-                  <p className="text-sm font-medium text-slate-500">Target the right audience with a polished update.</p>
+                  <p className="text-sm font-medium text-slate-500">
+                    Target the right audience with a polished update.
+                  </p>
                 </div>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-2xl bg-slate-100 p-3 text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-2xl bg-slate-100 p-3 text-slate-500"
+                >
                   <X size={20} />
                 </button>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2 md:col-span-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">Title</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Title
+                  </span>
                   <input
                     required
                     value={form.title}
@@ -384,7 +412,9 @@ export const AnnouncementsPage = () => {
                   />
                 </label>
                 <label className="space-y-2 md:col-span-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">Content</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Content
+                  </span>
                   <textarea
                     required
                     rows={7}
@@ -393,14 +423,30 @@ export const AnnouncementsPage = () => {
                     className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold leading-7 outline-none focus:ring-4 focus:ring-blue-100"
                   />
                 </label>
-                <FormInput label="Target classes" value={form.targetClasses} onChange={(value) => setForm({ ...form, targetClasses: value })} />
-                <FormInput label="Target roles" value={form.targetRoles} onChange={(value) => setForm({ ...form, targetRoles: value })} />
-                <FormInput label="Category" value={form.category} onChange={(value) => setForm({ ...form, category: value })} />
+                <FormInput
+                  label="Target classes"
+                  value={form.targetClasses}
+                  onChange={(value) => setForm({ ...form, targetClasses: value })}
+                />
+                <FormInput
+                  label="Target roles"
+                  value={form.targetRoles}
+                  onChange={(value) => setForm({ ...form, targetRoles: value })}
+                />
+                <FormInput
+                  label="Category"
+                  value={form.category}
+                  onChange={(value) => setForm({ ...form, category: value })}
+                />
                 <label className="space-y-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">Priority</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    Priority
+                  </span>
                   <select
                     value={form.priority}
-                    onChange={(event) => setForm({ ...form, priority: event.target.value as Announcement['priority'] })}
+                    onChange={(event) =>
+                      setForm({ ...form, priority: event.target.value as Announcement['priority'] })
+                    }
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none"
                   >
                     <option value="low">Low</option>
@@ -413,11 +459,19 @@ export const AnnouncementsPage = () => {
 
               <div className="mt-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-2">
                 <label className="flex items-center gap-3 text-sm font-black text-slate-700">
-                  <input type="checkbox" checked={form.pinned} onChange={(event) => setForm({ ...form, pinned: event.target.checked })} />
+                  <input
+                    type="checkbox"
+                    checked={form.pinned}
+                    onChange={(event) => setForm({ ...form, pinned: event.target.checked })}
+                  />
                   Pin announcement
                 </label>
                 <label className="flex items-center gap-3 text-sm font-black text-slate-700">
-                  <input type="checkbox" checked={form.isScheduled} onChange={(event) => setForm({ ...form, isScheduled: event.target.checked })} />
+                  <input
+                    type="checkbox"
+                    checked={form.isScheduled}
+                    onChange={(event) => setForm({ ...form, isScheduled: event.target.checked })}
+                  />
                   <Calendar size={16} />
                   Schedule
                 </label>

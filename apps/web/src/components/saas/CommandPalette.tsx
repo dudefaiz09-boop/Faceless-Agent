@@ -8,7 +8,12 @@ import { useAuth } from '../../contexts/AuthContext';
 const actions: Array<{ label: string; hint: string; path: string; module: ModuleKey }> = [
   { label: 'Dashboard', hint: 'Open command center', path: '/', module: 'dashboard' },
   { label: 'AI Assistant', hint: 'Ask EduConnect AI', path: '/chatbot', module: 'aiAssistant' },
-  { label: 'Announcements', hint: 'Search school updates', path: '/announcements', module: 'announcements' },
+  {
+    label: 'Announcements',
+    hint: 'Search school updates',
+    path: '/announcements',
+    module: 'announcements',
+  },
   { label: 'Attendance', hint: 'Review attendance', path: '/attendance', module: 'attendance' },
   { label: 'Assignments', hint: 'Manage coursework', path: '/assignments', module: 'assignments' },
   { label: 'Chat', hint: 'Open realtime messages', path: '/chat', module: 'chat' },
@@ -43,7 +48,9 @@ export function CommandPalette() {
   const visibleActions = useMemo(() => {
     return actions
       .filter((action) => role && canAccessModule(role, action.module, assignedModules))
-      .filter((action) => `${action.label} ${action.hint}`.toLowerCase().includes(query.toLowerCase()));
+      .filter((action) =>
+        `${action.label} ${action.hint}`.toLowerCase().includes(query.toLowerCase())
+      );
   }, [assignedModules, query, role]);
 
   const go = (path: string) => {
@@ -71,7 +78,9 @@ export function CommandPalette() {
                 placeholder="Search modules, actions, or jump anywhere..."
                 className="w-full bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
               />
-              <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">Esc</kbd>
+              <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
+                Esc
+              </kbd>
             </div>
             <div className="max-h-[420px] overflow-y-auto p-2">
               {visibleActions.map((action) => (

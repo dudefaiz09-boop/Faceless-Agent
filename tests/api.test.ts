@@ -6,7 +6,7 @@ describe('API Auth Enforcement', () => {
     const res = await request(app).get('/api/attendance');
     expect(res.status).toBe(401);
   });
-  
+
   it('should return 401 for unauthorized access to /api/assignments/history/uid', async () => {
     const res = await request(app).get('/api/assignments/history/123');
     // Auth middleware allows it to proceed if public, but since this route doesn't have checkPermission,

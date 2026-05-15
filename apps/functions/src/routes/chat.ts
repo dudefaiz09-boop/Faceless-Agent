@@ -29,7 +29,7 @@ async function canMessageUser(
   targetUserId: string
 ): Promise<{ allowed: boolean; reason?: string }> {
   const currentRole = currentUser.role;
-  
+
   // Admin and Principal can message anyone
   if (currentRole === 'admin' || currentRole === 'principal') {
     return { allowed: true, reason: 'Admin/Principal access' };
@@ -44,13 +44,16 @@ async function canMessageUser(
   const targetData = targetDoc.data() || {};
   const targetRole = targetData.role || targetData.roles?.[0] || '';
   const targetClassIds = targetData.classIds || (targetData.classId ? [targetData.classId] : []);
-  const currentClassIds = currentUser.classIds || (currentUser.classId ? [currentUser.classId] : []);
+  const currentClassIds =
+    currentUser.classIds || (currentUser.classId ? [currentUser.classId] : []);
 
   // Student eligibility
   if (currentRole === 'student') {
     // Can message teachers in their class
     if (targetRole === 'teacher') {
-      const hasSharedClass = targetClassIds.some((classId: string) => currentClassIds.includes(classId));
+      const hasSharedClass = targetClassIds.some((classId: string) =>
+        currentClassIds.includes(classId)
+      );
       if (hasSharedClass) return { allowed: true, reason: 'Class Teacher' };
     }
     // Can message principal or admin
@@ -64,7 +67,9 @@ async function canMessageUser(
   if (currentRole === 'parent') {
     // Can message their linked child's teachers
     if (targetRole === 'teacher') {
-      const hasLinkedStudentClass = targetClassIds.some((classId: string) => currentClassIds.includes(classId));
+      const hasLinkedStudentClass = targetClassIds.some((classId: string) =>
+        currentClassIds.includes(classId)
+      );
       if (hasLinkedStudentClass) return { allowed: true, reason: "Child's Teacher" };
     }
     // Can message principal or admin
@@ -78,7 +83,9 @@ async function canMessageUser(
   if (currentRole === 'teacher') {
     // Can message students in assigned classes
     if (targetRole === 'student') {
-      const hasSharedClass = targetClassIds.some((classId: string) => currentClassIds.includes(classId));
+      const hasSharedClass = targetClassIds.some((classId: string) =>
+        currentClassIds.includes(classId)
+      );
       if (hasSharedClass) return { allowed: true, reason: 'Your Student' };
     }
     // Can message parents of assigned students
@@ -157,8 +164,13 @@ router.post('/conversations', async (req, res, next) => {
       // Check eligibility
       const eligibility = await canMessageUser(user, recipientId);
       if (!eligibility.allowed) {
-        logger.warn({ userId: user.uid, recipientId, reason: eligibility.reason }, 'Unauthorized conversation attempt');
-        return res.status(403).json({ error: eligibility.reason || 'You are not authorized to message this user' });
+        logger.warn(
+          { userId: user.uid, recipientId, reason: eligibility.reason },
+          'Unauthorized conversation attempt'
+        );
+        return res
+          .status(403)
+          .json({ error: eligibility.reason || 'You are not authorized to message this user' });
       }
 
       const id = directConversationId(user.uid, recipientId);
@@ -189,10 +201,14 @@ router.post('/conversations', async (req, res, next) => {
 
     const name = String(req.body.name || '').trim();
     const participantIds = Array.isArray(req.body.participantIds) ? req.body.participantIds : [];
-    const participants = Array.from(new Set([user.uid, ...participantIds.map(String).filter(Boolean)]));
+    const participants = Array.from(
+      new Set([user.uid, ...participantIds.map(String).filter(Boolean)])
+    );
 
     if (!name || participants.length < 2) {
-      return res.status(400).json({ error: 'Group chats require a name and at least two participants' });
+      return res
+        .status(400)
+        .json({ error: 'Group chats require a name and at least two participants' });
     }
 
     const ref = await db.collection('conversations').add({
@@ -253,8 +269,13 @@ router.post('/send', async (req, res, next) => {
       // Check eligibility for new conversation
       const eligibility = await canMessageUser(user, recipientId);
       if (!eligibility.allowed) {
-        logger.warn({ userId: user.uid, recipientId, reason: eligibility.reason }, 'Unauthorized message attempt');
-        return res.status(403).json({ error: eligibility.reason || 'You are not authorized to message this user' });
+        logger.warn(
+          { userId: user.uid, recipientId, reason: eligibility.reason },
+          'Unauthorized message attempt'
+        );
+        return res
+          .status(403)
+          .json({ error: eligibility.reason || 'You are not authorized to message this user' });
       }
 
       conversationId = directConversationId(user.uid, recipientId);
@@ -281,7 +302,9 @@ router.post('/send', async (req, res, next) => {
       }
     }
 
-    const participants = Array.isArray(conversation.participants) ? conversation.participants : [user.uid];
+    const participants = Array.isArray(conversation.participants)
+      ? conversation.participants
+      : [user.uid];
     const messageRef = await db.collection(`conversations/${conversationId}/messages`).add({
       senderId: user.uid,
       senderName: displayName(user),

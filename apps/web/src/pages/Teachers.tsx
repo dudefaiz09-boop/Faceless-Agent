@@ -96,9 +96,17 @@ export const TeachersPage = () => {
       });
       setIsAddModalOpen(false);
       setFormData({ email: '', password: '', displayName: '', subjects: '', classes: '' });
-      toast({ tone: 'success', title: 'Teacher created', description: `${formData.displayName} was added.` });
+      toast({
+        tone: 'success',
+        title: 'Teacher created',
+        description: `${formData.displayName} was added.`,
+      });
     } catch (error) {
-      toast({ tone: 'error', title: 'Teacher creation failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Teacher creation failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -123,9 +131,17 @@ export const TeachersPage = () => {
       });
       setSelectedTeacher(null);
       setFormData({ email: '', password: '', displayName: '', subjects: '', classes: '' });
-      toast({ tone: 'success', title: 'Teacher updated', description: 'Faculty assignment changes were saved.' });
+      toast({
+        tone: 'success',
+        title: 'Teacher updated',
+        description: 'Faculty assignment changes were saved.',
+      });
     } catch (error) {
-      toast({ tone: 'error', title: 'Teacher update failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Teacher update failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -137,9 +153,17 @@ export const TeachersPage = () => {
       return;
     try {
       await apiClient.request(`/api/teachers/${uid}`, { method: 'DELETE' });
-      toast({ tone: 'success', title: 'Teacher deleted', description: 'The faculty record was removed.' });
+      toast({
+        tone: 'success',
+        title: 'Teacher deleted',
+        description: 'The faculty record was removed.',
+      });
     } catch (error) {
-      toast({ tone: 'error', title: 'Teacher delete failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Teacher delete failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -220,43 +244,71 @@ export const TeachersPage = () => {
         </div>
 
         {isAdmin && (
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => {
-              setFormData({ email: '', password: '', displayName: '', subjects: '', classes: '' });
-              setIsAddModalOpen(true);
-            }}
-            className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-          >
-            <Plus size={20} />
-            Add Teacher
-          </button>
-          <button
-            onClick={() => setIsBulkModalOpen(true)}
-            className="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
-          >
-            <Upload size={20} />
-            Bulk Onboarding
-          </button>
-          <button
-            onClick={() => viewAuditLogs()}
-            className="px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
-          >
-            <History size={20} />
-            Audit Logs
-          </button>
-        </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                setFormData({
+                  email: '',
+                  password: '',
+                  displayName: '',
+                  subjects: '',
+                  classes: '',
+                });
+                setIsAddModalOpen(true);
+              }}
+              className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+            >
+              <Plus size={20} />
+              Add Teacher
+            </button>
+            <button
+              onClick={() => setIsBulkModalOpen(true)}
+              className="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <Upload size={20} />
+              Bulk Onboarding
+            </button>
+            <button
+              onClick={() => viewAuditLogs()}
+              className="px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+            >
+              <History size={20} />
+              Audit Logs
+            </button>
+          </div>
         )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Teachers" value={String(teachers.length)} detail="Faculty records" icon={UserIcon} tone="blue" />
-        <StatCard title="Subjects" value={String(subjectCount)} detail="Covered by faculty" icon={BookOpen} tone="violet" />
-        <StatCard title="Classes" value={String(classCount)} detail="Assigned classrooms" icon={Briefcase} tone="cyan" />
+        <StatCard
+          title="Teachers"
+          value={String(teachers.length)}
+          detail="Faculty records"
+          icon={UserIcon}
+          tone="blue"
+        />
+        <StatCard
+          title="Subjects"
+          value={String(subjectCount)}
+          detail="Covered by faculty"
+          icon={BookOpen}
+          tone="violet"
+        />
+        <StatCard
+          title="Classes"
+          value={String(classCount)}
+          detail="Assigned classrooms"
+          icon={Briefcase}
+          tone="cyan"
+        />
       </div>
 
       {/* Search */}
-      <SearchBar value={search} onChange={setSearch} placeholder="Search by name, email, or subject..." />
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by name, email, or subject..."
+      />
 
       {/* Teacher List */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -366,7 +418,11 @@ export const TeachersPage = () => {
       </div>
 
       {!loading && filtered.length === 0 && (
-        <EmptyState icon={UserIcon} title="No teachers found" description="Adjust search terms or add a new faculty record." />
+        <EmptyState
+          icon={UserIcon}
+          title="No teachers found"
+          description="Adjust search terms or add a new faculty record."
+        />
       )}
 
       {/* Add/Edit Modal */}

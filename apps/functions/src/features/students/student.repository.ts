@@ -38,6 +38,11 @@ export class StudentRepository {
   }
 
   static async delete(uid: string, actor: Actor) {
-    return updateManagedUser(uid, { role: 'student', status: 'inactive' }, actor, 'student_deactivated');
+    return updateManagedUser(
+      uid,
+      { role: 'student', status: 'inactive' },
+      actor,
+      'student_deactivated'
+    );
   }
 }

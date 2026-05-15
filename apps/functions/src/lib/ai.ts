@@ -2,19 +2,20 @@ import { AppError } from '../middleware/error.js';
 import { env } from './config.js';
 
 const openRouterApiKey = env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
-const openRouterModel = env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL || 'mistralai/mistral-7b-instruct:free';
+const openRouterModel =
+  env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL || 'mistralai/mistral-7b-instruct:free';
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Determine HTTP-Referer for OpenRouter
 function getHttpReferer(): string {
   const publicUrl = env.PUBLIC_APP_URL || process.env.PUBLIC_APP_URL;
   if (publicUrl) return publicUrl;
-  
+
   const vercelUrl = process.env.VERCEL_URL;
   if (vercelUrl) {
     return vercelUrl.startsWith('http') ? vercelUrl : `https://${vercelUrl}`;
   }
-  
+
   return 'http://localhost:5173';
 }
 

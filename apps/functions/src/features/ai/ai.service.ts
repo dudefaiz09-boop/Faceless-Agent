@@ -39,7 +39,9 @@ export class AiService {
       .map((doc: any) => `User: ${doc.data().query}\nAssistant: ${doc.data().response}`)
       .join('\n\n');
 
-    const fullPrompt = history ? `Recent History:\n${history}\n\nCurrent User Query: ${query}` : query;
+    const fullPrompt = history
+      ? `Recent History:\n${history}\n\nCurrent User Query: ${query}`
+      : query;
 
     const responseText = await generateSafeContent(systemInstruction, fullPrompt);
 
@@ -79,7 +81,8 @@ export class AiService {
       return {
         id: doc.id,
         ...data,
-        timestamp: data.timestamp?.toDate?.()?.toISOString() || data.timestamp || new Date().toISOString(),
+        timestamp:
+          data.timestamp?.toDate?.()?.toISOString() || data.timestamp || new Date().toISOString(),
       };
     });
   }

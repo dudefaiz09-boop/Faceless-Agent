@@ -7,10 +7,10 @@ const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
 async function build() {
   const entryPoints = ['src/index.ts'];
-  
+
   // Find all .ts files in src/hooks and src/services to ensure they are also entry points
   // if we want to keep them as separate files, or we just bundle everything into index.js
-  
+
   await esbuild.build({
     entryPoints: ['src/index.ts'],
     bundle: true,
@@ -24,14 +24,14 @@ async function build() {
       '@educonnect/*',
       '@tanstack/*',
       'react',
-      'react-dom'
+      'react-dom',
     ],
   });
-  
+
   console.log(`✅ ${pkg.name} built successfully.`);
 }
 
-build().catch(err => {
+build().catch((err) => {
   console.error(err);
   process.exit(1);
 });

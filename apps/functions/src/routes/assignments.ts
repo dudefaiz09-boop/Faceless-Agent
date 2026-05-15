@@ -30,24 +30,28 @@ function canViewStudentAssignments(user: NonNullable<Express.Request['user']>, s
 router.get('/report/:classId', checkPermission('manageAssignments'), async (req, res, next) => {
   try {
     const { classId } = req.params;
-    
+
     // 1. Get all assignments for this class
-    const assignmentsSnap = await db.collection('assignments')
+    const assignmentsSnap = await db
+      .collection('assignments')
       .where('tenantId', '==', req.tenantId)
       .where('targetClasses', 'array-contains', classId)
       .get();
-      
-    const assignments = assignmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-    
+
+    const assignments = assignmentsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as any);
+
     // 2. Get all submissions for these assignments
-    const report = await Promise.all(assignments.map(async (assignment: any) => {
-      const submissionsSnap = await db.collection('submissions')
-        .where('assignmentId', '==', assignment.id)
-        .get();
-      
-      const submissions = submissionsSnap.docs.map(doc => doc.data() as any);
-      return AssignmentAnalytics.calculateStats(assignment, submissions);
-    }));
+    const report = await Promise.all(
+      assignments.map(async (assignment: any) => {
+        const submissionsSnap = await db
+          .collection('submissions')
+          .where('assignmentId', '==', assignment.id)
+          .get();
+
+        const submissions = submissionsSnap.docs.map((doc) => doc.data() as any);
+        return AssignmentAnalytics.calculateStats(assignment, submissions);
+      })
+    );
 
     res.json(report);
   } catch (error) {
@@ -63,28 +67,34 @@ router.get('/history/:uid', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const snapshot = await db.collection('submissions')
+    const snapshot = await db
+      .collection('submissions')
       .where('tenantId', '==', req.tenantId)
       .where('studentId', '==', req.params.uid)
       .get();
-    res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    res.json(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
   } catch (error) {
     next(error);
   }
 });
 
 // Get submissions for a specific assignment (teacher view)
-router.get('/submissions/:assignmentId', checkPermission('manageAssignments'), async (req, res, next) => {
-  try {
-    const snapshot = await db.collection('submissions')
-      .where('tenantId', '==', req.tenantId)
-      .where('assignmentId', '==', req.params.assignmentId)
-      .get();
-    res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-  } catch (error) {
-    next(error);
+router.get(
+  '/submissions/:assignmentId',
+  checkPermission('manageAssignments'),
+  async (req, res, next) => {
+    try {
+      const snapshot = await db
+        .collection('submissions')
+        .where('tenantId', '==', req.tenantId)
+        .where('assignmentId', '==', req.params.assignmentId)
+        .get();
+      res.json(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 // List assignments
 router.get('/:classId?', async (req, res, next) => {
@@ -215,7 +225,10 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
     // Trigger AI Grading
     try {
       if (!isAiEnabled) {
-        logger.info({ assignmentId }, 'Skipping AI grading because OPENROUTER_API_KEY is not configured');
+        logger.info(
+          { assignmentId },
+          'Skipping AI grading because OPENROUTER_API_KEY is not configured'
+        );
         return res.json({ success: true, id: docId });
       }
 
@@ -243,7 +256,9 @@ Respond strictly in JSON format: { "score": number, "feedback": "string" }`;
       });
       await emitAssignmentNotification({
         title: `AI feedback is ready: ${assignment.title || 'Assignment'}`,
-        message: aiResult.feedback || 'Your submission has been reviewed and is waiting for teacher verification.',
+        message:
+          aiResult.feedback ||
+          'Your submission has been reviewed and is waiting for teacher verification.',
         type: 'assignment',
         href: '/assignments',
         targetUserIds: [user.uid],
@@ -260,7 +275,10 @@ Respond strictly in JSON format: { "score": number, "feedback": "string" }`;
     res.json({ success: true, id: docId });
   } catch (error) {
     const assignmentId = req.params.id || req.body.assignmentId;
-    logger.error({ err: error, assignmentId, userId: req.user?.uid }, 'Failed to submit assignment');
+    logger.error(
+      { err: error, assignmentId, userId: req.user?.uid },
+      'Failed to submit assignment'
+    );
     next(error);
   }
 });

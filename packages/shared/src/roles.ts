@@ -213,7 +213,10 @@ export function getDefaultPermissionMap(role: Role) {
   return toPermissionMap(DEFAULT_ROLE_PERMISSIONS[role]);
 }
 
-export function hasPermission(user: PermissionUser | null | undefined, permission: string): boolean {
+export function hasPermission(
+  user: PermissionUser | null | undefined,
+  permission: string
+): boolean {
   if (!user || !permission) return false;
   const role = getUserRole(user.roles || []);
   if (user.isAdmin || role === ROLES.ADMIN) return true;

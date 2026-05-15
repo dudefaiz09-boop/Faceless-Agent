@@ -137,7 +137,7 @@ publicRouter.get('/ready', async (req, res) => {
     // Check required environment variables
     const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
     const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
-    
+
     if (missingVars.length > 0) {
       return res.status(503).json({
         status: 'not_ready',

@@ -1,7 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { Bot, Brain, GraduationCap, Loader2, RefreshCcw, Send, Sparkles, Wand2, AlertCircle } from 'lucide-react';
+import {
+  Bot,
+  Brain,
+  GraduationCap,
+  Loader2,
+  RefreshCcw,
+  Send,
+  Sparkles,
+  Wand2,
+  AlertCircle,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { cn } from '../lib/utils';
@@ -108,13 +118,10 @@ export const ChatbotPage = () => {
     setError(null);
 
     try {
-      const data = await apiClient.request<AiQueryResponse>(
-        '/api/ai/query',
-        {
-          method: 'POST',
-          body: JSON.stringify({ query: currentQuery, mode }),
-        }
-      );
+      const data = await apiClient.request<AiQueryResponse>('/api/ai/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: currentQuery, mode }),
+      });
 
       setLogs((prev) => [
         ...prev,
@@ -130,7 +137,9 @@ export const ChatbotPage = () => {
       console.error('Failed to get AI response:', err);
       setQuery(currentQuery || previousQuery);
       if (isAdmin || isTeacher || canManageAssignments) {
-        setError('AI request failed. Check OPENROUTER_API_KEY environment variable on the API server, then retry.');
+        setError(
+          'AI request failed. Check OPENROUTER_API_KEY environment variable on the API server, then retry.'
+        );
       } else {
         setError('AI request failed. Please try again or contact support if the issue persists.');
       }
@@ -150,7 +159,8 @@ export const ChatbotPage = () => {
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
           <AlertCircle className="text-amber-600" size={18} />
           <p className="text-sm font-semibold text-amber-800">
-            AI is running in offline mode. Set OPENROUTER_API_KEY in your API environment to enable live responses.
+            AI is running in offline mode. Set OPENROUTER_API_KEY in your API environment to enable
+            live responses.
           </p>
         </div>
       )}
@@ -163,7 +173,9 @@ export const ChatbotPage = () => {
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">EduConnect AI</h1>
-              <p className="text-sm font-medium text-slate-300">Role-aware assistant powered by free OpenRouter models.</p>
+              <p className="text-sm font-medium text-slate-300">
+                Role-aware assistant powered by free OpenRouter models.
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -173,7 +185,9 @@ export const ChatbotPage = () => {
                 onClick={() => setMode(item.key)}
                 className={cn(
                   'flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-widest transition-all',
-                  mode === item.key ? 'bg-white text-slate-950' : 'bg-white/10 text-white hover:bg-white/20'
+                  mode === item.key
+                    ? 'bg-white text-slate-950'
+                    : 'bg-white/10 text-white hover:bg-white/20'
                 )}
               >
                 <item.icon size={14} />
@@ -232,7 +246,10 @@ export const ChatbotPage = () => {
       {error && (
         <div className="border-t border-amber-100 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-800">
           {error}
-          <button onClick={() => void sendQuery(undefined, query)} className="ml-3 inline-flex items-center gap-1 font-black text-amber-950">
+          <button
+            onClick={() => void sendQuery(undefined, query)}
+            className="ml-3 inline-flex items-center gap-1 font-black text-amber-950"
+          >
             <RefreshCcw size={14} />
             Retry
           </button>

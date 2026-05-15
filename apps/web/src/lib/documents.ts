@@ -161,8 +161,7 @@ export function useDocuments<T>(collectionName: string, options: DocumentListOpt
         }
       } catch (loadError) {
         if (mounted) {
-          const nextError =
-            loadError instanceof Error ? loadError : new Error(String(loadError));
+          const nextError = loadError instanceof Error ? loadError : new Error(String(loadError));
           setError(nextError);
           console.error(`[Supabase] Failed to load ${collectionName}:`, nextError);
         }

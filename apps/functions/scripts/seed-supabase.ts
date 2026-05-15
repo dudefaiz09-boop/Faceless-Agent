@@ -99,7 +99,16 @@ const modulesByRole: Record<string, string[]> = {
     'fees',
     'performance',
   ],
-  parent: ['dashboard', 'announcements', 'attendance', 'assignments', 'chat', 'fees', 'performance', 'parentPortal'],
+  parent: [
+    'dashboard',
+    'announcements',
+    'attendance',
+    'assignments',
+    'chat',
+    'fees',
+    'performance',
+    'parentPortal',
+  ],
   librarian: ['dashboard', 'announcements', 'chat', 'library'],
   accountant: ['dashboard', 'announcements', 'chat', 'fees'],
   staff: ['dashboard', 'announcements', 'attendance', 'chat', 'students'],
@@ -327,7 +336,11 @@ async function upsertDocument(
   if (error) throw error;
 }
 
-async function seedUser(supabase: SupabaseClient, seedUser: SeedUser, idsByEmail: Map<string, string>) {
+async function seedUser(
+  supabase: SupabaseClient,
+  seedUser: SeedUser,
+  idsByEmail: Map<string, string>
+) {
   const existingUser = await findUserByEmail(supabase, seedUser.email);
   const appMetadata = {
     role: seedUser.role,

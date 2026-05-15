@@ -2,17 +2,34 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  BarChart3, TrendingUp, Award, Brain, 
-  Upload, Download,
-  ChevronRight, Sparkles, Target, AlertCircle,
-  FileText, Users, X
+import {
+  BarChart3,
+  TrendingUp,
+  Award,
+  Brain,
+  Upload,
+  Download,
+  ChevronRight,
+  Sparkles,
+  Target,
+  AlertCircle,
+  FileText,
+  Users,
+  X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { validatePerformanceCSV, CSVValidationError } from '../lib/csvValidator';
-import { 
-  AreaChart, Area, XAxis, YAxis, 
-  CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
 } from 'recharts';
 import { DataTable, type DataTableColumn } from '../components/saas/DataTable';
 import { SearchBar } from '../components/saas/SearchBar';
@@ -100,9 +117,9 @@ export const PerformancePage = () => {
     }
 
     try {
-      const batchRecords = validation.records!.map(r => ({
+      const batchRecords = validation.records!.map((r) => ({
         ...r,
-        classId: selectedClass
+        classId: selectedClass,
       }));
 
       await apiClient.request('/api/performance/upload', {
@@ -130,11 +147,13 @@ export const PerformancePage = () => {
         title: 'Score import failed',
         description: error instanceof Error ? error.message : 'Upload failed. Please try again.',
       });
-      setUploadError([{
-        line: 0,
-        message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
-        value: ''
-      }]);
+      setUploadError([
+        {
+          line: 0,
+          message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
+          value: '',
+        },
+      ]);
       setLoading(false);
     }
   };
@@ -180,18 +199,24 @@ export const PerformancePage = () => {
     {
       key: 'studentId',
       header: 'UID',
-      render: (record) => <span className="font-bold text-slate-700 dark:text-slate-200">{record.studentId}</span>,
+      render: (record) => (
+        <span className="font-bold text-slate-700 dark:text-slate-200">{record.studentId}</span>
+      ),
     },
     {
       key: 'subject',
       header: 'Subject',
-      render: (record) => <span className="font-semibold text-slate-600 dark:text-slate-300">{record.subject}</span>,
+      render: (record) => (
+        <span className="font-semibold text-slate-600 dark:text-slate-300">{record.subject}</span>
+      ),
     },
     {
       key: 'score',
       header: 'Score',
       align: 'center',
-      render: (record) => <span className="font-black text-slate-900 dark:text-white">{record.score}%</span>,
+      render: (record) => (
+        <span className="font-black text-slate-900 dark:text-white">{record.score}%</span>
+      ),
     },
     {
       key: 'grade',
@@ -236,11 +261,27 @@ export const PerformancePage = () => {
 
         <div className="flex items-center gap-3">
           {!isStudent && (
-             <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-2">
-                <button onClick={() => handleViewChange('analytics')} className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", view === 'analytics' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Analytics</button>
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-2">
+              <button
+                onClick={() => handleViewChange('analytics')}
+                className={cn(
+                  'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                  view === 'analytics' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                )}
+              >
+                Analytics
+              </button>
 
-                <button onClick={() => handleViewChange('management')} className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", view === 'management' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500")}>Management</button>
-             </div>
+              <button
+                onClick={() => handleViewChange('management')}
+                className={cn(
+                  'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                  view === 'management' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                )}
+              >
+                Management
+              </button>
+            </div>
           )}
           {canManagePerformance && (
             <button
@@ -256,25 +297,35 @@ export const PerformancePage = () => {
 
       {isStudent ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-           {/* Individual Charts */}
-           <div className="lg:col-span-2 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Average Score</p>
-                    <div className="flex items-baseline gap-2">
-                       <h3 className="text-4xl font-black text-slate-900">{avgScore}%</h3>
-                       <span className="text-xs font-bold text-emerald-500 flex items-center gap-0.5"><TrendingUp size={12}/> +2.4%</span>
-                    </div>
-                 </div>
-                 <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Top Subject</p>
-                    <h3 className="text-4xl font-black text-indigo-600">{records[0]?.subject || 'N/A'}</h3>
-                 </div>
-                 <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Rank</p>
-                    <h3 className="text-4xl font-black text-slate-900">#{globalRank}</h3>
-                 </div>
+          {/* Individual Charts */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Average Score
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-4xl font-black text-slate-900">{avgScore}%</h3>
+                  <span className="text-xs font-bold text-emerald-500 flex items-center gap-0.5">
+                    <TrendingUp size={12} /> +2.4%
+                  </span>
+                </div>
               </div>
+              <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Top Subject
+                </p>
+                <h3 className="text-4xl font-black text-indigo-600">
+                  {records[0]?.subject || 'N/A'}
+                </h3>
+              </div>
+              <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Global Rank
+                </p>
+                <h3 className="text-4xl font-black text-slate-900">#{globalRank}</h3>
+              </div>
+            </div>
 
             <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
               <div className="flex items-center justify-between mb-8">
@@ -549,69 +600,89 @@ export const PerformancePage = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden p-12 space-y-8"
             >
-               <div className="flex items-center justify-between">
-                 <div className="space-y-2">
-                   <h3 className="text-3xl font-black text-slate-900">Batch Score Import</h3>
-                   <p className="text-slate-500 font-medium">Uploading data for <span className="text-indigo-600 font-bold">Class {selectedClass}</span>.</p>
-                 </div>
-                 <button onClick={() => setIsUploadOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg">
-                   <X size={20} />
-                 </button>
-               </div>
-               
-               {uploadSuccess ? (
-                 <div className="py-12 text-center space-y-4">
-                   <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                     <span className="text-2xl">✓</span>
-                   </div>
-                   <div>
-                     <h4 className="text-xl font-bold text-emerald-600">Upload Successful!</h4>
-                     <p className="text-sm text-slate-500 mt-1">Performance records have been imported.</p>
-                   </div>
-                 </div>
-               ) : (
-                 <form onSubmit={handleUpload} className="space-y-6">
-                    <div className="space-y-3">
-                       <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                          <FileText size={14} />
-                          Data Entry (CSV Format)
-                       </label>
-                       <textarea 
-                          required rows={8}
-                          value={uploadText}
-                          onChange={(e) => setUploadText(e.target.value)}
-                          placeholder="studentId, subject, term, score, grade&#10;user_uid_1, Mathematics, Term 1, 85, A&#10;user_uid_2, Science, Term 1, 72, B"
-                          className="w-full bg-slate-50 border border-slate-200 p-6 rounded-[32px] outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-mono text-xs leading-relaxed" 
-                       />
-                       <div className="bg-indigo-50 p-4 rounded-2xl flex gap-3 items-center">
-                          <AlertCircle size={18} className="text-indigo-600" />
-                          <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider">Format: UID, Subject, Term, Score, Grade (one per line)</p>
-                       </div>
-                    </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <h3 className="text-3xl font-black text-slate-900">Batch Score Import</h3>
+                  <p className="text-slate-500 font-medium">
+                    Uploading data for{' '}
+                    <span className="text-indigo-600 font-bold">Class {selectedClass}</span>.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsUploadOpen(false)}
+                  className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
-                    {uploadError && (
-                      <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2">
-                        <p className="text-sm font-bold text-red-700">Validation Errors:</p>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {uploadError.map((err, i) => (
-                            <p key={i} className="text-xs text-red-600">
-                              <span className="font-bold">Line {err.line}:</span> {err.message}
-                            </p>
-                          ))}
-                        </div>
+              {uploadSuccess ? (
+                <div className="py-12 text-center space-y-4">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                    <span className="text-2xl">✓</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-emerald-600">Upload Successful!</h4>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Performance records have been imported.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleUpload} className="space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <FileText size={14} />
+                      Data Entry (CSV Format)
+                    </label>
+                    <textarea
+                      required
+                      rows={8}
+                      value={uploadText}
+                      onChange={(e) => setUploadText(e.target.value)}
+                      placeholder="studentId, subject, term, score, grade&#10;user_uid_1, Mathematics, Term 1, 85, A&#10;user_uid_2, Science, Term 1, 72, B"
+                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-[32px] outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-mono text-xs leading-relaxed"
+                    />
+                    <div className="bg-indigo-50 p-4 rounded-2xl flex gap-3 items-center">
+                      <AlertCircle size={18} className="text-indigo-600" />
+                      <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider">
+                        Format: UID, Subject, Term, Score, Grade (one per line)
+                      </p>
+                    </div>
+                  </div>
+
+                  {uploadError && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2">
+                      <p className="text-sm font-bold text-red-700">Validation Errors:</p>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {uploadError.map((err, i) => (
+                          <p key={i} className="text-xs text-red-600">
+                            <span className="font-bold">Line {err.line}:</span> {err.message}
+                          </p>
+                        ))}
                       </div>
-                    )}
-
-                    <div className="flex gap-4 pt-4">
-                       <button type="submit" disabled={loading} className="flex-1 bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50">
-                         {loading ? 'Uploading...' : 'Upload'}
-                       </button>
-                       <button type="button" onClick={() => setIsUploadOpen(false)} disabled={loading} className="px-8 bg-slate-100 text-slate-500 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all disabled:opacity-50">
-                         Cancel
-                       </button>
                     </div>
-                 </form>
-               )}
+                  )}
+
+                  <div className="flex gap-4 pt-4">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {loading ? 'Uploading...' : 'Upload'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsUploadOpen(false)}
+                      disabled={loading}
+                      className="px-8 bg-slate-100 text-slate-500 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}

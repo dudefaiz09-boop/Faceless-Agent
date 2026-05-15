@@ -20,7 +20,8 @@ router.get('/', async (req, res, next) => {
         const targetClasses = announcement.targetClasses || ['all'];
         const roleMatch = targetRoles.includes('all') || targetRoles.includes(role);
         const classMatch =
-          targetClasses.includes('all') || classIds.some((classId) => targetClasses.includes(classId));
+          targetClasses.includes('all') ||
+          classIds.some((classId) => targetClasses.includes(classId));
         return roleMatch && classMatch;
       });
     res.json(announcements);

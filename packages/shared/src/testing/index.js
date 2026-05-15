@@ -4,25 +4,25 @@ import { ROLES } from '../constants/index.js';
  * Generates consistent mock data for contract and parity tests.
  */
 export const MockGenerator = {
-    announcement: (overrides = {}) => ({
-        id: 'test-id',
-        title: 'Mock Announcement',
-        content: 'This is a mock announcement content.',
-        authorId: 'author-123',
-        targetClasses: ['all'],
-        visibility: 'school',
-        createdAt: new Date().toISOString(),
-        ...overrides,
-    }),
-    user: (overrides = {}) => ({
-        uid: 'user-123',
-        email: 'test@educonnect.app',
-        displayName: 'Test User',
-        roles: [ROLES.STUDENT],
-        isAdmin: false,
-        classId: '10A',
-        permissions: {},
-        ...overrides,
-    }),
+  announcement: (overrides = {}) => ({
+    id: 'test-id',
+    title: 'Mock Announcement',
+    content: 'This is a mock announcement content.',
+    authorId: 'author-123',
+    targetClasses: ['all'],
+    visibility: 'school',
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  }),
+  user: (overrides = {}) => ({
+    uid: 'user-123',
+    email: 'test@educonnect.app',
+    displayName: 'Test User',
+    roles: [ROLES.STUDENT],
+    isAdmin: false,
+    classId: '10A',
+    permissions: {},
+    ...overrides,
+  }),
 };
 //# sourceMappingURL=index.js.map

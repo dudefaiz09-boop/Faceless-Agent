@@ -24,6 +24,7 @@ pnpm test
 ## Expected Build Results
 
 ### Successful Build Indicators
+
 - ✅ No TypeScript compilation errors
 - ✅ No ESLint errors (warnings are acceptable)
 - ✅ All packages build successfully
@@ -31,6 +32,7 @@ pnpm test
 - ✅ No missing dependency errors
 
 ### Known Non-Critical Issues
+
 - TypeScript IDE warnings in VSCode (cosmetic only)
 - Missing @types/node in some packages (doesn't affect runtime)
 - Monorepo path resolution warnings (resolved at build time)
@@ -40,6 +42,7 @@ pnpm test
 ### Part 1: AI Assistant Testing
 
 #### As Admin/Teacher/Student
+
 - [ ] Navigate to /chatbot
 - [ ] Verify AI status indicator shows correct mode (live/offline)
 - [ ] Send test query: "What is EduConnect?"
@@ -48,16 +51,19 @@ pnpm test
 - [ ] Verify no raw error messages shown to students
 
 #### As Student (Offline Mode)
+
 - [ ] Verify friendly message: "AI is using safe offline mode"
 - [ ] Verify no environment variable instructions shown
 
 #### As Admin (Offline Mode)
+
 - [ ] Verify setup warning with OPENROUTER_API_KEY guidance
 - [ ] Verify instructions to add key to Vercel/deployment
 
 ### Part 2: Notifications Testing
 
 #### Notification Overlay
+
 - [ ] Click notification bell icon
 - [ ] Verify dropdown appears ABOVE all content (z-index 300)
 - [ ] Verify dropdown not hidden behind dashboard/modules
@@ -65,6 +71,7 @@ pnpm test
 - [ ] Press Escape key - verify it closes
 
 #### Notification Actions
+
 - [ ] Create test announcement (as admin/teacher)
 - [ ] Verify notification appears for target users
 - [ ] Verify unread badge shows correct count
@@ -75,6 +82,7 @@ pnpm test
 - [ ] Verify it's removed from list
 
 #### Notification Triggers
+
 - [ ] Create announcement - verify notification sent
 - [ ] Mark attendance - verify student/parent notified
 - [ ] Upload fee CSV - verify student/parent notified
@@ -84,6 +92,7 @@ pnpm test
 ### Part 3: Assignments Testing
 
 #### Page Load
+
 - [ ] Navigate to /assignments as student
 - [ ] Verify page loads without ErrorBoundary crash
 - [ ] Navigate to /assignments as teacher
@@ -92,6 +101,7 @@ pnpm test
 - [ ] Verify page loads without ErrorBoundary crash
 
 #### Student View
+
 - [ ] Verify only own class assignments visible
 - [ ] Verify assignment title, description, due date display
 - [ ] Verify submission status shows correctly
@@ -100,6 +110,7 @@ pnpm test
 - [ ] Verify assignment status updates
 
 #### Teacher View
+
 - [ ] Create assignment for assigned class
 - [ ] Verify assignment appears for target students
 - [ ] View submissions
@@ -107,11 +118,13 @@ pnpm test
 - [ ] Verify student receives grade notification
 
 #### Parent View
+
 - [ ] Verify can view linked student's assignments (read-only)
 - [ ] Verify cannot submit assignments
 - [ ] Verify cannot create assignments
 
 #### Error Handling
+
 - [ ] Test with missing assignment data
 - [ ] Verify graceful fallback (no full app crash)
 - [ ] Verify error message shown at module level
@@ -119,6 +132,7 @@ pnpm test
 ### Part 4: Chat Eligibility Testing
 
 #### Student Chat
+
 - [ ] Open chat as student
 - [ ] Verify contact list shows:
   - ✅ Assigned class teachers
@@ -134,6 +148,7 @@ pnpm test
 - [ ] Verify 403 Forbidden response
 
 #### Parent Chat
+
 - [ ] Open chat as parent
 - [ ] Verify contact list shows:
   - ✅ Linked child's teachers
@@ -146,6 +161,7 @@ pnpm test
 - [ ] Verify conversation created successfully
 
 #### Teacher Chat
+
 - [ ] Open chat as teacher
 - [ ] Verify contact list shows:
   - ✅ Students in assigned classes
@@ -158,6 +174,7 @@ pnpm test
 - [ ] Verify message sent successfully
 
 #### Contact Display
+
 - [ ] Verify contact cards show:
   - Name
   - Role
@@ -167,6 +184,7 @@ pnpm test
 ### Part 5: Library Testing
 
 #### Upload Types
+
 - [ ] As librarian, navigate to /library
 - [ ] Click upload button
 - [ ] Verify upload type selector shows:
@@ -180,6 +198,7 @@ pnpm test
 - [ ] Verify external URL saved
 
 #### Class-Wise Visibility
+
 - [ ] Upload resource for specific class (e.g., 10A)
 - [ ] Login as student in 10A
 - [ ] Verify resource visible
@@ -189,12 +208,14 @@ pnpm test
 - [ ] Verify all students see it
 
 #### Role Restrictions
+
 - [ ] As student, verify cannot upload resources
 - [ ] As parent, verify cannot upload resources
 - [ ] As librarian, verify can upload resources
 - [ ] As admin, verify can upload resources
 
 #### Notifications
+
 - [ ] Upload resource for class
 - [ ] Verify target class students receive notification
 - [ ] Verify parents of target class receive notification
@@ -202,6 +223,7 @@ pnpm test
 ### Part 6: Fees Testing
 
 #### CSV File Upload
+
 - [ ] As accountant, navigate to /fees
 - [ ] Verify upload mode selector (paste vs file)
 - [ ] Click file upload button
@@ -213,6 +235,7 @@ pnpm test
 - [ ] Verify success toast
 
 #### INR Currency Display
+
 - [ ] Verify all amounts show ₹ symbol (not $)
 - [ ] Verify amounts formatted with locale (e.g., ₹1,234.56)
 - [ ] Check fee table columns
@@ -220,6 +243,7 @@ pnpm test
 - [ ] Check fee cards/summaries
 
 #### Student/Parent Sync
+
 - [ ] Upload fee for student
 - [ ] Login as that student
 - [ ] Verify fee appears in fees page
@@ -229,6 +253,7 @@ pnpm test
 - [ ] Verify parent received notification
 
 #### Class-Wise Import
+
 - [ ] Select class from dropdown
 - [ ] Upload CSV for that class
 - [ ] Verify only students in that class affected
@@ -237,6 +262,7 @@ pnpm test
 ### Part 7: Class-Wise Sync Testing
 
 #### Announcements Sync
+
 - [ ] As teacher, create announcement for class 10A
 - [ ] Verify "Last synced" indicator updates
 - [ ] Login as student in 10A
@@ -246,6 +272,7 @@ pnpm test
 - [ ] Verify "Realtime enabled" badge shown
 
 #### Attendance Sync
+
 - [ ] As teacher, mark attendance for class
 - [ ] Verify "Last synced" indicator updates
 - [ ] Login as student
@@ -256,6 +283,7 @@ pnpm test
 - [ ] Verify data updates
 
 #### Assignments Sync
+
 - [ ] Teacher publishes assignment
 - [ ] Student sees assignment immediately (or after refresh)
 - [ ] Student submits assignment
@@ -263,12 +291,14 @@ pnpm test
 - [ ] Verify sync status indicator
 
 #### Fees Sync
+
 - [ ] Accountant uploads fee CSV
 - [ ] Student sees updated fee
 - [ ] Parent sees linked child's fee
 - [ ] Verify notification sent to both
 
 #### Library Sync
+
 - [ ] Librarian uploads resource for class
 - [ ] Target class students see resource
 - [ ] Other class students don't see resource
@@ -277,6 +307,7 @@ pnpm test
 ### Part 8: Role/Module Access Testing
 
 #### Student Access
+
 - [ ] Try to access /all-users by URL
 - [ ] Verify access denied page shown (not 404)
 - [ ] Try to access /teachers by URL
@@ -286,6 +317,7 @@ pnpm test
 - [ ] Verify sidebar only shows allowed modules
 
 #### Parent Access
+
 - [ ] Try to access /students by URL
 - [ ] Verify access denied page shown
 - [ ] Try to access /teachers by URL
@@ -295,6 +327,7 @@ pnpm test
 - [ ] Verify can only view linked child's data
 
 #### Teacher Access
+
 - [ ] Try to access /all-users by URL
 - [ ] Verify access denied page shown
 - [ ] Try to access /fees by URL
@@ -303,6 +336,7 @@ pnpm test
 - [ ] Verify can create assignments for assigned classes only
 
 #### Librarian Access
+
 - [ ] Try to access /fees by URL
 - [ ] Verify access denied page shown
 - [ ] Try POST /api/fees/upload via API
@@ -311,6 +345,7 @@ pnpm test
 - [ ] Verify limited chat access
 
 #### Accountant Access
+
 - [ ] Try to access /library by URL
 - [ ] Verify access denied page shown
 - [ ] Try POST /api/library/upload via API
@@ -321,6 +356,7 @@ pnpm test
 ### Part 9: UI Polish Testing
 
 #### Sidebar/Footer
+
 - [ ] Scroll through long navigation menu
 - [ ] Verify Sign Out button always visible at bottom
 - [ ] Verify no overlap between nav items and Sign Out
@@ -329,6 +365,7 @@ pnpm test
 - [ ] Verify backdrop blur works
 
 #### Loading States
+
 - [ ] Navigate between pages
 - [ ] Verify loading spinner shows during page load
 - [ ] Submit forms
@@ -336,6 +373,7 @@ pnpm test
 - [ ] Verify loading text changes (e.g., "Saving...")
 
 #### Empty States
+
 - [ ] View page with no data (e.g., no announcements)
 - [ ] Verify empty state shows icon, title, description
 - [ ] Verify action button present (e.g., "Create Announcement")
@@ -343,6 +381,7 @@ pnpm test
 - [ ] Verify appropriate modal/form opens
 
 #### Mobile Responsiveness
+
 - [ ] Test on mobile viewport (375px width)
 - [ ] Verify sidebar collapses to hamburger menu
 - [ ] Verify grids stack vertically
@@ -351,6 +390,7 @@ pnpm test
 - [ ] Verify no horizontal scroll
 
 #### Theme Consistency
+
 - [ ] Check all pages use consistent rounded corners
 - [ ] Check all pages use consistent shadows
 - [ ] Check all pages use consistent color palette
@@ -360,6 +400,7 @@ pnpm test
 ### Part 10: Error Handling Testing
 
 #### Network Errors
+
 - [ ] Disconnect network
 - [ ] Try to load data
 - [ ] Verify error message shown
@@ -369,6 +410,7 @@ pnpm test
 - [ ] Verify data loads
 
 #### Invalid Data
+
 - [ ] Submit form with invalid data
 - [ ] Verify validation errors shown
 - [ ] Verify errors clear after fixing
@@ -376,6 +418,7 @@ pnpm test
 - [ ] Verify appropriate error messages
 
 #### Permission Errors
+
 - [ ] Try unauthorized action
 - [ ] Verify 403 error handled gracefully
 - [ ] Verify user-friendly error message
@@ -443,28 +486,28 @@ After deploying to production:
 
 ## Test Results Summary
 
-Date: _______________
-Tester: _______________
-Environment: _______________
+Date: ******\_\_\_******
+Tester: ******\_\_\_******
+Environment: ******\_\_\_******
 
-| Test Category | Status | Notes |
-|---------------|--------|-------|
-| Build | ⬜ Pass / ⬜ Fail | |
-| AI Assistant | ⬜ Pass / ⬜ Fail | |
-| Notifications | ⬜ Pass / ⬜ Fail | |
-| Assignments | ⬜ Pass / ⬜ Fail | |
-| Chat Eligibility | ⬜ Pass / ⬜ Fail | |
-| Library | ⬜ Pass / ⬜ Fail | |
-| Fees | ⬜ Pass / ⬜ Fail | |
-| Class-Wise Sync | ⬜ Pass / ⬜ Fail | |
-| Role/Module Access | ⬜ Pass / ⬜ Fail | |
-| UI Polish | ⬜ Pass / ⬜ Fail | |
-| Error Handling | ⬜ Pass / ⬜ Fail | |
+| Test Category      | Status            | Notes |
+| ------------------ | ----------------- | ----- |
+| Build              | ⬜ Pass / ⬜ Fail |       |
+| AI Assistant       | ⬜ Pass / ⬜ Fail |       |
+| Notifications      | ⬜ Pass / ⬜ Fail |       |
+| Assignments        | ⬜ Pass / ⬜ Fail |       |
+| Chat Eligibility   | ⬜ Pass / ⬜ Fail |       |
+| Library            | ⬜ Pass / ⬜ Fail |       |
+| Fees               | ⬜ Pass / ⬜ Fail |       |
+| Class-Wise Sync    | ⬜ Pass / ⬜ Fail |       |
+| Role/Module Access | ⬜ Pass / ⬜ Fail |       |
+| UI Polish          | ⬜ Pass / ⬜ Fail |       |
+| Error Handling     | ⬜ Pass / ⬜ Fail |       |
 
 **Overall Status**: ⬜ Ready for Production / ⬜ Needs Work
 
-**Critical Issues**: _______________
+**Critical Issues**: ******\_\_\_******
 
-**Non-Critical Issues**: _______________
+**Non-Critical Issues**: ******\_\_\_******
 
-**Recommendations**: _______________
+**Recommendations**: ******\_\_\_******

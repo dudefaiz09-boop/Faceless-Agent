@@ -24,7 +24,7 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
   amountDue: number;
   dueDate: string;
 }> {
-  const lines = csvText.split('\n').filter(l => l.trim() !== '');
+  const lines = csvText.split('\n').filter((l) => l.trim() !== '');
   const errors: CSVValidationError[] = [];
   const records = [];
 
@@ -34,14 +34,14 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
 
     if (!trimmed) continue;
 
-    const parts = trimmed.split(',').map(s => s.trim());
+    const parts = trimmed.split(',').map((s) => s.trim());
 
     // Check field count
     if (parts.length !== 3) {
       errors.push({
         line,
         message: `Expected 3 fields (studentId, amountDue, dueDate), got ${parts.length}`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -53,7 +53,7 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: 'Student ID cannot be empty',
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -64,7 +64,7 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: `Invalid amount due: "${amountDueStr}" (must be a positive number)`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -75,7 +75,7 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: `Invalid date format: "${dueDate}" (expected yyyy-mm-dd)`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -86,7 +86,7 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: `Invalid date: "${dueDate}" is not a valid date`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -94,14 +94,14 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
     records.push({
       studentId,
       amountDue,
-      dueDate
+      dueDate,
     });
   }
 
   return {
     isValid: errors.length === 0,
     records: errors.length === 0 ? records : undefined,
-    errors: errors.length > 0 ? errors : undefined
+    errors: errors.length > 0 ? errors : undefined,
   };
 }
 
@@ -116,7 +116,7 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
   score: number;
   grade: string;
 }> {
-  const lines = csvText.split('\n').filter(l => l.trim() !== '');
+  const lines = csvText.split('\n').filter((l) => l.trim() !== '');
   const errors: CSVValidationError[] = [];
   const records = [];
   const validGrades = ['A', 'B', 'C', 'D', 'F', 'A+', 'A-', 'B+', 'B-', 'C+', 'C-'];
@@ -127,14 +127,14 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
 
     if (!trimmed) continue;
 
-    const parts = trimmed.split(',').map(s => s.trim());
+    const parts = trimmed.split(',').map((s) => s.trim());
 
     // Check field count
     if (parts.length !== 5) {
       errors.push({
         line,
         message: `Expected 5 fields (studentId, subject, term, score, grade), got ${parts.length}`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -146,7 +146,7 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: 'Student ID cannot be empty',
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -156,7 +156,7 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: 'Subject cannot be empty',
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -166,7 +166,7 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: `Invalid term: "${term}" (expected format: "Term 1", "T1", etc.)`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -177,7 +177,7 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: `Invalid score: "${scoreStr}" (must be a number between 0-100)`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -187,7 +187,7 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
       errors.push({
         line,
         message: `Invalid grade: "${grade}" (valid grades: ${validGrades.join(', ')})`,
-        value: trimmed
+        value: trimmed,
       });
       continue;
     }
@@ -197,13 +197,13 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
       subject,
       term,
       score,
-      grade: grade.toUpperCase()
+      grade: grade.toUpperCase(),
     });
   }
 
   return {
     isValid: errors.length === 0,
     records: errors.length === 0 ? records : undefined,
-    errors: errors.length > 0 ? errors : undefined
+    errors: errors.length > 0 ? errors : undefined,
   };
 }

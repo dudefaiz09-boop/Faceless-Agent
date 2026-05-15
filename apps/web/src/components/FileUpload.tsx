@@ -54,17 +54,23 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   return (
     <div className="space-y-2">
-      {label && <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</label>}
-      
-      <div 
+      {label && (
+        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+          {label}
+        </label>
+      )}
+
+      <div
         onClick={() => !uploading && fileInputRef.current?.click()}
         className={cn(
-          "relative border-2 border-dashed rounded-2xl p-6 transition-all cursor-pointer flex flex-col items-center justify-center gap-3",
-          uploading ? "bg-slate-50 border-blue-200" : "bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50/30"
+          'relative border-2 border-dashed rounded-2xl p-6 transition-all cursor-pointer flex flex-col items-center justify-center gap-3',
+          uploading
+            ? 'bg-slate-50 border-blue-200'
+            : 'bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50/30'
         )}
       >
-        <input 
-          type="file" 
+        <input
+          type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
           accept={accept}
@@ -90,8 +96,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               <span className="text-slate-400">{Math.round(progress)}%</span>
             </div>
             <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-600 transition-all duration-300" 
+              <div
+                className="h-full bg-blue-600 transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>

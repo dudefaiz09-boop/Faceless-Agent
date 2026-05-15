@@ -105,9 +105,12 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
         const amountDue = Number(record.amountDue || 0);
 
         if (!studentId || !classId || !dueDate || !Number.isFinite(amountDue) || amountDue <= 0) {
-          throw Object.assign(new Error('Each fee record requires studentId, classId, amountDue, and dueDate'), {
-            statusCode: 400,
-          });
+          throw Object.assign(
+            new Error('Each fee record requires studentId, classId, amountDue, and dueDate'),
+            {
+              statusCode: 400,
+            }
+          );
         }
 
         const id = stableFeeId(classId, studentId, dueDate);
@@ -149,10 +152,11 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
 
         // Notify linked parents
         try {
-          const usersSnapshot = await db.collection('users')
+          const usersSnapshot = await db
+            .collection('users')
             .where('linkedStudentIds', 'array-contains', studentId)
             .get();
-          const parentIds = usersSnapshot.docs.map(doc => doc.id);
+          const parentIds = usersSnapshot.docs.map((doc) => doc.id);
           if (parentIds.length > 0) {
             await safeFeeNotification({
               title: 'Student fee record updated',

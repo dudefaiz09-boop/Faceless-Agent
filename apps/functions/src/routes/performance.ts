@@ -40,12 +40,15 @@ function stablePerformanceId(classId: string, studentId: string, subject: string
 }
 
 function topSubject(records: PerformanceRecord[]) {
-  const bySubject = records.reduce<Record<string, { total: number; count: number }>>((acc, record) => {
-    acc[record.subject] ||= { total: 0, count: 0 };
-    acc[record.subject].total += Number(record.score || 0);
-    acc[record.subject].count += 1;
-    return acc;
-  }, {});
+  const bySubject = records.reduce<Record<string, { total: number; count: number }>>(
+    (acc, record) => {
+      acc[record.subject] ||= { total: 0, count: 0 };
+      acc[record.subject].total += Number(record.score || 0);
+      acc[record.subject].count += 1;
+      return acc;
+    },
+    {}
+  );
 
   return (
     Object.entries(bySubject)
@@ -58,7 +61,10 @@ async function safePerformanceNotification(input: Parameters<typeof createNotifi
   try {
     await createNotification(input);
   } catch (error) {
-    logger.warn({ err: error, title: input.title }, 'Performance notification could not be created');
+    logger.warn(
+      { err: error, title: input.title },
+      'Performance notification could not be created'
+    );
   }
 }
 
@@ -75,9 +81,14 @@ router.get('/report/:classId', async (req, res, next) => {
       .where('classId', '==', req.params.classId)
       .get();
 
-    const records = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as PerformanceRecord) }));
+    const records = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as PerformanceRecord),
+    }));
     const classAverage = records.length
-      ? Math.round(records.reduce((sum, record) => sum + Number(record.score || 0), 0) / records.length)
+      ? Math.round(
+          records.reduce((sum, record) => sum + Number(record.score || 0), 0) / records.length
+        )
       : 0;
 
     res.json({
@@ -109,7 +120,9 @@ router.post('/upload', checkPermission('managePerformance'), async (req, res, ne
 
         if (!studentId || !classId || !subject || !term || !grade || !Number.isFinite(score)) {
           throw Object.assign(
-            new Error('Each performance record requires studentId, classId, subject, term, score, and grade'),
+            new Error(
+              'Each performance record requires studentId, classId, subject, term, score, and grade'
+            ),
             { statusCode: 400 }
           );
         }

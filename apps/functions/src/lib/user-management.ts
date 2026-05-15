@@ -87,13 +87,12 @@ const LEGACY_ROLE_PERMISSIONS: Record<Role, Record<string, boolean>> = {
 };
 
 function arrayOfStrings(value: unknown) {
-  return Array.isArray(value)
-    ? value.map((item) => String(item).trim()).filter(Boolean)
-    : [];
+  return Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : [];
 }
 
 function resolveRole(payload: ManagedUserPayload, existing?: Record<string, any>): Role {
-  const requestedRole = payload.role || payload.roles?.[0] || existing?.role || existing?.roles?.[0];
+  const requestedRole =
+    payload.role || payload.roles?.[0] || existing?.role || existing?.roles?.[0];
   if (!isRole(requestedRole)) {
     throw Object.assign(new Error('Invalid role'), { statusCode: 400 });
   }
@@ -108,7 +107,11 @@ function resolveModules(role: Role, payload: ManagedUserPayload, existing?: Reco
   return modules.length > 0 ? modules : DEFAULT_ROLE_MODULES[role];
 }
 
-function resolvePermissions(role: Role, payload: ManagedUserPayload, existing?: Record<string, any>) {
+function resolvePermissions(
+  role: Role,
+  payload: ManagedUserPayload,
+  existing?: Record<string, any>
+) {
   const basePermissions = {
     ...getDefaultPermissionMap(role),
     ...LEGACY_ROLE_PERMISSIONS[role],

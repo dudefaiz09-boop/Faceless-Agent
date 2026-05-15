@@ -52,7 +52,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         linkedStudentIds: (decodedToken.linkedStudentIds as string[]) || [],
         assignedModules: (decodedToken.assignedModules as string[]) || [],
         permissions: (decodedToken.permissions as Record<string, boolean>) || {},
-        status: ((decodedToken.status as string) === 'inactive' ? 'inactive' : 'active'),
+        status: (decodedToken.status as string) === 'inactive' ? 'inactive' : 'active',
       };
 
       if (req.user.status === 'inactive') {

@@ -9,12 +9,12 @@ For the production checklist, see [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md).
 
 ## Deployable Targets
 
-| Target | Technology | Hosting | Notes |
-| --- | --- | --- | --- |
-| Web | React + Vite | Vercel Hobby | Builds apps/web |
-| Backend API | Node.js + Express | Vercel Hobby Functions | Served from /api |
-| Database/Auth/Storage | Supabase | Supabase Free | Uses supabase/migrations/* |
-| Mobile | React Native | Local / App Store / Play Store | Uses the same Supabase backend |
+| Target                | Technology        | Hosting                        | Notes                          |
+| --------------------- | ----------------- | ------------------------------ | ------------------------------ |
+| Web                   | React + Vite      | Vercel Hobby                   | Builds apps/web                |
+| Backend API           | Node.js + Express | Vercel Hobby Functions         | Served from /api               |
+| Database/Auth/Storage | Supabase          | Supabase Free                  | Uses supabase/migrations/\*    |
+| Mobile                | React Native      | Local / App Store / Play Store | Uses the same Supabase backend |
 
 ## Vercel Projects
 

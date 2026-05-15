@@ -63,9 +63,10 @@ function canMessageUser(
   targetProfile: UserProfile
 ): { allowed: boolean; reason?: string } {
   if (!currentRole) return { allowed: false };
-  
+
   const targetRole = targetProfile.role || targetProfile.roles?.[0] || '';
-  const targetClassIds = targetProfile.classIds || (targetProfile.classId ? [targetProfile.classId] : []);
+  const targetClassIds =
+    targetProfile.classIds || (targetProfile.classId ? [targetProfile.classId] : []);
   const targetUid = targetProfile.uid || targetProfile.id;
 
   // Admin and Principal can message anyone
@@ -77,7 +78,7 @@ function canMessageUser(
   if (currentRole === 'student') {
     // Can message teachers in their class
     if (targetRole === 'teacher') {
-      const hasSharedClass = targetClassIds.some(classId => currentClassIds.includes(classId));
+      const hasSharedClass = targetClassIds.some((classId) => currentClassIds.includes(classId));
       if (hasSharedClass) return { allowed: true, reason: 'Class Teacher' };
     }
     // Can message principal
@@ -92,7 +93,9 @@ function canMessageUser(
     // Can message their linked child's teachers
     if (targetRole === 'teacher') {
       // Check if teacher teaches any of the linked students' classes
-      const hasLinkedStudentClass = targetClassIds.some(classId => currentClassIds.includes(classId));
+      const hasLinkedStudentClass = targetClassIds.some((classId) =>
+        currentClassIds.includes(classId)
+      );
       if (hasLinkedStudentClass) return { allowed: true, reason: "Child's Teacher" };
     }
     // Can message principal
@@ -106,12 +109,12 @@ function canMessageUser(
   if (currentRole === 'teacher') {
     // Can message students in assigned classes
     if (targetRole === 'student') {
-      const hasSharedClass = targetClassIds.some(classId => currentClassIds.includes(classId));
+      const hasSharedClass = targetClassIds.some((classId) => currentClassIds.includes(classId));
       if (hasSharedClass) return { allowed: true, reason: 'Your Student' };
     }
     // Can message parents of assigned students
     if (targetRole === 'parent') {
-      const hasLinkedStudent = (targetProfile.linkedStudentIds || []).some(studentId =>
+      const hasLinkedStudent = (targetProfile.linkedStudentIds || []).some((studentId) =>
         currentLinkedStudentIds.includes(studentId)
       );
       if (hasLinkedStudent) return { allowed: true, reason: "Student's Parent" };
@@ -183,9 +186,7 @@ export const ChatPage = () => {
     realtime: true,
   });
   const userMap = useMemo(() => {
-    return new Map(
-      userProfiles.map((profile) => [profile.uid || profile.id, profile])
-    );
+    return new Map(userProfiles.map((profile) => [profile.uid || profile.id, profile]));
   }, [userProfiles]);
 
   // Filter contacts by eligibility and search query
@@ -234,9 +235,11 @@ export const ChatPage = () => {
 
   useEffect(() => {
     if (!selectedConversationId) return;
-    void apiClient.request(`/api/chat/rooms/${selectedConversationId}/read`, { method: 'PATCH' }).catch(() => {
-      // Read receipts should not block the message view.
-    });
+    void apiClient
+      .request(`/api/chat/rooms/${selectedConversationId}/read`, { method: 'PATCH' })
+      .catch(() => {
+        // Read receipts should not block the message view.
+      });
   }, [selectedConversationId]);
 
   const startConversation = async (profile: UserProfile) => {
@@ -299,12 +302,14 @@ export const ChatPage = () => {
   }
 
   function getInitials(value: string) {
-    return value
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('') || 'EC';
+    return (
+      value
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('') || 'EC'
+    );
   }
 
   function getRoleLabel(profile: UserProfile) {
@@ -349,7 +354,11 @@ export const ChatPage = () => {
             exit={{ height: 0, opacity: 0 }}
             className="border-b border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
           >
-            <SearchBar value={contactSearch} onChange={setContactSearch} placeholder="Find people..." />
+            <SearchBar
+              value={contactSearch}
+              onChange={setContactSearch}
+              placeholder="Find people..."
+            />
             <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
               {contactOptions.slice(0, 12).map((profile) => {
                 const name = profile.displayName || profile.email || 'EduConnect user';
@@ -379,7 +388,9 @@ export const ChatPage = () => {
                 );
               })}
               {contactOptions.length === 0 && (
-                <p className="py-4 text-center text-sm font-bold text-slate-400">No matching people found.</p>
+                <p className="py-4 text-center text-sm font-bold text-slate-400">
+                  No matching people found.
+                </p>
               )}
             </div>
           </motion.div>
@@ -440,7 +451,11 @@ export const ChatPage = () => {
             <div className="p-6 border-b border-slate-100 flex items-center justify-between dark:border-slate-800">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold">
-                  {selectedConv.type === 'group' ? <Users size={18} /> : getInitials(getChatName(selectedConv))}
+                  {selectedConv.type === 'group' ? (
+                    <Users size={18} />
+                  ) : (
+                    getInitials(getChatName(selectedConv))
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 leading-tight dark:text-white">
@@ -504,7 +519,9 @@ export const ChatPage = () => {
                         isMe ? 'justify-end' : 'justify-start'
                       )}
                     >
-                      <span className="text-[9px] font-bold text-slate-400">{formatTime(msg.sentAt)}</span>
+                      <span className="text-[9px] font-bold text-slate-400">
+                        {formatTime(msg.sentAt)}
+                      </span>
                       {isMe && <CheckCheck size={12} className="text-blue-500" />}
                     </div>
                   </motion.div>

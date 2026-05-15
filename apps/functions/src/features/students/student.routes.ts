@@ -23,21 +23,11 @@ function canViewStudentProfile(req: Request, res: Response, next: NextFunction) 
   return checkPermission('viewStudentDetails')(req, res, next);
 }
 
-router.post(
-  '/create',
-  checkAdmin,
-  validate(createStudentSchema),
-  StudentController.create
-);
+router.post('/create', checkAdmin, validate(createStudentSchema), StudentController.create);
 
 router.post('/bulk-import', checkAdmin, StudentController.bulkImport);
 
-router.put(
-  '/:uid',
-  checkAdmin,
-  validate(updateStudentSchema),
-  StudentController.update
-);
+router.put('/:uid', checkAdmin, validate(updateStudentSchema), StudentController.update);
 
 router.get(
   '/:uid',

@@ -103,7 +103,9 @@ export const LibraryPage = () => {
 
   const loadMyHistory = useCallback(async () => {
     try {
-      const data = await apiClient.request<BorrowRecord[]>(`/api/library/borrow/history/${user?.uid}`);
+      const data = await apiClient.request<BorrowRecord[]>(
+        `/api/library/borrow/history/${user?.uid}`
+      );
       setBorrowHistory(data);
     } catch (error) {
       console.error(error);
@@ -121,7 +123,7 @@ export const LibraryPage = () => {
   }, [isStudent, loadResources, loadMyHistory]);
 
   const handleFileUploadComplete = (url: string, name: string, size: number) => {
-    setUploadData(prev => ({
+    setUploadData((prev) => ({
       ...prev,
       fileUrl: url,
       attachmentName: name,
@@ -131,7 +133,7 @@ export const LibraryPage = () => {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!uploadData.title || !uploadData.subject || !uploadData.grade) {
       toast({
@@ -197,7 +199,10 @@ export const LibraryPage = () => {
       toast({
         tone: 'error',
         title: 'Upload failed',
-        description: error instanceof Error ? error.message : 'Please check the resource fields and try again.',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Please check the resource fields and try again.',
       });
     } finally {
       setLoading(false);
@@ -306,9 +311,27 @@ export const LibraryPage = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Catalog" value={String(resources.length)} detail="Digital resources" icon={BookOpen} tone="blue" />
-        <StatCard title="Subjects" value={String(subjects.length - 1)} detail="Available filters" icon={Filter} tone="violet" />
-        <StatCard title="Borrowed" value={String(borrowHistory.filter((item) => item.status === 'borrowed').length)} detail="Active checkouts" icon={Clock} tone="cyan" />
+        <StatCard
+          title="Catalog"
+          value={String(resources.length)}
+          detail="Digital resources"
+          icon={BookOpen}
+          tone="blue"
+        />
+        <StatCard
+          title="Subjects"
+          value={String(subjects.length - 1)}
+          detail="Available filters"
+          icon={Filter}
+          tone="violet"
+        />
+        <StatCard
+          title="Borrowed"
+          value={String(borrowHistory.filter((item) => item.status === 'borrowed').length)}
+          detail="Active checkouts"
+          icon={Clock}
+          tone="cyan"
+        />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">

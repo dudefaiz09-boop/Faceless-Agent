@@ -141,7 +141,8 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const users = useMemo(() => {
     return allUsers.filter((profile) => {
       const role = getPrimaryRole(profile);
-      const searchable = `${profile.displayName || ''} ${profile.email || ''} ${role}`.toLowerCase();
+      const searchable =
+        `${profile.displayName || ''} ${profile.email || ''} ${role}`.toLowerCase();
       const matchesType = type === 'all' || role === type;
       const matchesSearch = searchable.includes(debouncedSearch.toLowerCase());
       const matchesRole = roleFilter === 'all' || role === roleFilter;
@@ -320,7 +321,9 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
   const activeCount = users.filter((profile) => (profile.status || 'active') === 'active').length;
   const roleCount = new Set(users.map((profile) => getPrimaryRole(profile))).size;
-  const moduleAssignedCount = users.filter((profile) => (profile.assignedModules || []).length > 0).length;
+  const moduleAssignedCount = users.filter(
+    (profile) => (profile.assignedModules || []).length > 0
+  ).length;
 
   return (
     <div className="space-y-8">
@@ -367,9 +370,27 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Visible Users" value={String(users.length)} detail="After filters" icon={UserIcon} tone="blue" />
-        <StatCard title="Active" value={String(activeCount)} detail="Ready to sign in" icon={CheckCircle2} tone="emerald" />
-        <StatCard title="Module Assigned" value={String(moduleAssignedCount)} detail={`${roleCount} roles represented`} icon={Layers3} tone="violet" />
+        <StatCard
+          title="Visible Users"
+          value={String(users.length)}
+          detail="After filters"
+          icon={UserIcon}
+          tone="blue"
+        />
+        <StatCard
+          title="Active"
+          value={String(activeCount)}
+          detail="Ready to sign in"
+          icon={CheckCircle2}
+          tone="emerald"
+        />
+        <StatCard
+          title="Module Assigned"
+          value={String(moduleAssignedCount)}
+          detail={`${roleCount} roles represented`}
+          icon={Layers3}
+          tone="violet"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px_180px_220px] gap-3">
@@ -448,7 +469,11 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                 <Info icon={Shield} label="Role" value={ROLE_LABELS[role]} />
                 <Info icon={Layers3} label="Modules" value={formatList(profile.assignedModules)} />
                 <Info icon={BookOpen} label="Classes" value={formatList(profile.classIds)} />
-                <Info icon={ClipboardList} label="Subjects" value={formatList(profile.subjectIds)} />
+                <Info
+                  icon={ClipboardList}
+                  label="Subjects"
+                  value={formatList(profile.subjectIds)}
+                />
               </div>
 
               <div className="mt-5 pt-5 border-t border-slate-100 flex flex-wrap gap-2">
@@ -488,7 +513,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
       <AnimatePresence>
         {isUserModalOpen && (
-          <Modal onClose={() => setIsUserModalOpen(false)} title={form.uid ? 'Manage User' : 'Add User'}>
+          <Modal
+            onClose={() => setIsUserModalOpen(false)}
+            title={form.uid ? 'Manage User' : 'Add User'}
+          >
             <form onSubmit={saveUser} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Full name">
@@ -572,9 +600,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                 <Field label="Linked student IDs">
                   <input
                     value={form.linkedStudentIds}
-                    onChange={(event) =>
-                      setForm({ ...form, linkedStudentIds: event.target.value })
-                    }
+                    onChange={(event) => setForm({ ...form, linkedStudentIds: event.target.value })}
                     placeholder="student uid 1, student uid 2"
                     className={inputClass}
                   />
@@ -654,7 +680,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
           <Modal onClose={() => setIsAuditModalOpen(false)} title="Audit Logs">
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
               {auditLogs.map((log) => (
-                <div key={log.id || `${log.action}-${log.timestamp}`} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <div
+                  key={log.id || `${log.action}-${log.timestamp}`}
+                  className="p-4 rounded-2xl bg-slate-50 border border-slate-100"
+                >
                   <div className="flex items-center justify-between gap-4">
                     <p className="text-xs font-black uppercase tracking-widest text-blue-600">
                       {log.action?.replaceAll('_', ' ')}

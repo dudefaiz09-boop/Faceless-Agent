@@ -66,11 +66,12 @@ router.get('/borrow/history/:uid', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const snapshot = await db.collection('borrowRecords')
+    const snapshot = await db
+      .collection('borrowRecords')
       .where('tenantId', '==', req.tenantId)
       .where('studentId', '==', req.params.uid)
       .get();
-    res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    res.json(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
   } catch (error) {
     next(error);
   }
@@ -79,10 +80,8 @@ router.get('/borrow/history/:uid', async (req, res, next) => {
 router.get('/resources', async (req, res, next) => {
   try {
     const user = req.user;
-    const snapshot = await db.collection('library')
-      .where('tenantId', '==', req.tenantId)
-      .get();
-    
+    const snapshot = await db.collection('library').where('tenantId', '==', req.tenantId).get();
+
     // Filter resources based on visibility and user role/class
     const allResources = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const filteredResources = allResources.filter((resource: any) => {
@@ -93,12 +92,12 @@ router.get('/resources', async (req, res, next) => {
 
       // Check visibility rules
       if (resource.visibility === 'all') return true;
-      
+
       if (resource.visibility === 'roles' && resource.targetRoles) {
         const userRole = user?.role || user?.roles?.[0];
         if (resource.targetRoles.includes(userRole)) return true;
       }
-      
+
       if (resource.visibility === 'classes' && resource.targetClassIds) {
         const userClassIds = user?.classIds || (user?.classId ? [user.classId] : []);
         const hasMatchingClass = resource.targetClassIds.some((classId: string) =>
@@ -106,7 +105,7 @@ router.get('/resources', async (req, res, next) => {
         );
         if (hasMatchingClass) return true;
       }
-      
+
       return false;
     });
 
@@ -118,9 +117,7 @@ router.get('/resources', async (req, res, next) => {
 
 router.get('/books', async (req, res, next) => {
   try {
-    const snapshot = await db.collection('library')
-      .where('tenantId', '==', req.tenantId)
-      .get();
+    const snapshot = await db.collection('library').where('tenantId', '==', req.tenantId).get();
     res.json(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
   } catch (error) {
     next(error);
@@ -182,7 +179,7 @@ router.post('/upload', checkPermission('manageLibrary'), async (req, res, next) 
     };
 
     const ref = await db.collection('library').add(resource);
-    
+
     // Determine notification targets based on visibility
     let notificationTargets: any = {};
     if (visibility === 'all') {
@@ -294,7 +291,12 @@ router.post('/return', async (req, res, next) => {
     }
 
     const now = new Date().toISOString();
-    await recordRef.update({ status: 'returned', returnedAt: now, updatedAt: now, updatedBy: user.uid });
+    await recordRef.update({
+      status: 'returned',
+      returnedAt: now,
+      updatedAt: now,
+      updatedBy: user.uid,
+    });
 
     const resourceRef = db.collection('library').doc(record.resourceId);
     const resourceSnapshot = await resourceRef.get();

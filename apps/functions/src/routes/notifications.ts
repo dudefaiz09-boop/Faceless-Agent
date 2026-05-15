@@ -16,7 +16,8 @@ function canSeeNotification(notification: any, user: NonNullable<Request['user']
   const roleMatch =
     targetRoles.includes('all') || user.roles.some((role) => targetRoles.includes(role));
   const classMatch =
-    targetClasses.includes('all') || user.classIds.some((classId) => targetClasses.includes(classId));
+    targetClasses.includes('all') ||
+    user.classIds.some((classId) => targetClasses.includes(classId));
   const schoolMatch = !schoolId || !user.schoolId || schoolId === user.schoolId;
 
   return !notification.archived && userMatch && roleMatch && classMatch && schoolMatch;
@@ -26,7 +27,11 @@ router.get('/', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const snapshot = await db.collection('notifications').orderBy('createdAt', 'desc').limit(50).get();
+    const snapshot = await db
+      .collection('notifications')
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
     const notifications = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter((notification) => canSeeNotification(notification, req.user!));
@@ -70,7 +75,11 @@ router.patch('/read-all', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const snapshot = await db.collection('notifications').orderBy('createdAt', 'desc').limit(50).get();
+    const snapshot = await db
+      .collection('notifications')
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
     const visible = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter((notification) => canSeeNotification(notification, req.user!));

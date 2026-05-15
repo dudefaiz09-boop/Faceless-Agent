@@ -247,11 +247,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isTeacher: roles.includes(ROLES.TEACHER),
     isStudent: roles.includes(ROLES.STUDENT),
     isParent: roles.includes(ROLES.PARENT),
-    canManageAttendance: hasPermission(permissionUser, 'markAttendance') || !!permissions.manageAttendance,
+    canManageAttendance:
+      hasPermission(permissionUser, 'markAttendance') || !!permissions.manageAttendance,
     canManageAssignments: !!permissions.manageAssignments,
     canManageLibrary: hasPermission(permissionUser, 'manageLibrary'),
     canManageFees: hasPermission(permissionUser, 'manageFees'),
-    canManagePerformance: hasPermission(permissionUser, 'viewReports') || !!permissions.managePerformance,
+    canManagePerformance:
+      hasPermission(permissionUser, 'viewReports') || !!permissions.managePerformance,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

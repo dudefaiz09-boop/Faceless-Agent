@@ -78,9 +78,17 @@ export const StudentsPage = () => {
       });
       setIsAddModalOpen(false);
       setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
-      toast({ tone: 'success', title: 'Student created', description: `${formData.displayName} was added.` });
+      toast({
+        tone: 'success',
+        title: 'Student created',
+        description: `${formData.displayName} was added.`,
+      });
     } catch (error) {
-      toast({ tone: 'error', title: 'Student creation failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Student creation failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -99,9 +107,17 @@ export const StudentsPage = () => {
       });
       setSelectedStudent(null);
       setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
-      toast({ tone: 'success', title: 'Student updated', description: 'Profile changes were saved.' });
+      toast({
+        tone: 'success',
+        title: 'Student updated',
+        description: 'Profile changes were saved.',
+      });
     } catch (error) {
-      toast({ tone: 'error', title: 'Student update failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Student update failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -115,7 +131,11 @@ export const StudentsPage = () => {
       await apiClient.request(`/api/students/${uid}`, { method: 'DELETE' });
       toast({ tone: 'success', title: 'Student deleted', description: 'The record was removed.' });
     } catch (error) {
-      toast({ tone: 'error', title: 'Student delete failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Student delete failed',
+        description: (error as Error).message,
+      });
     }
   };
 
@@ -190,44 +210,67 @@ export const StudentsPage = () => {
         </div>
 
         {isAdmin && (
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => {
-              setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
-              setIsAddModalOpen(true);
-            }}
-            className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-          >
-            <Plus size={20} />
-            Add Student
-          </button>
-          <button
-            onClick={() => setIsBulkModalOpen(true)}
-            className="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
-          >
-            <Upload size={20} />
-            Bulk Import
-          </button>
-          <button
-            onClick={() => viewAuditLogs()}
-            className="px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
-          >
-            <History size={20} />
-            System Logs
-          </button>
-        </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
+                setIsAddModalOpen(true);
+              }}
+              className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+            >
+              <Plus size={20} />
+              Add Student
+            </button>
+            <button
+              onClick={() => setIsBulkModalOpen(true)}
+              className="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <Upload size={20} />
+              Bulk Import
+            </button>
+            <button
+              onClick={() => viewAuditLogs()}
+              className="px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+            >
+              <History size={20} />
+              System Logs
+            </button>
+          </div>
         )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Students" value={String(students.length)} detail="Total enrolled" icon={GraduationCap} tone="blue" />
-        <StatCard title="Classes" value={String(classes.length)} detail="With assigned students" icon={Filter} tone="violet" />
-        <StatCard title="Sections" value={String(sectionCount)} detail="Across active classes" icon={Shield} tone="cyan" />
+        <StatCard
+          title="Students"
+          value={String(students.length)}
+          detail="Total enrolled"
+          icon={GraduationCap}
+          tone="blue"
+        />
+        <StatCard
+          title="Classes"
+          value={String(classes.length)}
+          detail="With assigned students"
+          icon={Filter}
+          tone="violet"
+        />
+        <StatCard
+          title="Sections"
+          value={String(sectionCount)}
+          detail="Across active classes"
+          icon={Shield}
+          tone="cyan"
+        />
       </div>
 
       {/* Filters & Search */}
       <div className="flex flex-col md:flex-row gap-4">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or email..." className="flex-1" />
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Search by name or email..."
+          className="flex-1"
+        />
 
         <div className="flex items-center gap-2 px-4 bg-white border border-slate-200 rounded-3xl shadow-sm">
           <Filter size={18} className="text-slate-400" />
@@ -330,7 +373,11 @@ export const StudentsPage = () => {
       </div>
 
       {!loading && filtered.length === 0 && (
-        <EmptyState icon={GraduationCap} title="No students found" description="Adjust your search or class filter, or add a new student." />
+        <EmptyState
+          icon={GraduationCap}
+          title="No students found"
+          description="Adjust your search or class filter, or add a new student."
+        />
       )}
 
       {/* Add/Edit Modal */}

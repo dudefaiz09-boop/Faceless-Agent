@@ -1,6 +1,7 @@
 # Fix ERP Module Sync, AI, Notifications, and Imports
 
 ## Overview
+
 This PR completes production-grade ERP workflow fixes for EduConnect after the recent module-polish/admin-role PRs. All 10 parts of the planned improvements have been implemented, focusing on AI integration, notification system, assignments reliability, chat eligibility, library upgrades, fees management, class-wise sync, role-based access control, and UI polish.
 
 ## Summary of Changes
@@ -30,31 +31,29 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Problem:** AI page showed hardcoded production URL and exposed raw error messages to users.
 
 **Solution:**
+
 - **Environment Configuration** (`apps/functions/src/lib/config.ts`):
   - Added `OPENROUTER_MODEL` (optional) for model selection
   - Added `PUBLIC_APP_URL` (optional) for dynamic HTTP-Referer
   - Added `CURRENCY` (default: INR) for fee display
-  
 - **AI Library** (`apps/functions/src/lib/ai.ts`):
   - Dynamic HTTP-Referer using `PUBLIC_APP_URL` → `VERCEL_URL` → `localhost:5173` fallback
   - Automatic `https://` prefix for VERCEL_URL
   - Safe error handling: returns offline fallback instead of exposing provider errors
   - Server-side only error logging
-  
 - **AI Status Endpoint** (`apps/functions/src/features/ai/ai.controller.ts`):
   - New `GET /api/ai/status` endpoint
   - Returns: `{ enabled, provider, model, mode }`
-  
 - **Frontend Updates** (`apps/web/src/pages/Chatbot.tsx`):
   - Loads AI status on mount
   - Role-appropriate error messages (admin/staff see setup instructions, students see friendly message)
   - Preserves user query on failure for easy retry
   - Shows offline warning banner for admin/staff when AI is disabled
-  
 - **Documentation** (`apps/functions/.env.example`):
   - Added `OPENROUTER_MODEL`, `PUBLIC_APP_URL`, `CURRENCY` examples
 
 **Acceptance Criteria:**
+
 - ✅ AI works with OPENROUTER_API_KEY configured
 - ✅ AI returns helpful fallback without OPENROUTER_API_KEY
 - ✅ No hardcoded production URLs in code
@@ -67,21 +66,21 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Problem:** Notification popup appeared behind dashboard/modules and unread badge couldn't be cleared.
 
 **Solution:**
+
 - **Z-Index Fix** (`apps/web/src/components/saas/NotificationDropdown.tsx`):
   - Changed from `z-50` to `z-[300]` to appear above all content
   - Added click-outside handler to close dropdown
   - Added Escape key handler to close dropdown
-  
 - **Backend Support** (`apps/functions/src/routes/notifications.ts`):
   - Added `DELETE /api/notifications/:id` endpoint
   - Permission check: users can only delete notifications they can see
-  
 - **State Management**:
   - Local optimistic updates for read state
   - Rollback on API failure
   - Persistent read state across page refreshes
 
 **Acceptance Criteria:**
+
 - ✅ Notification popover never hidden behind pages
 - ✅ Unread badge becomes 0 after mark-all-read
 - ✅ Cleared/read state persists after refresh
@@ -97,6 +96,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Solution:**
 
 **Frontend (`apps/web/src/pages/Assignments.tsx`):**
+
 - Added comprehensive null/undefined guards for assignment data
 - Filter out invalid assignments (missing id) before rendering
 - Added fallback values for title, dueDate, classId, description
@@ -104,15 +104,18 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Added guards to FileUpload component
 
 **Routing (`apps/web/src/App.tsx`):**
+
 - Wrapped `<AssignmentsPage />` with `<ModuleErrorBoundary>`
 - Individual module errors show user-friendly error UI instead of crashing entire app
 
 **Backend (`apps/functions/src/routes/assignments.ts`):**
+
 - Enhanced GET `/assignments` with default values for required fields
 - Improved error logging with context
 - AI grading failures no longer crash submission
 
 **Acceptance Criteria:**
+
 - ✅ `/assignments` loads without crashes for all roles
 - ✅ Student sees only their class assignments
 - ✅ Teacher can create assignments
@@ -128,6 +131,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Solution:**
 
 **Frontend (`apps/web/src/pages/Chat.tsx`):**
+
 - Added `canMessageUser()` function with role-based eligibility rules:
   - Student: assigned teachers, principal, admin only
   - Parent: linked child's teachers, principal, admin only
@@ -139,11 +143,13 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Updated UserProfile interface with classId, classIds, linkedStudentIds
 
 **Backend (`apps/functions/src/routes/chat.ts`):**
+
 - Added `canMessageUser()` eligibility check function
 - Enforced on POST `/conversations` and POST `/send`
 - Returns 403 with descriptive errors for unauthorized attempts
 
 **Acceptance Criteria:**
+
 - ✅ Student can find correct teachers/principal
 - ✅ Parent can find linked child's teachers/principal
 - ✅ Unauthorized manual API calls return 403
@@ -158,6 +164,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Solution:**
 
 **Backend (`apps/functions/src/routes/library.ts`):**
+
 - Extended LibraryResource model with:
   - type: pdf | ebook | web_link | video | document
   - description, externalUrl, attachmentName, attachmentSize
@@ -167,6 +174,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Support for file uploads AND web links in POST `/upload`
 
 **Frontend (`apps/web/src/pages/Library.tsx`):**
+
 - Updated LibraryResource interface with new fields
 - Added upload type selector (file vs link)
 - Enhanced upload form with resource type, visibility controls
@@ -174,6 +182,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Role target selector
 
 **Acceptance Criteria:**
+
 - ✅ Librarian uploads PDF from device
 - ✅ Librarian adds web link
 - ✅ Student sees class-assigned resources
@@ -189,6 +198,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Solution:**
 
 **Backend (`apps/functions/src/routes/fees.ts`):**
+
 - Import CURRENCY from env config (defaults to INR)
 - Add CURRENCY_SYMBOL constant (₹ for INR, $ otherwise)
 - Replace hardcoded $ with dynamic currency symbol in notifications
@@ -199,6 +209,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Update payment notification with currency symbol
 
 **Frontend (`apps/web/src/pages/Fees.tsx`):**
+
 - Add CURRENCY and CURRENCY_SYMBOL constants
 - Create formatCurrency helper function with locale formatting
 - Add CSV file upload support:
@@ -211,6 +222,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Add Paperclip icon import for file upload UI
 
 **Acceptance Criteria:**
+
 - ✅ Accountant uploads CSV file class-wise
 - ✅ Student sees updated fee after refresh/realtime
 - ✅ Parent sees linked child's fee
@@ -226,6 +238,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Solution:**
 
 **Announcements (`apps/web/src/pages/Announcements.tsx`):**
+
 - Add RefreshCw import for manual refresh button
 - Add lastSyncTime state to track sync timestamp
 - Add handleReload callback for manual refresh
@@ -235,6 +248,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Display 'Realtime enabled' badge for staff
 
 **Attendance (`apps/web/src/pages/Attendance.tsx`):**
+
 - Add RefreshCw import and formatDistanceToNow
 - Add lastSyncTime state tracking
 - Convert loadMarkingData/loadSubmissions to useCallback
@@ -245,12 +259,14 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Add sync status indicator for staff views
 
 **Assignments (`apps/web/src/pages/Assignments.tsx`):**
+
 - Add formatDistanceToNow import
 - Add lastSyncTime state
 - Add sync status indicator for staff
 - Note: Full sync handled by useAssignments/useAssignmentSubmissions hooks
 
 **Backend notifications already implemented:**
+
 - Announcements create triggers notifications
 - Attendance mark triggers notifications
 - Fees upload triggers student + parent notifications
@@ -258,6 +274,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Assignment publish triggers class notifications
 
 **Acceptance Criteria:**
+
 - ✅ Teacher attendance updates reflect for students/parents
 - ✅ Accountant fee uploads reflect for students/parents
 - ✅ Librarian resources reflect for target classes
@@ -272,6 +289,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Solution:**
 
 **Documentation (`ROLE_ACCESS_REVIEW.md`):**
+
 - Complete 15x8 module access matrix
 - Complete 14x8 permission matrix
 - Frontend protection documentation
@@ -281,6 +299,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - Testing checklist
 
 **Current Status:**
+
 - ✅ Frontend route protection: All routes wrapped with ModuleGuard
 - ✅ Backend permission enforcement: checkPermission middleware on all routes
 - ✅ Chat eligibility: Implemented and enforced
@@ -288,6 +307,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 - ✅ Security posture: STRONG
 
 **Acceptance Criteria:**
+
 - ✅ Student cannot open management pages by URL
 - ✅ Accountant cannot access library management
 - ✅ Librarian cannot access fees management
@@ -300,32 +320,38 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 **Current Status:**
 
 **Sidebar/Footer Layout:** ✅ GOOD
+
 - Uses flex-col with flex-1 for nav area
 - Header and footer use shrink-0 to prevent overlap
 - Sign Out button properly positioned at bottom
 - Responsive mobile overlay implemented
 
 **Module-Level Error Handling:** ✅ IMPLEMENTED
+
 - ModuleErrorBoundary wraps critical routes
 - ErrorBoundary wraps entire app
 - Graceful fallback UI with error messages
 
 **Loading States:** ✅ IMPLEMENTED
+
 - Suspense fallback with spinner for lazy-loaded pages
 - Individual page loading states
 - Loading indicators on buttons during mutations
 
 **Empty States:** ✅ IMPLEMENTED
+
 - EmptyState component with icon, title, description
 - Used in Announcements, Assignments, and other pages
 - Includes action buttons where appropriate
 
 **Mobile Responsiveness:** ✅ IMPLEMENTED
+
 - Sidebar collapses to overlay on mobile
 - Responsive grid layouts
 - Touch-friendly button sizes
 
 **Theme Consistency:** ✅ MAINTAINED
+
 - Premium dark UI with gradient accents
 - Consistent rounded corners and shadows
 - Dark mode support
@@ -335,6 +361,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 ### ✅ Part 10: Testing and Validation
 
 **Documentation (`TESTING_VALIDATION.md`):**
+
 - Build validation commands
 - 100+ manual test cases covering all 10 parts
 - Role-based testing for all user types
@@ -352,6 +379,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 ## Files Changed
 
 ### Backend (apps/functions/src/)
+
 1. `lib/config.ts` - Added OPENROUTER_MODEL, PUBLIC_APP_URL, CURRENCY
 2. `lib/ai.ts` - Dynamic HTTP-Referer, safe error handling
 3. `features/ai/ai.controller.ts` - Added getStatus method
@@ -364,6 +392,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 10. `.env.example` - Updated with new variables
 
 ### Frontend (apps/web/src/)
+
 11. `pages/Chatbot.tsx` - AI status loading, role-based messages
 12. `components/saas/NotificationDropdown.tsx` - Z-index fix, handlers
 13. `pages/Assignments.tsx` - Null guards, sync indicators
@@ -375,6 +404,7 @@ This PR completes production-grade ERP workflow fixes for EduConnect after the r
 19. `pages/Attendance.tsx` - Sync indicators, refresh button
 
 ### Documentation
+
 20. `ROLE_ACCESS_REVIEW.md` - Comprehensive access control documentation
 21. `TESTING_VALIDATION.md` - Complete testing guide
 22. `PR_DESCRIPTION.md` - This file
@@ -422,6 +452,7 @@ pnpm test  # if available
 ### Manual Testing
 
 See `TESTING_VALIDATION.md` for comprehensive 100+ test case checklist covering:
+
 - AI Assistant (live and offline modes)
 - Notifications (overlay, read/delete, persistence)
 - Assignments (all roles, error handling)

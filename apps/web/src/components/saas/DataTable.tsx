@@ -53,7 +53,10 @@ export function DataTable<T>({
               </tr>
             ) : (
               rows.map((row, index) => (
-                <tr key={getRowKey(row, index)} className="transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
+                <tr
+                  key={getRowKey(row, index)}
+                  className="transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/50"
+                >
                   {columns.map((column) => (
                     <td
                       key={column.key}

@@ -115,17 +115,21 @@ const AppContent = () => {
 
       <View style={styles.content}>
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'announcements' && styles.activeTab]}
             onPress={() => setActiveTab('announcements')}
           >
-            <Text style={[styles.tabText, activeTab === 'announcements' && styles.activeTabText]}>News</Text>
+            <Text style={[styles.tabText, activeTab === 'announcements' && styles.activeTabText]}>
+              News
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'assignments' && styles.activeTab]}
             onPress={() => setActiveTab('assignments')}
           >
-            <Text style={[styles.tabText, activeTab === 'assignments' && styles.activeTabText]}>Work</Text>
+            <Text style={[styles.tabText, activeTab === 'assignments' && styles.activeTabText]}>
+              Work
+            </Text>
           </TouchableOpacity>
         </View>
 

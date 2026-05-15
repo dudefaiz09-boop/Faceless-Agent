@@ -34,7 +34,11 @@ function canViewStudentAttendance(user: NonNullable<Express.Request['user']>, st
   );
 }
 
-function requireAttendanceViewer(req: Express.Request, res: Express.Response, next: Express.NextFunction) {
+function requireAttendanceViewer(
+  req: Express.Request,
+  res: Express.Response,
+  next: Express.NextFunction
+) {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   if (canViewAttendance(req.user)) return next();
   return res.status(403).json({ error: 'Forbidden', message: 'Attendance access required' });
@@ -53,7 +57,8 @@ router.get('/report/:classId', requireAttendanceViewer, async (req, res, next) =
     const { classId } = req.params;
     const { startDate, endDate } = req.query;
 
-    let query: any = db.collection('attendance')
+    let query: any = db
+      .collection('attendance')
       .where('tenantId', '==', req.tenantId)
       .where('classId', '==', classId);
 
@@ -61,7 +66,7 @@ router.get('/report/:classId', requireAttendanceViewer, async (req, res, next) =
     if (endDate) query = query.where('date', '<=', endDate);
 
     const snapshot = await query.get();
-    
+
     const stats = snapshot.docs.map((doc: any) => {
       const data = doc.data() || {};
       // Flatten the record structure for the calculator
@@ -86,18 +91,21 @@ router.get('/history/:uid', async (req, res, next) => {
     // Get student's classId
     const userDoc = await db.collection('users').doc(uid).get();
     const classId = userDoc.exists ? userDoc.data()?.classId : null;
-    
+
     if (!classId) return res.json([]);
 
-    const snapshot = await db.collection('attendance')
+    const snapshot = await db
+      .collection('attendance')
       .where('tenantId', '==', req.tenantId)
       .where('classId', '==', classId)
       .get();
-    const history = snapshot.docs.map((doc: any) => {
-      const data = doc.data() || {};
-      const record = data.records?.find((r: AttendanceEntry) => r.studentId === uid);
-      return record ? { id: doc.id, date: data.date, status: record.status } : null;
-    }).filter(Boolean);
+    const history = snapshot.docs
+      .map((doc: any) => {
+        const data = doc.data() || {};
+        const record = data.records?.find((r: AttendanceEntry) => r.studentId === uid);
+        return record ? { id: doc.id, date: data.date, status: record.status } : null;
+      })
+      .filter(Boolean);
 
     res.json(history);
   } catch (error) {
@@ -114,7 +122,8 @@ router.get('/:classId?', requireAttendanceViewer, async (req, res, next) => {
       return res.status(400).json({ error: 'classId is required' });
     }
 
-    let query: any = db.collection('attendance')
+    let query: any = db
+      .collection('attendance')
       .where('tenantId', '==', req.tenantId)
       .where('classId', '==', classId);
 
@@ -152,11 +161,13 @@ router.post('/mark', checkPermission('markAttendance'), async (req, res, next) =
     }
 
     const docId = `${classId}_${date}`;
-    const normalizedRecords = records.map((record: AttendanceEntry) => ({
-      studentId: String(record.studentId || '').trim(),
-      studentName: record.studentName || '',
-      status: ['present', 'absent', 'late'].includes(record.status) ? record.status : 'absent',
-    })).filter((record: AttendanceEntry) => record.studentId);
+    const normalizedRecords = records
+      .map((record: AttendanceEntry) => ({
+        studentId: String(record.studentId || '').trim(),
+        studentName: record.studentName || '',
+        status: ['present', 'absent', 'late'].includes(record.status) ? record.status : 'absent',
+      }))
+      .filter((record: AttendanceEntry) => record.studentId);
 
     await db.collection('attendance').doc(docId).set({
       tenantId: req.tenantId,
@@ -173,7 +184,8 @@ router.post('/mark', checkPermission('markAttendance'), async (req, res, next) =
         .filter((record: AttendanceEntry) => record.status === 'absent' || record.status === 'late')
         .map((record: AttendanceEntry) =>
           safeAttendanceNotification({
-            title: record.status === 'absent' ? 'Attendance marked absent' : 'Attendance marked late',
+            title:
+              record.status === 'absent' ? 'Attendance marked absent' : 'Attendance marked late',
             message: `${record.studentName || 'Student'} was marked ${record.status} for ${classId} on ${date}.`,
             type: 'attendance',
             href: '/attendance',

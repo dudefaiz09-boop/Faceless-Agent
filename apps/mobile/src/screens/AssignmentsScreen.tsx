@@ -14,11 +14,11 @@ import { useAuth } from '../contexts/AuthContext';
 
 export const AssignmentsScreen = () => {
   const { schoolId } = useAuth();
-  const { 
-    data: assignments = [], 
-    isLoading, 
+  const {
+    data: assignments = [],
+    isLoading,
     refetch,
-    isRefetching 
+    isRefetching,
   } = useAssignments(assignmentsService, schoolId);
 
   const onRefresh = () => {
@@ -38,9 +38,7 @@ export const AssignmentsScreen = () => {
       <FlatList
         data={assignments}
         keyExtractor={(item) => item.id!}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card}>
             <View style={styles.cardHeader}>

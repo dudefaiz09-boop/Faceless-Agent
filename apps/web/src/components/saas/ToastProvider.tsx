@@ -24,15 +24,18 @@ const ToastContext = createContext<{ toast: (input: ToastInput) => void }>({
 const toneStyles = {
   success: {
     icon: CheckCircle2,
-    className: 'border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
+    className:
+      'border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
   },
   error: {
     icon: XCircle,
-    className: 'border-red-100 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200',
+    className:
+      'border-red-100 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200',
   },
   info: {
     icon: Info,
-    className: 'border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-cyan-200',
+    className:
+      'border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-cyan-200',
   },
 } satisfies Record<ToastTone, { icon: React.ElementType; className: string }>;
 
@@ -77,7 +80,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   <Icon size={20} className="mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm font-black">{item.title}</p>
-                    {item.description && <p className="mt-1 text-xs font-semibold opacity-80">{item.description}</p>}
+                    {item.description && (
+                      <p className="mt-1 text-xs font-semibold opacity-80">{item.description}</p>
+                    )}
                   </div>
                 </div>
               </motion.div>

@@ -46,7 +46,9 @@ export const AssignmentsPage = () => {
   } = useAssignments(assignmentsService, selectedClass);
 
   // Guard against invalid data
-  const assignments = Array.isArray(assignmentsData) ? assignmentsData.filter(a => a && a.id) : [];
+  const assignments = Array.isArray(assignmentsData)
+    ? assignmentsData.filter((a) => a && a.id)
+    : [];
 
   // Creation Form State
   const [newAssignment, setNewAssignment] = useState(() => ({
@@ -63,7 +65,7 @@ export const AssignmentsPage = () => {
     assignmentsService,
     selectedAssignment?.id || ''
   );
-  
+
   const [gradingState, setGradingState] = useState<{
     studentId: string;
     grade: string;
@@ -211,7 +213,9 @@ export const AssignmentsPage = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight dark:text-white">Assignments</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight dark:text-white">
+            Assignments
+          </h1>
           <p className="text-slate-500 mt-1 dark:text-slate-400">
             {isStudent
               ? 'Track your coursework and submit your work.'
@@ -244,12 +248,34 @@ export const AssignmentsPage = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Published" value={String(assignments.length)} detail={`Class ${selectedClass}`} icon={FileText} tone="blue" />
-        <StatCard title={isStudent ? 'Submitted' : 'Submissions'} value={String(isStudent ? submittedCount : submissions.length)} detail={isStudent ? 'Completed by you' : 'For selected assignment'} icon={CheckCircle2} tone="emerald" />
-        <StatCard title="Due Soon" value={String(dueSoonCount)} detail="Within the next week" icon={Clock} tone="cyan" />
+        <StatCard
+          title="Published"
+          value={String(assignments.length)}
+          detail={`Class ${selectedClass}`}
+          icon={FileText}
+          tone="blue"
+        />
+        <StatCard
+          title={isStudent ? 'Submitted' : 'Submissions'}
+          value={String(isStudent ? submittedCount : submissions.length)}
+          detail={isStudent ? 'Completed by you' : 'For selected assignment'}
+          icon={CheckCircle2}
+          tone="emerald"
+        />
+        <StatCard
+          title="Due Soon"
+          value={String(dueSoonCount)}
+          detail="Within the next week"
+          icon={Clock}
+          tone="cyan"
+        />
       </div>
 
-      <SearchBar value={search} onChange={setSearch} placeholder="Search assignments by title, class, or description..." />
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search assignments by title, class, or description..."
+      />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
@@ -263,7 +289,7 @@ export const AssignmentsPage = () => {
               </span>
             </div>
           )}
-    
+
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />

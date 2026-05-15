@@ -423,7 +423,11 @@ export const AttendancePage = () => {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                   Search Student
                 </label>
-                <SearchBar value={search} onChange={setSearch} placeholder="Filter by name or email..." />
+                <SearchBar
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Filter by name or email..."
+                />
               </div>
             </div>
 
@@ -602,7 +606,10 @@ export const AttendancePage = () => {
                       />
                       <Bar dataKey="attendanceRate" radius={[6, 6, 0, 0]}>
                         {reportData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.attendanceRate > 0.9 ? '#10b981' : '#f59e0b'} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.attendanceRate > 0.9 ? '#10b981' : '#f59e0b'}
+                          />
                         ))}
                       </Bar>
                     </BarChart>

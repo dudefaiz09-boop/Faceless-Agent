@@ -29,9 +29,7 @@ export function useAnnouncements(service: AnnouncementsService, schoolId?: strin
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
-      queryClient.setQueryData(queryKey, (old: any) =>
-        old?.filter((a: any) => a.id !== id)
-      );
+      queryClient.setQueryData(queryKey, (old: any) => old?.filter((a: any) => a.id !== id));
       return { previous };
     },
     onError: (err, id, context: any) => {

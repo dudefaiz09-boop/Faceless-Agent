@@ -15,8 +15,7 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   },
 });
 
-export const uploadsBucket =
-  import.meta.env.VITE_SUPABASE_UPLOADS_BUCKET || 'educonnect-uploads';
+export const uploadsBucket = import.meta.env.VITE_SUPABASE_UPLOADS_BUCKET || 'educonnect-uploads';
 
 export async function getSupabaseAccessToken() {
   const { data } = await supabase.auth.getSession();

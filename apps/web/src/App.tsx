@@ -188,8 +188,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <GraduationCap size={24} />
           </div>
           <div>
-            <span className="block text-xl font-black text-slate-950 tracking-tight dark:text-white">EduConnect</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">AI ERP</span>
+            <span className="block text-xl font-black text-slate-950 tracking-tight dark:text-white">
+              EduConnect
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">
+              AI ERP
+            </span>
           </div>
         </div>
 
@@ -221,7 +225,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
           <button className="hidden md:flex h-11 min-w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-semibold text-slate-400 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500">
             <span className="flex-1">Search or press command palette</span>
-            <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">Ctrl K</kbd>
+            <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+              Ctrl K
+            </kbd>
           </button>
 
           <div className="flex-1 md:hidden" />
@@ -230,7 +236,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <ThemeToggle />
             <NotificationDropdown />
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.displayName}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                {user?.displayName}
+              </p>
               <p className="text-xs text-slate-500 capitalize dark:text-slate-400">{role}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-slate-100">

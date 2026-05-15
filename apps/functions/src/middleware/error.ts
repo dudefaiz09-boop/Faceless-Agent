@@ -27,16 +27,19 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, _next:
 
   // Log the error with correlation ID if available
   const correlationId = req.headers['x-correlation-id'] || 'N/A';
-  
-  logger.error({
-    err,
-    status,
-    message,
-    path: req.path,
-    method: req.method,
-    userId: (req as any).user?.uid || 'anonymous',
-    correlationId
-  }, 'Request failed');
+
+  logger.error(
+    {
+      err,
+      status,
+      message,
+      path: req.path,
+      method: req.method,
+      userId: (req as any).user?.uid || 'anonymous',
+      correlationId,
+    },
+    'Request failed'
+  );
 
   // Security: Don't leak stack traces in production
   const response = {

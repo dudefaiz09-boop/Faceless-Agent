@@ -1,26 +1,26 @@
 import { UserRole } from '../constants/index.js';
 export interface UserContext {
-    uid: string;
-    email?: string;
-    displayName?: string;
-    roles: UserRole[];
-    isAdmin: boolean;
-    classId: string | null;
-    permissions: Record<string, boolean>;
+  uid: string;
+  email?: string;
+  displayName?: string;
+  roles: UserRole[];
+  isAdmin: boolean;
+  classId: string | null;
+  permissions: Record<string, boolean>;
 }
 export interface Announcement {
-    id: string;
-    title: string;
-    content: string;
-    authorId: string;
-    authorName?: string;
-    targetClasses: string[];
-    visibility: 'school' | 'class' | 'public' | 'private';
-    createdAt: string;
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  authorName?: string;
+  targetClasses: string[];
+  visibility: 'school' | 'class' | 'public' | 'private';
+  createdAt: string;
 }
 export interface ApiResponse<T> {
-    data?: T;
-    error?: string;
-    message?: string;
-    correlationId?: string;
+  data?: T;
+  error?: string;
+  message?: string;
+  correlationId?: string;
 }
