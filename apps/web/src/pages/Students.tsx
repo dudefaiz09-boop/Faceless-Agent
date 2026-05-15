@@ -20,6 +20,7 @@ import { apiClient } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { StudentProfile, AuditLog, BulkImportResult } from '@educonnect/shared';
 import { listDocuments, useDocuments } from '../lib/documents';
+import { useAuth } from '../contexts/AuthContext';
 
 type StudentDocument = StudentProfile & {
   id?: string;
@@ -38,6 +39,7 @@ function formatAuditTimestamp(timestamp: unknown) {
 }
 
 export const StudentsPage = () => {
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const { data: userDocuments, loading } = useDocuments<StudentDocument>('users');
@@ -64,6 +66,7 @@ export const StudentsPage = () => {
 
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     try {
       await apiClient.request('/api/students/create', {
         method: 'POST',
@@ -79,6 +82,7 @@ export const StudentsPage = () => {
 
   const handleUpdateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     if (!selectedStudent) return;
     try {
       await apiClient.request(`/api/students/${selectedStudent.uid}`, {
@@ -98,6 +102,7 @@ export const StudentsPage = () => {
   };
 
   const handleDeleteStudent = async (uid: string) => {
+    if (!isAdmin) return;
     if (
       !window.confirm('Are you sure you want to delete this student? This action cannot be undone.')
     )
@@ -111,6 +116,7 @@ export const StudentsPage = () => {
   };
 
   const handleBulkImport = async () => {
+    if (!isAdmin) return;
     const lines = bulkText.trim().split('\n');
     const studentsToImport = lines.map((line) => {
       const [email, displayName, classId, section, password] = line.split(',').map((s) => s.trim());
@@ -171,6 +177,7 @@ export const StudentsPage = () => {
           </p>
         </div>
 
+        {isAdmin && (
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
@@ -197,6 +204,7 @@ export const StudentsPage = () => {
             System Logs
           </button>
         </div>
+        )}
       </div>
 
       {/* Filters & Search */}
@@ -240,23 +248,25 @@ export const StudentsPage = () => {
               exit={{ opacity: 0, scale: 0.9 }}
               className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 p-6">
-                <button
-                  onClick={() => {
-                    setSelectedStudent(s);
-                    setFormData({
-                      email: s.email,
-                      password: '',
-                      displayName: s.displayName,
-                      classId: s.classId || '',
-                      section: s.section || '',
-                    });
-                  }}
-                  className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                >
-                  <MoreVertical size={20} />
-                </button>
-              </div>
+              {isAdmin && (
+                <div className="absolute top-0 right-0 p-6">
+                  <button
+                    onClick={() => {
+                      setSelectedStudent(s);
+                      setFormData({
+                        email: s.email,
+                        password: '',
+                        displayName: s.displayName,
+                        classId: s.classId || '',
+                        section: s.section || '',
+                      });
+                    }}
+                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center gap-5 mb-8">
                 <div className="w-16 h-16 rounded-[24px] bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 transform group-hover:rotate-6">
@@ -287,21 +297,23 @@ export const StudentsPage = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => viewAuditLogs(s.uid)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                >
-                  <History size={14} />
-                  Logs
-                </button>
-                <button
-                  onClick={() => handleDeleteStudent(s.uid)}
-                  className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
+              {isAdmin && (
+                <div className="flex items-center justify-between gap-3">
+                  <button
+                    onClick={() => viewAuditLogs(s.uid)}
+                    className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <History size={14} />
+                    Logs
+                  </button>
+                  <button
+                    onClick={() => handleDeleteStudent(s.uid)}
+                    className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>

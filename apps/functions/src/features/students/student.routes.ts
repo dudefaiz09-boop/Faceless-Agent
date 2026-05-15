@@ -6,20 +6,20 @@ import {
   updateStudentSchema,
   studentQuerySchema,
 } from './student.validation.js';
-import { checkPermission } from '../../middleware/auth.js';
+import { checkAdmin, checkPermission } from '../../middleware/auth.js';
 
 const router: Router = Router();
 
 router.post(
   '/create',
-  checkPermission('manageStudents'),
+  checkAdmin,
   validate(createStudentSchema),
   StudentController.create
 );
 
 router.put(
   '/:uid',
-  checkPermission('manageStudents'),
+  checkAdmin,
   validate(updateStudentSchema),
   StudentController.update
 );
@@ -31,6 +31,6 @@ router.get(
   StudentController.getProfile
 );
 
-router.delete('/:uid', checkPermission('manageStudents'), StudentController.delete);
+router.delete('/:uid', checkAdmin, StudentController.delete);
 
 export default router;

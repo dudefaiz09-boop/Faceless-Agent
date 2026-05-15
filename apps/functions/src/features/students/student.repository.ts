@@ -1,44 +1,34 @@
-import { db, auth } from '../../lib/documents.js';
+import { db } from '../../lib/documents.js';
 import { AppError } from '../../middleware/error.js';
+import { createManagedUser, updateManagedUser } from '../../lib/user-management.js';
+
+type Actor = { uid: string; email?: string; schoolId?: string | null };
 
 export class StudentRepository {
-  static async create(studentData: any) {
-    const { email, password, displayName, classId } = studentData;
-
-    const userRecord = await auth.createUser({ email, password, displayName });
-
-    const claims = {
-      roles: ['student'],
-      classId,
-      permissions: { viewOwnRecords: true, submitAssignments: true },
-    };
-
-    await auth.setCustomUserClaims(userRecord.uid, claims);
-
-    const student = {
-      uid: userRecord.uid,
-      email,
-      displayName,
-      roles: ['student'],
-      classId,
-      permissions: claims.permissions,
-      createdAt: new Date().toISOString(),
-    };
-
-    await db.collection('users').doc(userRecord.uid).set(student);
-    return student;
+  static async create(studentData: any, actor: Actor) {
+    return createManagedUser(
+      {
+        ...studentData,
+        role: 'student',
+        classIds: studentData.classIds || (studentData.classId ? [studentData.classId] : []),
+        sectionIds: studentData.sectionIds || (studentData.section ? [studentData.section] : []),
+      },
+      actor
+    );
   }
 
-  static async update(uid: string, data: any) {
-    const userRef = db.collection('users').doc(uid);
-    const doc = await userRef.get();
-
-    if (!doc.exists) {
-      throw new AppError('Student not found', 404);
-    }
-
-    await userRef.update(data);
-    return { uid, ...data };
+  static async update(uid: string, data: any, actor: Actor) {
+    return updateManagedUser(
+      uid,
+      {
+        ...data,
+        role: 'student',
+        classIds: data.classIds || (data.classId ? [data.classId] : []),
+        sectionIds: data.sectionIds || (data.section ? [data.section] : []),
+      },
+      actor,
+      'student_updated'
+    );
   }
 
   static async getById(uid: string) {
@@ -47,13 +37,7 @@ export class StudentRepository {
     return doc.data();
   }
 
-  static async delete(uid: string) {
-    // 1. Delete profile document
-    await db.collection('users').doc(uid).delete();
-
-    // 2. Delete from Supabase Auth
-    await auth.deleteUser(uid);
-
-    return { success: true };
+  static async delete(uid: string, actor: Actor) {
+    return updateManagedUser(uid, { role: 'student', status: 'inactive' }, actor, 'student_deactivated');
   }
 }

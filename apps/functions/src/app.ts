@@ -25,6 +25,7 @@ import performanceRouter from './routes/performance.js';
 import teachersRouter from './routes/teachers.js';
 import chatRouter from './routes/chat.js';
 import rolesRouter from './routes/roles.js';
+import usersRouter from './routes/users.js';
 
 const app: Express = express();
 app.set('trust proxy', 1);
@@ -160,6 +161,7 @@ app.use('/api/performance', performanceRouter);
 app.use('/api/teachers', teachersRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/roles', rolesRouter);
+app.use('/api/users', usersRouter);
 
 // 6. Global Error Handling (MUST be last)
 app.use(globalErrorHandler);

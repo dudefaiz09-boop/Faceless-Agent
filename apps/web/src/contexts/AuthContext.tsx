@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { UserRole, ROLES, getUserRole } from '@educonnect/shared';
+import { UserRole, ROLES, getUserRole, hasPermission } from '@educonnect/shared';
 import { supabase } from '../lib/supabase';
 
 export enum OperationType {
@@ -58,6 +58,10 @@ interface AuthContextType {
   permissions: Record<string, boolean>;
   schoolId: string | null;
   classId: string | null;
+  classIds: string[];
+  subjectIds: string[];
+  sectionIds: string[];
+  assignedModules: string[];
   linkedStudentIds: string[];
   loading: boolean;
   isAdmin: boolean;
@@ -78,6 +82,10 @@ const AuthContext = createContext<AuthContextType>({
   permissions: {},
   schoolId: null,
   classId: null,
+  classIds: [],
+  subjectIds: [],
+  sectionIds: [],
+  assignedModules: [],
   linkedStudentIds: [],
   loading: true,
   isAdmin: false,
@@ -124,6 +132,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
+  const [classIds, setClassIds] = useState<string[]>([]);
+  const [subjectIds, setSubjectIds] = useState<string[]>([]);
+  const [sectionIds, setSectionIds] = useState<string[]>([]);
+  const [assignedModules, setAssignedModules] = useState<string[]>([]);
   const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -134,6 +146,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPermissions({});
       setSchoolId(null);
       setClassId(null);
+      setClassIds([]);
+      setSubjectIds([]);
+      setSectionIds([]);
+      setAssignedModules([]);
       setLinkedStudentIds([]);
       latestAuthInfo = {};
       setLoading(false);
@@ -159,7 +175,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRoles(nextRoles);
       setPermissions(nextPermissions);
       setSchoolId(nextSchoolId);
-      setClassId(profile.classId || appMetadata.classId || null);
+      const nextClassId = profile.classId || appMetadata.classId || null;
+      const nextClassIds =
+        profile.classIds || appMetadata.classIds || (nextClassId ? [nextClassId] : []);
+      setClassId(nextClassId);
+      setClassIds(nextClassIds);
+      setSubjectIds(profile.subjectIds || appMetadata.subjectIds || []);
+      setSectionIds(profile.sectionIds || appMetadata.sectionIds || []);
+      setAssignedModules(profile.assignedModules || appMetadata.assignedModules || []);
       setLinkedStudentIds(profile.linkedStudentIds || appMetadata.linkedStudentIds || []);
 
       if (nextSchoolId) {
@@ -184,24 +207,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  const role = getUserRole(roles);
+  const permissionUser = {
+    uid: user?.uid || '',
+    roles: role ? [role] : [],
+    isAdmin: roles.includes(ROLES.ADMIN),
+    classId,
+    permissions,
+  };
+
   const value = {
     user,
-    role: getUserRole(roles),
+    role,
     roles,
     permissions,
     schoolId,
     classId,
+    classIds,
+    subjectIds,
+    sectionIds,
+    assignedModules,
     linkedStudentIds,
     loading,
     isAdmin: roles.includes(ROLES.ADMIN),
     isTeacher: roles.includes(ROLES.TEACHER),
     isStudent: roles.includes(ROLES.STUDENT),
     isParent: roles.includes(ROLES.PARENT),
-    canManageAttendance: !!permissions.manageAttendance,
+    canManageAttendance: hasPermission(permissionUser, 'markAttendance') || !!permissions.manageAttendance,
     canManageAssignments: !!permissions.manageAssignments,
-    canManageLibrary: !!permissions.manageLibrary,
-    canManageFees: !!permissions.manageFees,
-    canManagePerformance: !!permissions.managePerformance,
+    canManageLibrary: hasPermission(permissionUser, 'manageLibrary'),
+    canManageFees: hasPermission(permissionUser, 'manageFees'),
+    canManagePerformance: hasPermission(permissionUser, 'viewReports') || !!permissions.managePerformance,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

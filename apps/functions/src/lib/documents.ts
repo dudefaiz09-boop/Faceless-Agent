@@ -243,12 +243,21 @@ export const auth = {
       uid: data.user.id,
       email: data.user.email,
       name: userMetadata.display_name || userMetadata.full_name || profile.displayName,
+      role: profile.role || appMetadata.role || (profile.roles || appMetadata.roles || [])[0],
       roles: profile.roles || appMetadata.roles || [],
       isAdmin: !!profile.isAdmin || !!appMetadata.isAdmin,
       schoolId: profile.schoolId || appMetadata.schoolId || null,
       classId: profile.classId || appMetadata.classId || null,
+      classIds:
+        profile.classIds ||
+        appMetadata.classIds ||
+        (profile.classId || appMetadata.classId ? [profile.classId || appMetadata.classId] : []),
+      subjectIds: profile.subjectIds || appMetadata.subjectIds || [],
+      sectionIds: profile.sectionIds || appMetadata.sectionIds || [],
       linkedStudentIds: profile.linkedStudentIds || appMetadata.linkedStudentIds || [],
+      assignedModules: profile.assignedModules || appMetadata.assignedModules || [],
       permissions: profile.permissions || appMetadata.permissions || {},
+      status: profile.status || appMetadata.status || 'active',
     };
   },
 

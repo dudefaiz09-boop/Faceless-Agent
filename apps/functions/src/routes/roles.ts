@@ -1,26 +1,34 @@
 import { Router } from 'express';
-import { auth, db } from '../lib/documents.js';
-import { checkPermission } from '../middleware/auth.js';
+import { isRole } from '@educonnect/shared';
+import { checkAdmin } from '../middleware/auth.js';
+import { updateManagedUser } from '../lib/user-management.js';
 
 const router: Router = Router();
 
-// Update user role (Admin only)
-router.post('/', checkPermission('manageUsers'), async (req, res, next) => {
+router.post('/', checkAdmin, async (req, res, next) => {
   try {
     const { uid, role } = req.body;
 
     if (!uid || !role) {
-      return res.status(400).json({ error: 'UID and role are required' });
+      return res.status(400).json({ error: 'uid and role are required' });
     }
 
-    // 1. Update Custom Claims
-    const claims = { roles: [role], isAdmin: role === 'admin' };
-    await auth.setCustomUserClaims(uid, claims);
+    if (!isRole(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
 
-    // 2. Update the Supabase-backed profile document.
-    await db.collection('users').doc(uid).update({ role, roles: [role] });
+    const profile = await updateManagedUser(
+      uid,
+      req.body,
+      {
+        uid: req.user!.uid,
+        email: req.user!.email,
+        schoolId: req.user!.schoolId,
+      },
+      'role_or_access_changed'
+    );
 
-    res.json({ success: true, message: `User ${uid} role updated to ${role}` });
+    res.json({ success: true, uid, profile });
   } catch (error) {
     next(error);
   }

@@ -10,8 +10,10 @@ type SeedUser = {
   displayName: string;
   role: string;
   classId?: string;
+  classIds?: string[];
   linkedStudentEmails?: string[];
   permissions: Record<string, boolean>;
+  assignedModules?: string[];
   section?: string;
   subjects?: string[];
 };
@@ -22,6 +24,10 @@ const now = new Date().toISOString();
 
 const manageEverything = {
   manageUsers: true,
+  manageRoles: true,
+  manageModules: true,
+  manageClasses: true,
+  manageSubjects: true,
   manageTeachers: true,
   manageStudents: true,
   manageAnnouncements: true,
@@ -34,6 +40,69 @@ const manageEverything = {
   managePerformance: true,
   viewPerformance: true,
   viewStudentDetails: true,
+  viewAuditLogs: true,
+  useAI: true,
+  createAnnouncements: true,
+  viewReports: true,
+};
+
+const modulesByRole: Record<string, string[]> = {
+  admin: [
+    'dashboard',
+    'aiAssistant',
+    'announcements',
+    'attendance',
+    'assignments',
+    'chat',
+    'library',
+    'fees',
+    'performance',
+    'students',
+    'teachers',
+    'allUsers',
+    'parentPortal',
+    'auditLogs',
+    'settings',
+  ],
+  principal: [
+    'dashboard',
+    'announcements',
+    'attendance',
+    'assignments',
+    'chat',
+    'library',
+    'fees',
+    'performance',
+    'students',
+    'teachers',
+    'auditLogs',
+  ],
+  teacher: [
+    'dashboard',
+    'aiAssistant',
+    'announcements',
+    'attendance',
+    'assignments',
+    'chat',
+    'library',
+    'performance',
+    'students',
+  ],
+  student: [
+    'dashboard',
+    'aiAssistant',
+    'announcements',
+    'attendance',
+    'assignments',
+    'chat',
+    'library',
+    'fees',
+    'performance',
+  ],
+  parent: ['dashboard', 'announcements', 'attendance', 'assignments', 'chat', 'fees', 'performance', 'parentPortal'],
+  librarian: ['dashboard', 'announcements', 'chat', 'library'],
+  accountant: ['dashboard', 'announcements', 'chat', 'fees'],
+  staff: ['dashboard', 'announcements', 'attendance', 'chat', 'students'],
 };
 
 const seedUsers: SeedUser[] = [
@@ -48,8 +117,17 @@ const seedUsers: SeedUser[] = [
     email: 'principal@educonnect.test',
     password: 'Principal@1234',
     displayName: 'Principal Rao',
-    role: 'staff',
-    permissions: manageEverything,
+    role: 'principal',
+    permissions: {
+      createAnnouncements: true,
+      markAttendance: true,
+      viewReports: true,
+      viewAuditLogs: true,
+      manageAnnouncements: true,
+      viewAttendance: true,
+      viewPerformance: true,
+      viewStudentDetails: true,
+    },
   },
   {
     email: 'teacher.a@educonnect.test',
@@ -58,6 +136,8 @@ const seedUsers: SeedUser[] = [
     role: 'teacher',
     subjects: ['Mathematics', 'Science'],
     permissions: {
+      useAI: true,
+      createAnnouncements: true,
       manageAnnouncements: true,
       manageAssignments: true,
       markAttendance: true,
@@ -73,6 +153,8 @@ const seedUsers: SeedUser[] = [
     role: 'teacher',
     subjects: ['English', 'History'],
     permissions: {
+      useAI: true,
+      createAnnouncements: true,
       manageAnnouncements: true,
       manageAssignments: true,
       markAttendance: true,
@@ -111,12 +193,91 @@ const seedUsers: SeedUser[] = [
     email: 'librarian@educonnect.test',
     password: 'Library@1234',
     displayName: 'Library Staff',
-    role: 'staff',
+    role: 'librarian',
     permissions: {
       manageLibrary: true,
       viewStudentDetails: true,
       viewAssignments: true,
     },
+  },
+  {
+    email: 'accountant@educonnect.test',
+    password: 'Account@1234',
+    displayName: 'Accounts Staff',
+    role: 'accountant',
+    permissions: {
+      manageFees: true,
+    },
+  },
+  {
+    email: 'admin@educonnect.tst',
+    password: 'Admin@1234',
+    displayName: 'Admin Demo',
+    role: 'admin',
+    permissions: manageEverything,
+  },
+  {
+    email: 'principal@educonnect.tst',
+    password: 'Principal@1234',
+    displayName: 'Principal Demo',
+    role: 'principal',
+    permissions: {
+      createAnnouncements: true,
+      markAttendance: true,
+      viewReports: true,
+      viewAuditLogs: true,
+      viewAttendance: true,
+      viewPerformance: true,
+      viewStudentDetails: true,
+    },
+  },
+  {
+    email: 'teacher@educonnect.tst',
+    password: 'Teach@1234',
+    displayName: 'Teacher Demo',
+    role: 'teacher',
+    classId: '10A',
+    subjects: ['Mathematics'],
+    permissions: {
+      useAI: true,
+      createAnnouncements: true,
+      manageAssignments: true,
+      markAttendance: true,
+      viewAttendance: true,
+      viewPerformance: true,
+      viewStudentDetails: true,
+    },
+  },
+  {
+    email: 'librarian@educonnect.tst',
+    password: 'Library@1234',
+    displayName: 'Librarian Demo',
+    role: 'librarian',
+    permissions: { manageLibrary: true },
+  },
+  {
+    email: 'accountant@educonnect.tst',
+    password: 'Account@1234',
+    displayName: 'Accountant Demo',
+    role: 'accountant',
+    permissions: { manageFees: true },
+  },
+  {
+    email: 'student@educonnect.tst',
+    password: 'Test@1234',
+    displayName: 'Student Demo',
+    role: 'student',
+    classId: '10A',
+    section: 'A',
+    permissions: { useAI: true, viewOwnRecords: true, submitAssignments: true, payFees: true },
+  },
+  {
+    email: 'parent@educonnect.tst',
+    password: 'Parent@1234',
+    displayName: 'Parent Demo',
+    role: 'parent',
+    linkedStudentEmails: ['student@educonnect.tst'],
+    permissions: { viewOwnRecords: true },
   },
 ];
 
@@ -169,11 +330,15 @@ async function upsertDocument(
 async function seedUser(supabase: SupabaseClient, seedUser: SeedUser, idsByEmail: Map<string, string>) {
   const existingUser = await findUserByEmail(supabase, seedUser.email);
   const appMetadata = {
+    role: seedUser.role,
     roles: [seedUser.role],
     isAdmin: seedUser.role === 'admin',
     schoolId,
     classId: seedUser.classId || null,
+    classIds: seedUser.classIds || (seedUser.classId ? [seedUser.classId] : []),
     permissions: seedUser.permissions,
+    assignedModules: seedUser.assignedModules || modulesByRole[seedUser.role] || [],
+    status: 'active',
   };
 
   const userMetadata = {
@@ -212,10 +377,16 @@ async function seedUser(supabase: SupabaseClient, seedUser: SeedUser, idsByEmail
     roles: [seedUser.role],
     isAdmin: seedUser.role === 'admin',
     classId: seedUser.classId || null,
+    classIds: seedUser.classIds || (seedUser.classId ? [seedUser.classId] : []),
     linkedStudentIds,
     permissions: seedUser.permissions,
+    permissionKeys: Object.keys(seedUser.permissions).filter((key) => seedUser.permissions[key]),
+    assignedModules: seedUser.assignedModules || modulesByRole[seedUser.role] || [],
     section: seedUser.section || null,
+    sectionIds: seedUser.section ? [seedUser.section] : [],
     subjects: seedUser.subjects || [],
+    subjectIds: seedUser.subjects || [],
+    status: 'active',
     createdAt: user.created_at || now,
   });
 

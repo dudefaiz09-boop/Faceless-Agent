@@ -19,11 +19,14 @@ import { apiClient } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { TeacherProfile, AuditLog, BulkImportResult } from '@educonnect/shared';
 import { listDocuments, useDocuments } from '../lib/documents';
+import { useAuth } from '../contexts/AuthContext';
 
 type TeacherDocument = TeacherProfile & {
   id?: string;
   role?: string;
   roles?: string[];
+  subjectIds?: string[];
+  classIds?: string[];
 };
 
 function isTeacherProfile(profile: TeacherDocument) {
@@ -36,7 +39,16 @@ function formatAuditTimestamp(timestamp: unknown) {
   return value.toDate?.().toLocaleString() || new Date(String(timestamp)).toLocaleString();
 }
 
+function teacherSubjects(teacher: TeacherDocument) {
+  return teacher.subjects || teacher.subjectIds || [];
+}
+
+function teacherClasses(teacher: TeacherDocument) {
+  return teacher.classes || teacher.classIds || [];
+}
+
 export const TeachersPage = () => {
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const { data: userDocuments, loading } = useDocuments<TeacherDocument>('users');
@@ -62,6 +74,7 @@ export const TeachersPage = () => {
 
   const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     try {
       await apiClient.request('/api/teachers/create', {
         method: 'POST',
@@ -87,6 +100,7 @@ export const TeachersPage = () => {
 
   const handleUpdateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     if (!selectedTeacher) return;
     try {
       await apiClient.request(`/api/teachers/${selectedTeacher.uid}`, {
@@ -112,6 +126,7 @@ export const TeachersPage = () => {
   };
 
   const handleDeleteTeacher = async (uid: string) => {
+    if (!isAdmin) return;
     if (
       !window.confirm('Are you sure you want to delete this teacher? This action cannot be undone.')
     )
@@ -125,6 +140,7 @@ export const TeachersPage = () => {
   };
 
   const handleBulkImport = async () => {
+    if (!isAdmin) return;
     const lines = bulkText.trim().split('\n');
     const teachersToImport = lines.map((line) => {
       const [email, displayName, subjects, classes, password] = line
@@ -176,7 +192,7 @@ export const TeachersPage = () => {
     (t) =>
       t.displayName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       t.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      t.subjects?.some((s) => s.toLowerCase().includes(debouncedSearch.toLowerCase()))
+      teacherSubjects(t).some((s) => s.toLowerCase().includes(debouncedSearch.toLowerCase()))
   );
 
   return (
@@ -190,6 +206,7 @@ export const TeachersPage = () => {
           </p>
         </div>
 
+        {isAdmin && (
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
@@ -216,6 +233,7 @@ export const TeachersPage = () => {
             Audit Logs
           </button>
         </div>
+        )}
       </div>
 
       {/* Search */}
@@ -242,21 +260,23 @@ export const TeachersPage = () => {
               className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-6">
-                <button
-                  onClick={() => {
-                    setSelectedTeacher(t);
-                    setFormData({
-                      email: t.email,
-                      password: '',
-                      displayName: t.displayName,
-                      subjects: t.subjects?.join(', ') || '',
-                      classes: t.classes?.join(', ') || '',
-                    });
-                  }}
-                  className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                >
-                  <ChevronRight size={20} />
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setSelectedTeacher(t);
+                      setFormData({
+                        email: t.email,
+                        password: '',
+                        displayName: t.displayName,
+                        subjects: teacherSubjects(t).join(', '),
+                        classes: teacherClasses(t).join(', '),
+                      });
+                    }}
+                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-5 mb-8">
@@ -279,7 +299,7 @@ export const TeachersPage = () => {
                     <BookOpen size={10} /> Subjects
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {t.subjects?.map((s) => (
+                    {teacherSubjects(t).map((s) => (
                       <span
                         key={s}
                         className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600"
@@ -287,7 +307,7 @@ export const TeachersPage = () => {
                         {s}
                       </span>
                     ))}
-                    {(!t.subjects || t.subjects.length === 0) && (
+                    {teacherSubjects(t).length === 0 && (
                       <span className="text-xs text-slate-400 italic">None assigned</span>
                     )}
                   </div>
@@ -297,7 +317,7 @@ export const TeachersPage = () => {
                     <Briefcase size={10} /> Classes
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {t.classes?.map((c) => (
+                    {teacherClasses(t).map((c) => (
                       <span
                         key={c}
                         className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600"
@@ -305,28 +325,30 @@ export const TeachersPage = () => {
                         {c}
                       </span>
                     ))}
-                    {(!t.classes || t.classes.length === 0) && (
+                    {teacherClasses(t).length === 0 && (
                       <span className="text-xs text-slate-400 italic">None assigned</span>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 pt-2">
-                <button
-                  onClick={() => viewAuditLogs(t.uid)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                >
-                  <History size={14} />
-                  History
-                </button>
-                <button
-                  onClick={() => handleDeleteTeacher(t.uid)}
-                  className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
+              {isAdmin && (
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <button
+                    onClick={() => viewAuditLogs(t.uid)}
+                    className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <History size={14} />
+                    History
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTeacher(t.uid)}
+                    className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>

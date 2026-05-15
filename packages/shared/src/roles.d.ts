@@ -1,0 +1,28 @@
+import { ROLES } from './constants/index.js';
+type PermissionUser = {
+    roles?: readonly string[];
+    isAdmin?: boolean;
+    permissions?: Record<string, boolean>;
+};
+export declare const ALL_ROLES: readonly [typeof ROLES.ADMIN, typeof ROLES.PRINCIPAL, typeof ROLES.TEACHER, typeof ROLES.STUDENT, typeof ROLES.PARENT, typeof ROLES.LIBRARIAN, typeof ROLES.ACCOUNTANT, typeof ROLES.STAFF];
+export type Role = (typeof ALL_ROLES)[number];
+export declare const ROLE_LABELS: Record<Role, string>;
+export declare const ALL_MODULES: readonly ["dashboard", "aiAssistant", "announcements", "attendance", "assignments", "chat", "library", "fees", "performance", "students", "teachers", "allUsers", "parentPortal", "auditLogs", "settings"];
+export type ModuleKey = (typeof ALL_MODULES)[number];
+export declare const MODULE_LABELS: Record<ModuleKey, string>;
+export declare const ALL_PERMISSIONS: readonly ["manageUsers", "manageRoles", "manageModules", "manageClasses", "manageSubjects", "manageStudents", "manageTeachers", "manageLibrary", "manageFees", "viewAuditLogs", "useAI", "createAnnouncements", "markAttendance", "viewReports"];
+export type PermissionKey = (typeof ALL_PERMISSIONS)[number];
+export declare const PERMISSION_LABELS: Record<PermissionKey, string>;
+export declare const DEFAULT_ROLE_MODULES: Record<Role, ModuleKey[]>;
+export declare const DEFAULT_ROLE_PERMISSIONS: Record<Role, PermissionKey[]>;
+export declare function isRole(value: unknown): value is Role;
+export declare function isModuleKey(value: unknown): value is ModuleKey;
+export declare function isPermissionKey(value: unknown): value is PermissionKey;
+export declare function getUserRole(roles?: readonly string[]): Role;
+export declare function hasRole(roles: readonly string[] | null | undefined, role: Role): boolean;
+export declare function toPermissionMap(permissions?: readonly string[] | Record<string, boolean>): Record<string, boolean>;
+export declare function getDefaultPermissionMap(role: Role): Record<string, boolean>;
+export declare function hasPermission(user: PermissionUser | null | undefined, permission: string): boolean;
+export declare function getEffectiveModules(role: string | null | undefined, assignedModules?: readonly string[] | null): ModuleKey[];
+export declare function canAccessModule(role: string | null | undefined, module: ModuleKey, assignedModules?: readonly string[] | null): boolean;
+export {};

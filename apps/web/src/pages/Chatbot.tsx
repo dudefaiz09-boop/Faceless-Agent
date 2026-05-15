@@ -109,14 +109,19 @@ export const ChatbotPage = () => {
       case 'teacher':
         return 'Ask about class management, grading, or lesson plans...';
       case 'admin':
+      case 'principal':
       case 'staff':
         return 'Ask about analytics, reports, or school coordination...';
+      case 'librarian':
+        return 'Ask about library records, books, or student reading activity...';
+      case 'accountant':
+        return 'Ask about fees, balances, or collection summaries...';
       default:
         return 'How can I help you today?';
     }
   };
 
-  const suggestedQueries =
+  const suggestedQueries: string[] =
     {
       student: [
         'Explain algebra basics',
@@ -135,6 +140,9 @@ export const ChatbotPage = () => {
       ],
       staff: ['Overall school performance', 'Analyze fee trends', 'Staff coordination report'],
       parent: ["Check my child's attendance", 'Next parent-teacher meeting', 'View latest grades'],
+      principal: ['Summarize school performance', 'Review attendance trends', 'Prepare assembly notes'],
+      librarian: ['List overdue books', 'Suggest reading programs', 'Summarize library activity'],
+      accountant: ['Review pending fees', 'Summarize collections', 'Find overdue payments'],
     }[role || 'student'] || [];
 
   return (

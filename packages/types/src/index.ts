@@ -2,11 +2,18 @@ export interface UserContext {
   uid: string;
   email?: string;
   displayName?: string;
+  role: string;
   roles: string[];
   isAdmin: boolean;
   schoolId: string | null;
   classId: string | null;
+  classIds: string[];
+  subjectIds: string[];
+  sectionIds: string[];
+  linkedStudentIds: string[];
+  assignedModules: string[];
   permissions: Record<string, boolean>;
+  status: 'active' | 'inactive';
 }
 
 declare global {

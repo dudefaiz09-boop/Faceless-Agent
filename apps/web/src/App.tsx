@@ -22,8 +22,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { RoleGuard } from './components/RoleGuard';
+import { ModuleGuard } from './components/ModuleGuard';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { canAccessModule, type ModuleKey } from '@educonnect/shared';
 
 // --- Lazy loaded pages ---
 const AnnouncementsPage = lazy(() =>
@@ -75,75 +76,80 @@ const SidebarLink = ({
         : 'text-slate-600 hover:bg-slate-100'
     )}
   >
-    <Icon size={20} />
-    <span className="font-medium">{label}</span>
+    <Icon size={20} className="shrink-0" />
+    <span className="font-medium truncate">{label}</span>
   </Link>
 );
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  const { user, role } = useAuth();
+  const { user, role, assignedModules } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const menuItems = [
+  const menuItems: Array<{
+    to: string;
+    icon: React.ElementType;
+    label: string;
+    module: ModuleKey;
+  }> = [
     {
       to: '/',
       icon: LayoutDashboard,
       label: 'Dashboard',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'dashboard',
     },
     {
       to: '/chatbot',
       icon: Bot,
       label: 'AI Assistant',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'aiAssistant',
     },
     {
       to: '/announcements',
       icon: Bell,
       label: 'Announcements',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'announcements',
     },
     {
       to: '/attendance',
       icon: Calendar,
       label: 'Attendance',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'attendance',
     },
     {
       to: '/assignments',
       icon: BookOpen,
       label: 'Assignments',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'assignments',
     },
     {
       to: '/chat',
       icon: MessageSquare,
       label: 'Chat',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'chat',
     },
     {
       to: '/library',
       icon: Library,
       label: 'Library',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'library',
     },
     {
       to: '/fees',
       icon: CreditCard,
       label: 'Fees',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'fees',
     },
     {
       to: '/performance',
       icon: BarChart3,
       label: 'Performance',
-      roles: ['student', 'parent', 'teacher', 'staff', 'admin'],
+      module: 'performance',
     },
-    { to: '/parent-portal', icon: Baby, label: 'Parent Portal', roles: ['parent'] },
-    { to: '/students', icon: Users, label: 'Students', roles: ['teacher', 'staff', 'admin'] },
-    { to: '/teachers', icon: GraduationCap, label: 'Teachers', roles: ['staff', 'admin'] },
-    { to: '/all-users', icon: Shield, label: 'All Users', roles: ['admin'] },
+    { to: '/parent-portal', icon: Baby, label: 'Parent Portal', module: 'parentPortal' },
+    { to: '/students', icon: Users, label: 'Students', module: 'students' },
+    { to: '/teachers', icon: GraduationCap, label: 'Teachers', module: 'teachers' },
+    { to: '/all-users', icon: Shield, label: 'All Users', module: 'allUsers' },
   ];
 
   const handleLogout = () => supabase.auth.signOut();
@@ -167,25 +173,26 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       <aside
         className={cn(
           'fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-50 transform lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out px-4 py-8',
+          'flex flex-col',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex items-center gap-3 px-4 mb-10">
+        <div className="flex items-center gap-3 px-4 mb-8 shrink-0">
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
             <GraduationCap size={24} />
           </div>
           <span className="text-xl font-bold text-slate-900 tracking-tight">EduConnect</span>
         </div>
 
-        <nav className="space-y-1">
+        <nav className="space-y-1 flex-1 overflow-y-auto pr-1">
           {menuItems
-            .filter((item) => item.roles.includes(role || ''))
+            .filter((item) => role && canAccessModule(role, item.module, assignedModules))
             .map((item) => (
               <SidebarLink key={item.to} {...item} active={location.pathname === item.to} />
             ))}
         </nav>
 
-        <div className="absolute bottom-8 left-4 right-4">
+        <div className="pt-4 shrink-0">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
@@ -461,45 +468,108 @@ const AppContent = () => {
         }
       >
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/chatbot" element={<ChatbotPage />} />
-          <Route path="/announcements" element={<AnnouncementsPage />} />
-          <Route path="/attendance" element={<AttendancePage />} />
-          <Route path="/assignments" element={<AssignmentsPage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/library" element={<LibraryPage />} />
-          <Route path="/fees" element={<FeesPage />} />
-          <Route path="/performance" element={<PerformancePage />} />
+          <Route
+            path="/"
+            element={
+              <ModuleGuard module="dashboard">
+                <Dashboard />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/chatbot"
+            element={
+              <ModuleGuard module="aiAssistant">
+                <ChatbotPage />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/announcements"
+            element={
+              <ModuleGuard module="announcements">
+                <AnnouncementsPage />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/attendance"
+            element={
+              <ModuleGuard module="attendance">
+                <AttendancePage />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/assignments"
+            element={
+              <ModuleGuard module="assignments">
+                <AssignmentsPage />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ModuleGuard module="chat">
+                <ChatPage />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/library"
+            element={
+              <ModuleGuard module="library">
+                <LibraryPage />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/fees"
+            element={
+              <ModuleGuard module="fees">
+                <FeesPage />
+              </ModuleGuard>
+            }
+          />
+          <Route
+            path="/performance"
+            element={
+              <ModuleGuard module="performance">
+                <PerformancePage />
+              </ModuleGuard>
+            }
+          />
           <Route
             path="/parent-portal"
             element={
-              <RoleGuard allowedRoles={['parent']}>
+              <ModuleGuard module="parentPortal">
                 <ParentPortal />
-              </RoleGuard>
+              </ModuleGuard>
             }
           />
           <Route
             path="/students"
             element={
-              <RoleGuard allowedRoles={['teacher', 'staff', 'admin']}>
+              <ModuleGuard module="students">
                 <StudentsPage />
-              </RoleGuard>
+              </ModuleGuard>
             }
           />
           <Route
             path="/teachers"
             element={
-              <RoleGuard allowedRoles={['staff', 'admin']}>
+              <ModuleGuard module="teachers">
                 <TeachersPage />
-              </RoleGuard>
+              </ModuleGuard>
             }
           />
           <Route
             path="/all-users"
             element={
-              <RoleGuard allowedRoles={['admin']}>
+              <ModuleGuard module="allUsers">
                 <UsersPage type="all" />
-              </RoleGuard>
+              </ModuleGuard>
             }
           />
         </Routes>
