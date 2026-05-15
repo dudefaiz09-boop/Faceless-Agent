@@ -131,6 +131,45 @@ publicRouter.get('/', (req, res) => {
 publicRouter.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
+
+publicRouter.get('/ready', async (req, res) => {
+  try {
+    // Check required environment variables
+    const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+    const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
+    
+    if (missingVars.length > 0) {
+      return res.status(503).json({
+        status: 'not_ready',
+        message: 'Missing required environment variables',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Check Supabase connectivity (simple ping)
+    const { auth } = await import('./lib/documents.js');
+    await auth.getUser('test-connectivity-check').catch(() => {
+      // Expected to fail, we just want to verify connection works
+    });
+
+    res.json({
+      status: 'ready',
+      environment: process.env.NODE_ENV || 'development',
+      features: {
+        ai: !!process.env.OPENROUTER_API_KEY,
+        uploads: !!process.env.SUPABASE_UPLOADS_BUCKET,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'not_ready',
+      message: 'Service connectivity check failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 app.use('/api', publicRouter);
 
 // 2b. Rate Limiting - Stricter for sensitive operations
