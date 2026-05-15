@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Bell, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
@@ -29,6 +29,7 @@ export function NotificationDropdown() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [localReadIds, setLocalReadIds] = useState<Set<string>>(() => new Set());
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const { data } = useDocuments<NotificationRecord>('notifications', {
     limit: 20,
     order: { field: 'createdAt', ascending: false },
@@ -124,8 +125,52 @@ export function NotificationDropdown() {
     }
   };
 
+  const deleteNotification = async (item: NotificationRecord, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!item.id || item.id.startsWith('demo-')) return;
+    
+    try {
+      await apiClient.request(`/api/notifications/${item.id}`, { method: 'DELETE' });
+      toast({
+        tone: 'success',
+        title: 'Notification deleted',
+        description: 'The notification has been removed.',
+      });
+    } catch (error) {
+      toast({
+        tone: 'error',
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Unable to delete notification.',
+      });
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen((value) => !value)}
         className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
@@ -143,7 +188,7 @@ export function NotificationDropdown() {
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            className="absolute right-0 z-50 mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
+            className="absolute right-0 z-[300] mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
@@ -160,35 +205,48 @@ export function NotificationDropdown() {
             </div>
             <div className="max-h-96 overflow-y-auto p-2">
               {notifications.map((item) => (
-                <button
+                <div
                   key={item.id}
-                  onClick={() => void openNotification(item)}
                   className={cn(
-                    'w-full rounded-2xl p-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-900',
+                    'group relative rounded-2xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-900',
                     !isRead(item) && 'bg-blue-50/70 dark:bg-blue-950/30'
                   )}
                 >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={cn(
-                        'mt-1 h-2.5 w-2.5 shrink-0 rounded-full',
-                        isRead(item) ? 'bg-slate-200 dark:bg-slate-700' : 'bg-blue-600'
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate font-bold text-slate-900 dark:text-white">{item.title || 'Notification'}</p>
-                        {item.href && <ExternalLink size={12} className="shrink-0 text-slate-300" />}
+                  <button
+                    onClick={() => void openNotification(item)}
+                    className="w-full p-3 text-left"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          'mt-1 h-2.5 w-2.5 shrink-0 rounded-full',
+                          isRead(item) ? 'bg-slate-200 dark:bg-slate-700' : 'bg-blue-600'
+                        )}
+                      />
+                      <div className="min-w-0 flex-1 pr-8">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate font-bold text-slate-900 dark:text-white">{item.title || 'Notification'}</p>
+                          {item.href && <ExternalLink size={12} className="shrink-0 text-slate-300" />}
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">{item.message}</p>
+                        {item.createdAt && (
+                          <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            {new Date(item.createdAt).toLocaleString()}
+                          </p>
+                        )}
                       </div>
-                      <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">{item.message}</p>
-                      {item.createdAt && (
-                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          {new Date(item.createdAt).toLocaleString()}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                </button>
+                  </button>
+                  {!item.id?.startsWith('demo-') && (
+                    <button
+                      onClick={(e) => void deleteNotification(item, e)}
+                      className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950"
+                      title="Delete notification"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </motion.div>

@@ -3,8 +3,13 @@ import { db } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 import { createNotification } from '../lib/notifications.js';
 import { logger } from '@educonnect/logger';
+import { env } from '../lib/config.js';
 
 const router: Router = Router();
+
+// Get currency symbol from config
+const CURRENCY = env.CURRENCY || 'INR';
+const CURRENCY_SYMBOL = CURRENCY === 'INR' ? '₹' : '$';
 
 type FeeRecord = {
   studentId: string;
@@ -129,9 +134,10 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
           createdAt: existingFee ? existingFee.createdAt : now,
         });
 
+        // Notify student
         await safeFeeNotification({
           title: 'Fee record updated',
-          message: `A fee of $${amountDue} is due on ${dueDate}.`,
+          message: `A fee of ${CURRENCY_SYMBOL}${amountDue} is due on ${dueDate}.`,
           type: 'fee',
           href: '/fees',
           targetUserIds: [studentId],
@@ -140,6 +146,29 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
           actorId: req.user?.uid,
           metadata: { feeId: id, classId, dueDate, amountDue },
         });
+
+        // Notify linked parents
+        try {
+          const usersSnapshot = await db.collection('users')
+            .where('linkedStudentIds', 'array-contains', studentId)
+            .get();
+          const parentIds = usersSnapshot.docs.map(doc => doc.id);
+          if (parentIds.length > 0) {
+            await safeFeeNotification({
+              title: 'Student fee record updated',
+              message: `A fee of ${CURRENCY_SYMBOL}${amountDue} is due on ${dueDate} for your linked student.`,
+              type: 'fee',
+              href: '/fees',
+              targetUserIds: parentIds,
+              schoolId: req.user?.schoolId || null,
+              tenantId: req.tenantId,
+              actorId: req.user?.uid,
+              metadata: { feeId: id, classId, dueDate, amountDue, studentId },
+            });
+          }
+        } catch (error) {
+          logger.warn({ err: error, studentId }, 'Failed to notify parents of fee update');
+        }
 
         return { id, ...payload };
       })
@@ -196,7 +225,7 @@ router.post('/pay', async (req, res, next) => {
 
     await safeFeeNotification({
       title: 'Payment recorded',
-      message: `$${amount} was recorded for your fee account.`,
+      message: `${CURRENCY_SYMBOL}${amount} was recorded for your fee account.`,
       type: 'fee',
       href: '/fees',
       targetUserIds: [fee.studentId],

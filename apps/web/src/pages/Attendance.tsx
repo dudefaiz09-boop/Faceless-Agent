@@ -11,9 +11,10 @@ import {
   Save,
   CheckSquare,
   Download,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useDebounce } from '../lib/hooks';
 import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
 import { Card } from '../components/ui/Card';
@@ -97,6 +98,7 @@ export const AttendancePage = () => {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
   const [loading, setLoading] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
   // Marking state
   const [dailyRecords, setDailyRecords] = useState<Record<string, 'present' | 'absent' | 'late'>>(
@@ -215,6 +217,9 @@ export const AttendancePage = () => {
           records,
         }),
       });
+      // Refetch to ensure sync
+      await loadMarkingData();
+      setLastSyncTime(new Date());
       toast({
         tone: 'success',
         title: 'Attendance saved',
@@ -261,12 +266,38 @@ export const AttendancePage = () => {
     );
   };
 
+  const handleRefresh = useCallback(async () => {
+    if (view === 'marking' && canManageAttendance) {
+      await loadMarkingData();
+    } else if (view === 'history') {
+      await loadHistory();
+    } else if (view === 'reports' && canManageAttendance) {
+      await loadReports();
+    }
+    setLastSyncTime(new Date());
+    toast({
+      tone: 'success',
+      title: 'Refreshed',
+      description: 'Attendance data synced successfully.',
+    });
+  }, [view, canManageAttendance, loadMarkingData, loadHistory, loadReports, toast]);
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Attendance</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Attendance</h1>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="rounded-xl bg-slate-100 p-2 text-slate-600 hover:bg-slate-200 disabled:opacity-50 transition-colors"
+              title="Refresh attendance data"
+            >
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
           <p className="text-slate-500 mt-1">
             {canManageAttendance
               ? 'Track student attendance and review history.'
@@ -335,6 +366,17 @@ export const AttendancePage = () => {
                 tone="violet"
               />
             </div>
+
+            {canManageAttendance && (
+              <div className="flex items-center justify-between rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3">
+                <p className="text-xs font-bold text-emerald-700">
+                  Last synced: {formatDistanceToNow(lastSyncTime, { addSuffix: true })}
+                </p>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                  Realtime enabled
+                </span>
+              </div>
+            )}
 
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">

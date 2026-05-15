@@ -27,10 +27,19 @@ interface TimestampLike {
 interface LibraryResource {
   id: string;
   title: string;
+  description?: string;
   subject: string;
   grade: string;
-  fileUrl: string;
+  classIds?: string[];
+  type: 'pdf' | 'ebook' | 'web_link' | 'video' | 'document';
+  fileUrl?: string;
+  externalUrl?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
   tags: string[];
+  visibility: 'all' | 'roles' | 'classes';
+  targetRoles?: string[];
+  targetClassIds?: string[];
   uploadedAt: TimestampLike | string | number | null;
 }
 
@@ -66,12 +75,19 @@ export const LibraryPage = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Upload Form
+  const [uploadType, setUploadType] = useState<'file' | 'link'>('file');
   const [uploadData, setUploadData] = useState({
     title: '',
+    description: '',
     subject: '',
     grade: '',
+    type: 'pdf' as 'pdf' | 'ebook' | 'web_link' | 'video' | 'document',
     fileUrl: '',
+    externalUrl: '',
+    attachmentName: '',
     tags: '',
+    visibility: 'all' as 'all' | 'roles' | 'classes',
+    targetClassIds: [] as string[],
   });
 
   const loadResources = useCallback(async () => {
@@ -104,8 +120,46 @@ export const LibraryPage = () => {
     init();
   }, [isStudent, loadResources, loadMyHistory]);
 
+  const handleFileUploadComplete = (url: string, name: string, size: number) => {
+    setUploadData(prev => ({
+      ...prev,
+      fileUrl: url,
+      attachmentName: name,
+      attachmentSize: size,
+    }));
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!uploadData.title || !uploadData.subject || !uploadData.grade) {
+      toast({
+        tone: 'error',
+        title: 'Missing fields',
+        description: 'Please fill in title, subject, and grade.',
+      });
+      return;
+    }
+
+    if (uploadType === 'file' && !uploadData.fileUrl) {
+      toast({
+        tone: 'error',
+        title: 'No file uploaded',
+        description: 'Please upload a file or switch to web link mode.',
+      });
+      return;
+    }
+
+    if (uploadType === 'link' && !uploadData.externalUrl) {
+      toast({
+        tone: 'error',
+        title: 'No URL provided',
+        description: 'Please enter a web link URL.',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       await apiClient.request('/api/library/upload', {
@@ -120,18 +174,33 @@ export const LibraryPage = () => {
       });
       setIsUploadModalOpen(false);
       loadResources();
-      setUploadData({ title: '', subject: '', grade: '', fileUrl: '', tags: '' });
+      setUploadData({
+        title: '',
+        description: '',
+        subject: '',
+        grade: '',
+        type: 'pdf',
+        fileUrl: '',
+        externalUrl: '',
+        attachmentName: '',
+        tags: '',
+        visibility: 'all',
+        targetClassIds: [],
+      });
+      setUploadType('file');
       toast({
         tone: 'success',
         title: 'Resource added',
         description: `${uploadData.title} is now available in the catalog.`,
       });
-    } catch {
+    } catch (error) {
       toast({
         tone: 'error',
         title: 'Upload failed',
-        description: 'Please check the resource fields and try again.',
+        description: error instanceof Error ? error.message : 'Please check the resource fields and try again.',
       });
+    } finally {
+      setLoading(false);
     }
   };
 

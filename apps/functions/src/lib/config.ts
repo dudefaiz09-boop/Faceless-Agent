@@ -17,6 +17,11 @@ const envSchema = z.object({
 
   // Free AI provider keys. Keep these server-side only.
   OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_MODEL: z.string().optional(),
+  
+  // Application configuration
+  PUBLIC_APP_URL: z.string().optional(),
+  CURRENCY: z.string().default('INR'),
 });
 
 /**

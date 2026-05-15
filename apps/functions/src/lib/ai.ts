@@ -2,11 +2,25 @@ import { AppError } from '../middleware/error.js';
 import { env } from './config.js';
 
 const openRouterApiKey = env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
-const openRouterModel = process.env.OPENROUTER_MODEL || 'mistralai/mistral-7b-instruct:free';
+const openRouterModel = env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL || 'mistralai/mistral-7b-instruct:free';
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Determine HTTP-Referer for OpenRouter
+function getHttpReferer(): string {
+  const publicUrl = env.PUBLIC_APP_URL || process.env.PUBLIC_APP_URL;
+  if (publicUrl) return publicUrl;
+  
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    return vercelUrl.startsWith('http') ? vercelUrl : `https://${vercelUrl}`;
+  }
+  
+  return 'http://localhost:5173';
+}
 
 export const AI_MODEL = openRouterModel;
 export const isAiEnabled = !!openRouterApiKey;
+export const AI_HTTP_REFERER = getHttpReferer();
 
 function fallbackResponse(userPrompt: string) {
   const trimmed = userPrompt.trim().replace(/\s+/g, ' ').slice(0, 220);
@@ -60,7 +74,7 @@ export async function generateSafeContent(
       headers: {
         Authorization: `Bearer ${openRouterApiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://educonnect-web-iota.vercel.app',
+        'HTTP-Referer': AI_HTTP_REFERER,
         'X-Title': 'EduConnect AI',
       },
       body: JSON.stringify({
@@ -82,8 +96,11 @@ export async function generateSafeContent(
         await new Promise((resolve) => setTimeout(resolve, 1200));
         return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
       }
+      // Log provider error details server-side only, don't expose to frontend
       const body = await response.text().catch(() => '');
-      throw new AppError(`AI provider error ${response.status}: ${body.slice(0, 160)}`, 502);
+      console.error('[AI] Provider error:', response.status, body.slice(0, 200));
+      // Return safe fallback instead of throwing
+      return fallbackResponse(userPrompt);
     }
 
     const payload = await response.json();

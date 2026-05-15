@@ -15,7 +15,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import {
   ASSIGNMENT_STATUS,
   Assignment,
@@ -40,10 +40,13 @@ export const AssignmentsPage = () => {
   const [renderedAt] = useState(() => Date.now());
 
   const {
-    data: assignments = [],
+    data: assignmentsData = [],
     isLoading: loading,
     createAssignment,
   } = useAssignments(assignmentsService, selectedClass);
+
+  // Guard against invalid data
+  const assignments = Array.isArray(assignmentsData) ? assignmentsData.filter(a => a && a.id) : [];
 
   // Creation Form State
   const [newAssignment, setNewAssignment] = useState(() => ({
@@ -172,11 +175,21 @@ export const AssignmentsPage = () => {
     }
   };
 
+  const handleRefresh = useCallback(async () => {
+    await loadAssignments();
+    toast({
+      tone: 'success',
+      title: 'Refreshed',
+      description: 'Assignments synced successfully.',
+    });
+  }, [loadAssignments, toast]);
+
   const filteredAssignments = assignments.filter((assignment) => {
+    if (!assignment || !assignment.id) return false;
     const query = search.trim().toLowerCase();
     if (!query) return true;
     return (
-      assignment.title.toLowerCase().includes(query) ||
+      (assignment.title || '').toLowerCase().includes(query) ||
       (assignment.description || '').toLowerCase().includes(query) ||
       (assignment.classId || '').toLowerCase().includes(query)
     );
@@ -184,8 +197,13 @@ export const AssignmentsPage = () => {
 
   const submittedCount = Object.keys(mySubmissions).length;
   const dueSoonCount = assignments.filter((assignment) => {
-    const due = new Date(assignment.dueDate).getTime();
-    return Number.isFinite(due) && due - renderedAt <= 7 * 86400000 && due >= renderedAt;
+    if (!assignment || !assignment.dueDate) return false;
+    try {
+      const due = new Date(assignment.dueDate).getTime();
+      return Number.isFinite(due) && due - renderedAt <= 7 * 86400000 && due >= renderedAt;
+    } catch {
+      return false;
+    }
   }).length;
 
   return (
@@ -235,6 +253,17 @@ export const AssignmentsPage = () => {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
+          {canManageAssignments && (
+            <div className="mb-6 flex items-center justify-between rounded-2xl bg-violet-50 border border-violet-100 px-4 py-3">
+              <p className="text-xs font-bold text-violet-700">
+                Last synced: {formatDistanceToNow(lastSyncTime, { addSuffix: true })}
+              </p>
+              <span className="text-[10px] font-black uppercase tracking-widest text-violet-600">
+                Realtime enabled
+              </span>
+            </div>
+          )}
+    
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -248,6 +277,7 @@ export const AssignmentsPage = () => {
           ) : (
             <div className="grid gap-4">
               {filteredAssignments.map((assignment) => {
+                if (!assignment || !assignment.id) return null;
                 const mySub = mySubmissions[assignment.id];
                 return (
                   <motion.div
@@ -264,8 +294,8 @@ export const AssignmentsPage = () => {
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                            {assignment.title}
+                          <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors dark:text-white">
+                            {assignment.title || 'Untitled Assignment'}
                           </h3>
                           {isStudent && mySub && (
                             <span
@@ -280,12 +310,12 @@ export const AssignmentsPage = () => {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">
                           <span className="flex items-center gap-1">
-                            <CalendarIcon size={12} /> Due {assignment.dueDate}
+                            <CalendarIcon size={12} /> Due {assignment.dueDate || 'TBD'}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Users size={12} /> {assignment.classId}
+                            <Users size={12} /> {assignment.classId || 'All'}
                           </span>
                         </div>
                       </div>
@@ -325,9 +355,11 @@ export const AssignmentsPage = () => {
                 className="bg-white p-8 rounded-3xl border border-slate-100 shadow-lg space-y-6"
               >
                 <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-slate-900">{selectedAssignment.title}</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed">
-                    {selectedAssignment.description}
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                    {selectedAssignment.title || 'Untitled Assignment'}
+                  </h3>
+                  <p className="text-slate-600 text-sm leading-relaxed dark:text-slate-400">
+                    {selectedAssignment.description || 'No description provided.'}
                   </p>
                 </div>
 
@@ -409,11 +441,13 @@ export const AssignmentsPage = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <FileUpload 
-                            label="Attach File / Screenshot"
-                            path={`submissions/${selectedAssignment.id}/${uid}`}
-                            onUploadComplete={(url) => setSubmissionFileUrl(url)}
-                          />
+                          {uid && selectedAssignment.id && (
+                            <FileUpload
+                              label="Attach File / Screenshot"
+                              path={`submissions/${selectedAssignment.id}/${uid}`}
+                              onUploadComplete={(url) => setSubmissionFileUrl(url)}
+                            />
+                          )}
                         </div>
 
                         <button

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  CreditCard, Upload, Download, History, 
+import {
+  CreditCard, Upload, Download, History,
   AlertCircle, TrendingUp, Users,
   DollarSign,
-  PieChart as PieChartIcon, FileText, Send, X
+  PieChart as PieChartIcon, FileText, Send, X, Paperclip
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { validateFeesCSV, CSVValidationError } from '../lib/csvValidator';
@@ -59,9 +59,18 @@ function formatDate(value: PaymentRecord['paidAt']) {
   return new Date(date || Date.now()).toLocaleDateString();
 }
 
+// Currency configuration - should match backend
+const CURRENCY = 'INR';
+const CURRENCY_SYMBOL = CURRENCY === 'INR' ? '₹' : '$';
+
+function formatCurrency(amount: number): string {
+  return `${CURRENCY_SYMBOL}${amount.toLocaleString()}`;
+}
+
 export const FeesPage = () => {
   const { user, isStudent, canManageFees, classId: userClassId } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -73,7 +82,9 @@ export const FeesPage = () => {
 
   // Management State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'paste' | 'file'>('file');
   const [uploadText, setUploadText] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
   const [feeSearch, setFeeSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
@@ -115,10 +126,43 @@ export const FeesPage = () => {
     init();
   }, [isStudent, canManageFees, loadStudentData, loadReport]);
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      toast({
+        tone: 'error',
+        title: 'Invalid file type',
+        description: 'Please select a CSV file.',
+      });
+      return;
+    }
+
+    setUploadFile(file);
+    
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setUploadText(text);
+    };
+    reader.readAsText(file);
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError(null);
     setUploadSuccess(false);
+
+    if (!uploadText.trim()) {
+      toast({
+        tone: 'error',
+        title: 'No data',
+        description: uploadMode === 'file' ? 'Please select a CSV file.' : 'Please paste CSV data.',
+      });
+      return;
+    }
 
     // Validate CSV format
     const validation = validateFeesCSV(uploadText);
@@ -147,6 +191,7 @@ export const FeesPage = () => {
       setTimeout(() => {
         setIsUploadModalOpen(false);
         setUploadText('');
+        setUploadFile(null);
         setUploadSuccess(false);
         loadReport();
       }, 2000);
@@ -174,7 +219,7 @@ export const FeesPage = () => {
       toast({
         tone: 'success',
         title: 'Payment recorded',
-        description: `$${amount} was recorded successfully.`,
+        description: `${formatCurrency(amount)} was recorded successfully.`,
       });
       loadStudentData();
     } catch (error) {
@@ -211,13 +256,13 @@ export const FeesPage = () => {
       key: 'amountDue',
       header: 'Due',
       align: 'right',
-      render: (record) => <span className="font-black text-slate-900 dark:text-white">${record.amountDue}</span>,
+      render: (record) => <span className="font-black text-slate-900 dark:text-white">{formatCurrency(record.amountDue)}</span>,
     },
     {
       key: 'amountPaid',
       header: 'Paid',
       align: 'right',
-      render: (record) => <span className="font-black text-emerald-600">${record.amountPaid}</span>,
+      render: (record) => <span className="font-black text-emerald-600">{formatCurrency(record.amountPaid)}</span>,
     },
     {
       key: 'status',

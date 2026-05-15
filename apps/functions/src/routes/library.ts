@@ -8,12 +8,21 @@ const router: Router = Router();
 
 type LibraryResource = {
   title: string;
+  description?: string;
   subject: string;
   grade: string;
-  fileUrl: string;
+  classIds?: string[];
+  type: 'pdf' | 'ebook' | 'web_link' | 'video' | 'document';
+  fileUrl?: string;
+  externalUrl?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
   tags?: string[];
   tenantId?: string;
   schoolId?: string | null;
+  visibility: 'all' | 'roles' | 'classes';
+  targetRoles?: string[];
+  targetClassIds?: string[];
   availableCopies?: number;
   borrowedCount?: number;
 };
@@ -69,10 +78,39 @@ router.get('/borrow/history/:uid', async (req, res, next) => {
 
 router.get('/resources', async (req, res, next) => {
   try {
+    const user = req.user;
     const snapshot = await db.collection('library')
       .where('tenantId', '==', req.tenantId)
       .get();
-    res.json(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    
+    // Filter resources based on visibility and user role/class
+    const allResources = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const filteredResources = allResources.filter((resource: any) => {
+      // Admin/librarian/principal see all
+      if (user?.isAdmin || user?.roles.includes('librarian') || user?.roles.includes('principal')) {
+        return true;
+      }
+
+      // Check visibility rules
+      if (resource.visibility === 'all') return true;
+      
+      if (resource.visibility === 'roles' && resource.targetRoles) {
+        const userRole = user?.role || user?.roles?.[0];
+        if (resource.targetRoles.includes(userRole)) return true;
+      }
+      
+      if (resource.visibility === 'classes' && resource.targetClassIds) {
+        const userClassIds = user?.classIds || (user?.classId ? [user.classId] : []);
+        const hasMatchingClass = resource.targetClassIds.some((classId: string) =>
+          userClassIds.includes(classId)
+        );
+        if (hasMatchingClass) return true;
+      }
+      
+      return false;
+    });
+
+    res.json(filteredResources);
   } catch (error) {
     next(error);
   }
@@ -95,13 +133,27 @@ router.post('/upload', checkPermission('manageLibrary'), async (req, res, next) 
     if (!user) return;
 
     const title = String(req.body.title || '').trim();
+    const description = String(req.body.description || '').trim();
     const subject = String(req.body.subject || '').trim();
     const grade = String(req.body.grade || '').trim();
+    const type = req.body.type || 'document';
     const fileUrl = String(req.body.fileUrl || '').trim();
+    const externalUrl = String(req.body.externalUrl || '').trim();
+    const attachmentName = String(req.body.attachmentName || '').trim();
+    const attachmentSize = Number(req.body.attachmentSize || 0);
     const tags = Array.isArray(req.body.tags) ? req.body.tags.map(String).filter(Boolean) : [];
+    const visibility = req.body.visibility || 'all';
+    const targetRoles = Array.isArray(req.body.targetRoles) ? req.body.targetRoles : [];
+    const targetClassIds = Array.isArray(req.body.targetClassIds) ? req.body.targetClassIds : [];
+    const classIds = Array.isArray(req.body.classIds) ? req.body.classIds : [];
 
-    if (!title || !subject || !grade || !fileUrl) {
-      return res.status(400).json({ error: 'title, subject, grade, and fileUrl are required' });
+    if (!title || !subject || !grade) {
+      return res.status(400).json({ error: 'title, subject, and grade are required' });
+    }
+
+    // Validate that either fileUrl or externalUrl is provided
+    if (!fileUrl && !externalUrl) {
+      return res.status(400).json({ error: 'Either fileUrl or externalUrl is required' });
     }
 
     const now = new Date().toISOString();
@@ -109,10 +161,19 @@ router.post('/upload', checkPermission('manageLibrary'), async (req, res, next) 
       tenantId: req.tenantId,
       schoolId: user.schoolId,
       title,
+      description,
       subject,
       grade,
-      fileUrl,
+      classIds,
+      type,
+      fileUrl: fileUrl || undefined,
+      externalUrl: externalUrl || undefined,
+      attachmentName: attachmentName || undefined,
+      attachmentSize: attachmentSize || undefined,
       tags,
+      visibility,
+      targetRoles,
+      targetClassIds,
       availableCopies: Number(req.body.availableCopies || 1),
       borrowedCount: 0,
       uploadedBy: user.uid,
@@ -121,20 +182,32 @@ router.post('/upload', checkPermission('manageLibrary'), async (req, res, next) 
     };
 
     const ref = await db.collection('library').add(resource);
+    
+    // Determine notification targets based on visibility
+    let notificationTargets: any = {};
+    if (visibility === 'all') {
+      notificationTargets.targetRoles = ['student', 'teacher', 'parent'];
+    } else if (visibility === 'roles') {
+      notificationTargets.targetRoles = targetRoles;
+    } else if (visibility === 'classes') {
+      notificationTargets.targetClasses = targetClassIds;
+    }
+
     await safeLibraryNotification({
       title: `New library resource: ${title}`,
       message: `${subject} resource for grade ${grade} is now available.`,
       type: 'system',
       href: '/library',
-      targetRoles: ['student', 'teacher'],
+      ...notificationTargets,
       schoolId: user.schoolId,
       tenantId: req.tenantId,
       actorId: user.uid,
-      metadata: { resourceId: ref.id, subject, grade },
+      metadata: { resourceId: ref.id, subject, grade, type },
     });
 
     res.status(201).json({ id: ref.id, ...resource });
   } catch (error) {
+    logger.error({ err: error, userId: req.user?.uid }, 'Failed to upload library resource');
     next(error);
   }
 });

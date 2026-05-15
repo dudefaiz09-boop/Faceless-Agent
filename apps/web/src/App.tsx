@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { ModuleGuard } from './components/ModuleGuard';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
 import { canAccessModule, type ModuleKey } from '@educonnect/shared';
 import { CommandPalette } from './components/saas/CommandPalette';
 import { NotificationDropdown } from './components/saas/NotificationDropdown';
@@ -411,7 +412,9 @@ const AppContent = () => {
             path="/assignments"
             element={
               <ModuleGuard module="assignments">
-                <AssignmentsPage />
+                <ModuleErrorBoundary>
+                  <AssignmentsPage />
+                </ModuleErrorBoundary>
               </ModuleGuard>
             }
           />

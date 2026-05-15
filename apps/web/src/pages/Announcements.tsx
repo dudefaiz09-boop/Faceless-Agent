@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Bell,
@@ -7,6 +7,7 @@ import {
   Megaphone,
   Pin,
   Plus,
+  RefreshCw,
   Search,
   Send,
   Sparkles,
@@ -57,10 +58,21 @@ export const AnnouncementsPage = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [submitting, setSubmitting] = useState(false);
   const debouncedSearch = useDebounce(search, 250);
-  const { data: records, loading } = useDocuments<Announcement>('announcements', {
+  const { data: records, loading, reload } = useDocuments<Announcement>('announcements', {
     order: { field: 'createdAt', ascending: false },
     realtime: true,
   });
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+
+  const handleReload = useCallback(async () => {
+    await reload();
+    setLastSyncTime(new Date());
+    toast({
+      tone: 'success',
+      title: 'Refreshed',
+      description: 'Announcements synced successfully.',
+    });
+  }, [reload, toast]);
 
   const [form, setForm] = useState({
     title: '',
@@ -129,6 +141,9 @@ export const AnnouncementsPage = () => {
         isScheduled: false,
         scheduledFor: '',
       });
+      // Refetch to ensure sync
+      await reload();
+      setLastSyncTime(new Date());
       toast({
         tone: 'success',
         title: 'Announcement posted',
@@ -149,6 +164,14 @@ export const AnnouncementsPage = () => {
     if (!window.confirm('Archive this announcement?')) return;
     try {
       await apiClient.request(`/api/announcements/${id}`, { method: 'DELETE' });
+      // Refetch to ensure sync
+      await reload();
+      setLastSyncTime(new Date());
+      toast({
+        tone: 'success',
+        title: 'Archived',
+        description: 'Announcement archived successfully.',
+      });
     } catch (error) {
       toast({
         tone: 'error',
@@ -173,19 +196,39 @@ export const AnnouncementsPage = () => {
               Priority-aware broadcasts, role targeting, scheduling, and instant delivery for the whole school.
             </p>
           </div>
-          {canPost && (
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-black text-slate-950 shadow-xl shadow-blue-950/20 hover:bg-cyan-50"
+              onClick={handleReload}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/10 border border-white/20 px-4 py-3 font-bold text-white hover:bg-white/20 disabled:opacity-50"
+              title="Refresh announcements"
             >
-              <Plus size={18} />
-              New Announcement
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
-          )}
+            {canPost && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-black text-slate-950 shadow-xl shadow-blue-950/20 hover:bg-cyan-50"
+              >
+                <Plus size={18} />
+                New Announcement
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
       <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+        {canPost && (
+          <div className="lg:col-span-2 flex items-center justify-between rounded-2xl bg-blue-50 border border-blue-100 px-4 py-3">
+            <p className="text-xs font-bold text-blue-700">
+              Last synced: {formatDistanceToNow(lastSyncTime, { addSuffix: true })}
+            </p>
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+              Realtime enabled
+            </span>
+          </div>
+        )}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input

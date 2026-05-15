@@ -97,8 +97,22 @@ router.get('/:classId?', async (req, res, next) => {
     }
 
     const snapshot = await query.get();
-    res.json(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+    const assignments = snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Ensure required fields have defaults
+        title: data.title || 'Untitled Assignment',
+        dueDate: data.dueDate || null,
+        classId: data.classId || null,
+        targetClasses: Array.isArray(data.targetClasses) ? data.targetClasses : [],
+        attachments: Array.isArray(data.attachments) ? data.attachments : [],
+      };
+    });
+    res.json(assignments);
   } catch (error) {
+    logger.error({ err: error, classId: req.params.classId }, 'Failed to list assignments');
     next(error);
   }
 });
@@ -161,7 +175,10 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
     // Fetch assignment to get rubric
     const assignmentDoc = await db.collection('assignments').doc(assignmentId).get();
     const assignment = assignmentDoc.exists ? assignmentDoc.data() : null;
-    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
+    if (!assignment) {
+      logger.warn({ assignmentId, userId: user.uid }, 'Assignment not found for submission');
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
 
     const docId = `${assignmentId}_${user.uid}`;
     const submissionRef = db.collection('submissions').doc(docId);
@@ -236,11 +253,14 @@ Respond strictly in JSON format: { "score": number, "feedback": "string" }`;
         metadata: { assignmentId, submissionId: docId, aiScore: aiResult.score || null },
       });
     } catch (aiError) {
-      logger.error({ err: aiError, uid: user.uid }, 'AI evaluation failed');
+      logger.error({ err: aiError, uid: user.uid, assignmentId }, 'AI evaluation failed');
+      // Continue even if AI grading fails - submission is still saved
     }
 
     res.json({ success: true, id: docId });
   } catch (error) {
+    const assignmentId = req.params.id || req.body.assignmentId;
+    logger.error({ err: error, assignmentId, userId: req.user?.uid }, 'Failed to submit assignment');
     next(error);
   }
 });
