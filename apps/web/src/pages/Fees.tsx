@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,7 +15,6 @@ import {
   FileText,
   Send,
   X,
-  Paperclip,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { validateFeesCSV, CSVValidationError } from '../lib/csvValidator';
@@ -86,7 +85,6 @@ function formatCurrency(amount: number): string {
 export const FeesPage = () => {
   const { user, isStudent, canManageFees, classId: userClassId } = useAuth();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -98,9 +96,7 @@ export const FeesPage = () => {
 
   // Management State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [uploadMode, setUploadMode] = useState<'paste' | 'file'>('file');
   const [uploadText, setUploadText] = useState('');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
   const [feeSearch, setFeeSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
@@ -142,30 +138,6 @@ export const FeesPage = () => {
     init();
   }, [isStudent, canManageFees, loadStudentData, loadReport]);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.name.endsWith('.csv')) {
-      toast({
-        tone: 'error',
-        title: 'Invalid file type',
-        description: 'Please select a CSV file.',
-      });
-      return;
-    }
-
-    setUploadFile(file);
-
-    // Read file content
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      setUploadText(text);
-    };
-    reader.readAsText(file);
-  };
-
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError(null);
@@ -175,7 +147,7 @@ export const FeesPage = () => {
       toast({
         tone: 'error',
         title: 'No data',
-        description: uploadMode === 'file' ? 'Please select a CSV file.' : 'Please paste CSV data.',
+        description: 'Please paste CSV data.',
       });
       return;
     }
@@ -207,7 +179,6 @@ export const FeesPage = () => {
       setTimeout(() => {
         setIsUploadModalOpen(false);
         setUploadText('');
-        setUploadFile(null);
         setUploadSuccess(false);
         loadReport();
       }, 2000);

@@ -6,17 +6,16 @@ const pkgPath = path.resolve('package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
 async function build() {
-  const entryPoints = ['src/index.ts'];
-
   // Find all .ts files in src/hooks and src/services to ensure they are also entry points
   // if we want to keep them as separate files, or we just bundle everything into index.js
 
   await esbuild.build({
-    entryPoints: ['src/index.ts'],
+    absWorkingDir: process.cwd(),
+    entryPoints: [path.resolve('src/index.ts')],
     bundle: true,
     platform: 'node', // or 'browser' depending on the package, but 'node' is safer for shared
     format: 'esm',
-    outfile: 'dist/index.js',
+    outfile: path.resolve('dist/index.js'),
     sourcemap: true,
     external: [
       ...Object.keys(pkg.dependencies || {}),

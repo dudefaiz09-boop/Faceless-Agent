@@ -10,7 +10,7 @@ import globals from 'globals';
 export default [
   js.configs.recommended,
   {
-    files: ['**/*.{js,jsx,ts,tsx,cjs}'],
+    files: ['**/*.{js,jsx,ts,tsx,cjs,mjs}'],
     languageOptions: {
       parser: tsparser,
       parserOptions: {

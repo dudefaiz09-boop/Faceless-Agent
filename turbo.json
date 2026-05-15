@@ -19,17 +19,14 @@
       "inputs": ["src/**", "package.json", "tsconfig.json", "vite.config.ts"]
     },
     "lint": {
-      "dependsOn": ["^build"],
       "outputs": [],
       "inputs": ["src/**", "package.json", ".eslintrc*", "eslint.config.*"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
       "outputs": [],
       "inputs": ["src/**", "package.json", "tsconfig.json"]
     },
     "test": {
-      "dependsOn": ["^build"],
       "outputs": [],
       "inputs": ["src/**", "package.json", "jest.config.*", "*.test.ts", "*.spec.ts"]
     },

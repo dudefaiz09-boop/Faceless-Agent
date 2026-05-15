@@ -92,7 +92,7 @@ async function canMessageUser(
     if (targetRole === 'parent') {
       const targetLinkedStudents = targetData.linkedStudentIds || [];
       // Check if any linked student is in teacher's class
-      const hasLinkedStudent = targetLinkedStudents.some((studentId: string) => {
+      const hasLinkedStudent = targetLinkedStudents.some((_studentId: string) => {
         // This is simplified - in production you'd check if student is in teacher's class
         return currentClassIds.length > 0;
       });

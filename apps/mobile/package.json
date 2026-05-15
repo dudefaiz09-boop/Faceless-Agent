@@ -9,10 +9,12 @@
     "start": "react-native start",
     "test": "echo 'No mobile tests yet' && exit 0",
     "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "ios": "node -e \"const fs=require('node:fs'); if(!fs.existsSync('ios')) { console.error('iOS native project is missing. Restore/generate apps/mobile/ios before iOS builds can run.'); process.exit(1); }\" && react-native run-ios",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "build:android": "cd android && ./gradlew assembleRelease"
+    "build:android": "node scripts/run-gradle.mjs assembleDebug",
+    "build:android:debug": "node scripts/run-gradle.mjs assembleDebug",
+    "build:android:release": "node scripts/run-gradle.mjs assembleRelease"
   },
   "dependencies": {
     "@educonnect/shared": "workspace:*",

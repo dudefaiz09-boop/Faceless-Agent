@@ -177,15 +177,6 @@ export const AssignmentsPage = () => {
     }
   };
 
-  const handleRefresh = useCallback(async () => {
-    await loadAssignments();
-    toast({
-      tone: 'success',
-      title: 'Refreshed',
-      description: 'Assignments synced successfully.',
-    });
-  }, [loadAssignments, toast]);
-
   const filteredAssignments = assignments.filter((assignment) => {
     if (!assignment || !assignment.id) return false;
     const query = search.trim().toLowerCase();

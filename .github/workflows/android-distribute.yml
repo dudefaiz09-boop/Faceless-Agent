@@ -7,6 +7,7 @@ on:
       - 'apps/mobile/**'
       - 'packages/**'
       - '.github/workflows/android-distribute.yml'
+  workflow_dispatch: {}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -16,9 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -32,26 +30,19 @@ jobs:
           java-version: '17'
           distribution: temurin
           cache: gradle
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Link root node_modules for React Native
         run: |
-          mkdir -p apps/mobile/node_modules
-          ln -sfn ../../node_modules apps/node_modules
-          ln -sfn ../../../node_modules/react-native apps/mobile/node_modules/react-native
-          ln -sfn ../../../node_modules/@react-native apps/mobile/node_modules/@react-native
-          ln -sfn ../../../node_modules/jsc-android apps/mobile/node_modules/jsc-android
+          corepack enable
+          corepack pnpm install --frozen-lockfile
 
-      - name: Build with Gradle
-        run: |
-          cd apps/mobile/android
-          chmod +x gradlew
-          ./gradlew assembleRelease
+      - name: Build Android (Debug)
+        run: corepack pnpm --filter mobile build:android
 
       - name: Upload APK to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk

@@ -122,15 +122,6 @@ export const LibraryPage = () => {
     init();
   }, [isStudent, loadResources, loadMyHistory]);
 
-  const handleFileUploadComplete = (url: string, name: string, size: number) => {
-    setUploadData((prev) => ({
-      ...prev,
-      fileUrl: url,
-      attachmentName: name,
-      attachmentSize: size,
-    }));
-  };
-
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 

@@ -36,9 +36,18 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
         '@educonnect/shared': path.resolve(__dirname, '../../packages/shared/src'),
         '@educonnect/shared-api': path.resolve(__dirname, '../../packages/shared-api/src'),
-        '@educonnect/shared-analytics': path.resolve(__dirname, '../../packages/shared-analytics/src'),
-        '@educonnect/shared-education': path.resolve(__dirname, '../../packages/shared-education/src'),
-        '@educonnect/shared-notifications': path.resolve(__dirname, '../../packages/shared-notifications/src'),
+        '@educonnect/shared-analytics': path.resolve(
+          __dirname,
+          '../../packages/shared-analytics/src'
+        ),
+        '@educonnect/shared-education': path.resolve(
+          __dirname,
+          '../../packages/shared-education/src'
+        ),
+        '@educonnect/shared-notifications': path.resolve(
+          __dirname,
+          '../../packages/shared-notifications/src'
+        ),
       },
     },
     server: {

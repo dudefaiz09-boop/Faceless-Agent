@@ -67,7 +67,6 @@ function canMessageUser(
   const targetRole = targetProfile.role || targetProfile.roles?.[0] || '';
   const targetClassIds =
     targetProfile.classIds || (targetProfile.classId ? [targetProfile.classId] : []);
-  const targetUid = targetProfile.uid || targetProfile.id;
 
   // Admin and Principal can message anyone
   if (currentRole === 'admin' || currentRole === 'principal') {

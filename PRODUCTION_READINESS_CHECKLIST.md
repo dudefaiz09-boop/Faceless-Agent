@@ -269,9 +269,13 @@ All write endpoints enforce permissions server-side:
 corepack enable
 pnpm install
 pnpm lint
+pnpm test
 pnpm --filter @educonnect/functions build
 pnpm --filter @educonnect/web build
+pnpm verify
 ```
+
+Mobile build notes: see `MOBILE_BUILD_GUIDE.md`.
 
 ### 8.2 Manual Testing Checklist
 
@@ -338,7 +342,7 @@ See `TESTING_VALIDATION.md` for comprehensive 100+ test cases.
 
 ### 10.1 Current Limitations
 
-- ⚠️ No automated tests yet (manual testing only)
+- ⚠️ Limited automated tests (API smoke + core utilities); expand coverage over time
 - ⚠️ No explicit "last admin" protection check
 - ⚠️ No pagination for large datasets (50-item limits)
 - ⚠️ No bulk notification deletion
@@ -354,7 +358,7 @@ See `TESTING_VALIDATION.md` for comprehensive 100+ test cases.
 - Add library resource request workflow
 - Add audit log viewer UI
 - Add performance analytics dashboard
-- Add mobile app (React Native scaffold exists)
+- Mobile: see `MOBILE_BUILD_GUIDE.md` (Android supported; iOS native project must be restored/generated)
 
 ---
 

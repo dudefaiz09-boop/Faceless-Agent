@@ -26,7 +26,7 @@ This project is a monorepo managed by **pnpm** and **TurboRepo**:
 - Node.js v22+
 - pnpm v11+
 - Supabase CLI
-- Android Studio / Xcode for mobile builds
+- Mobile builds: see [MOBILE_BUILD_GUIDE.md](./MOBILE_BUILD_GUIDE.md) (Android supported; iOS requires macOS + an `apps/mobile/ios` native project)
 
 ### Installation
 

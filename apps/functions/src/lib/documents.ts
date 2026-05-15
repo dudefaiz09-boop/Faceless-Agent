@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { supabaseAdmin, type DocumentData } from './supabase.js';
+import { getSupabaseAdmin, type DocumentData } from './supabase.js';
 
 // Compatibility layer for the migration. Existing routes keep their
 // document-store shaped calls while the storage underneath runs on Supabase.
@@ -93,6 +93,7 @@ class SupabaseDocumentReference {
   ) {}
 
   async get() {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from('documents')
       .select('id,data')
@@ -105,6 +106,7 @@ class SupabaseDocumentReference {
   }
 
   async set(value: DocumentData) {
+    const supabaseAdmin = getSupabaseAdmin();
     const now = new Date().toISOString();
     const { error } = await supabaseAdmin.from('documents').upsert(
       {
@@ -121,6 +123,7 @@ class SupabaseDocumentReference {
   }
 
   async update(value: DocumentData) {
+    const supabaseAdmin = getSupabaseAdmin();
     const snapshot = await this.get();
     if (!snapshot.exists) {
       throw new Error(`Document ${this.collectionName}/${this.id} does not exist`);
@@ -142,6 +145,7 @@ class SupabaseDocumentReference {
   }
 
   async delete() {
+    const supabaseAdmin = getSupabaseAdmin();
     const { error } = await supabaseAdmin
       .from('documents')
       .delete()
@@ -188,6 +192,7 @@ class SupabaseCollectionReference {
   }
 
   async get() {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from('documents')
       .select('id,data')
@@ -230,6 +235,7 @@ async function getUserProfile(uid: string) {
 
 export const auth = {
   async verifyIdToken(token: string) {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin.auth.getUser(token);
     if (error || !data.user) {
       throw error || new Error('Invalid Supabase access token');
@@ -270,6 +276,7 @@ export const auth = {
     password: string;
     displayName?: string;
   }) {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -290,6 +297,7 @@ export const auth = {
   },
 
   async setCustomUserClaims(uid: string, claims: DocumentData) {
+    const supabaseAdmin = getSupabaseAdmin();
     const { error } = await supabaseAdmin.auth.admin.updateUserById(uid, {
       app_metadata: claims,
     });
@@ -306,6 +314,7 @@ export const auth = {
   },
 
   async deleteUser(uid: string) {
+    const supabaseAdmin = getSupabaseAdmin();
     const { error } = await supabaseAdmin.auth.admin.deleteUser(uid);
     if (error) throw error;
   },

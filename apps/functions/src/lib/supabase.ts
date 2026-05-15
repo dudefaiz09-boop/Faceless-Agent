@@ -1,4 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+export type DocumentData = Record<string, any>;
 
 function requiredEnv(name: string) {
   const value = process.env[name];
@@ -8,22 +10,42 @@ function requiredEnv(name: string) {
   return value;
 }
 
-export const supabaseUrl = requiredEnv('SUPABASE_URL');
-export const supabaseServiceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
-export const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || supabaseServiceRoleKey;
+export function hasSupabaseConfig() {
+  return !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
 
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+let cachedAdmin: SupabaseClient | null = null;
+let cachedAnon: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+export function getSupabaseAdmin() {
+  if (cachedAdmin) return cachedAdmin;
 
-export type DocumentData = Record<string, any>;
+  const supabaseUrl = requiredEnv('SUPABASE_URL');
+  const supabaseServiceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
+
+  cachedAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  return cachedAdmin;
+}
+
+export function getSupabase() {
+  if (cachedAnon) return cachedAnon;
+
+  const supabaseUrl = requiredEnv('SUPABASE_URL');
+  const supabaseServiceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || supabaseServiceRoleKey;
+
+  cachedAnon = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  return cachedAnon;
+}

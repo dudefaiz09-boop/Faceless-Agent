@@ -5,6 +5,7 @@ import { writeFile } from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const tsconfigPath = path.join(__dirname, 'tsconfig.json');
 
 // We want to bundle ONLY workspace packages and their source code.
 // EVERYTHING else from node_modules should be external.
@@ -14,6 +15,7 @@ const commonConfig = {
   platform: 'node',
   target: 'node22',
   format: 'esm',
+  tsconfig: tsconfigPath,
   packages: 'external', // This marks all node_modules as external
   sourcemap: true,
   logLevel: 'info',
@@ -40,14 +42,14 @@ async function runBuild() {
     // Build main index
     await esbuild.build({
       ...commonConfig,
-      entryPoints: ['./src/index.ts'],
+      entryPoints: [path.join(__dirname, 'src/index.ts')],
       outfile: path.join(__dirname, 'dist/index.js'),
     });
 
     // Build standalone
     await esbuild.build({
       ...commonConfig,
-      entryPoints: ['./src/standalone.ts'],
+      entryPoints: [path.join(__dirname, 'src/standalone.ts')],
       outfile: path.join(__dirname, 'dist/standalone.js'),
     });
 
