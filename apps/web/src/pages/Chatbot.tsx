@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { Bot, Brain, GraduationCap, Loader2, RefreshCcw, Send, Sparkles, Wand2 } from 'lucide-react';
+import { Bot, Brain, GraduationCap, Loader2, RefreshCcw, Send, Sparkles, Wand2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { cn } from '../lib/utils';
@@ -21,6 +21,13 @@ type AiQueryResponse = {
   timestamp?: string;
 };
 
+type AiStatus = {
+  enabled: boolean;
+  provider: string;
+  model: string;
+  mode: 'live' | 'offline-fallback';
+};
+
 const modes = [
   { key: 'chat', label: 'Ask', icon: Bot },
   { key: 'lesson', label: 'Lesson', icon: GraduationCap },
@@ -30,7 +37,7 @@ const modes = [
 ] as const;
 
 export const ChatbotPage = () => {
-  const { user, role } = useAuth();
+  const { user, role, isAdmin, isTeacher, canManageAssignments } = useAuth();
   const userId = user?.uid;
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<(typeof modes)[number]['key']>('chat');
@@ -38,6 +45,7 @@ export const ChatbotPage = () => {
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const rolePrompts = useMemo(
@@ -53,6 +61,15 @@ export const ChatbotPage = () => {
     }),
     []
   );
+
+  const loadAiStatus = useCallback(async () => {
+    try {
+      const status = await apiClient.request<AiStatus>('/api/ai/status');
+      setAiStatus(status);
+    } catch (err) {
+      console.error('Error loading AI status:', err);
+    }
+  }, []);
 
   const loadHistory = useCallback(async () => {
     if (!userId) return;
@@ -70,10 +87,11 @@ export const ChatbotPage = () => {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      void loadAiStatus();
       void loadHistory();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadHistory]);
+  }, [loadAiStatus, loadHistory]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,6 +102,7 @@ export const ChatbotPage = () => {
     const currentQuery = retryQuery || query.trim();
     if (!currentQuery || loading) return;
 
+    const previousQuery = query;
     setQuery('');
     setLoading(true);
     setError(null);
@@ -109,8 +128,12 @@ export const ChatbotPage = () => {
       ]);
     } catch (err) {
       console.error('Failed to get AI response:', err);
-      setQuery(currentQuery);
-      setError('AI request failed. Check OPENROUTER_API_KEY on the API project, then retry.');
+      setQuery(currentQuery || previousQuery);
+      if (isAdmin || isTeacher || canManageAssignments) {
+        setError('AI request failed. Check OPENROUTER_API_KEY environment variable on the API server, then retry.');
+      } else {
+        setError('AI request failed. Please try again or contact support if the issue persists.');
+      }
     } finally {
       setLoading(false);
     }
@@ -118,8 +141,19 @@ export const ChatbotPage = () => {
 
   const suggested = rolePrompts[role || 'student'] || rolePrompts.student;
 
+  const isStaffOrAdmin = isAdmin || isTeacher || canManageAssignments;
+  const showOfflineWarning = aiStatus && !aiStatus.enabled;
+
   return (
     <div className="mx-auto flex h-[calc(100vh-140px)] max-w-6xl flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/85 shadow-2xl shadow-slate-200/70 backdrop-blur">
+      {showOfflineWarning && isStaffOrAdmin && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
+          <AlertCircle className="text-amber-600" size={18} />
+          <p className="text-sm font-semibold text-amber-800">
+            AI is running in offline mode. Set OPENROUTER_API_KEY in your API environment to enable live responses.
+          </p>
+        </div>
+      )}
       <header className="relative overflow-hidden border-b border-white/60 bg-slate-950 p-5 text-white md:p-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.55),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(6,182,212,0.28),transparent_32%)]" />
         <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">

@@ -113,4 +113,24 @@ router.patch('/read-all', async (req, res, next) => {
   }
 });
 
+router.delete('/:id', async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const ref = db.collection('notifications').doc(req.params.id);
+    const snapshot = await ref.get();
+    if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
+
+    const notification = { id: snapshot.id, ...snapshot.data() };
+    if (!canSeeNotification(notification, req.user)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    await ref.delete();
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

@@ -1,7 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import { AiService } from './ai.service.js';
+import { isAiEnabled, AI_MODEL } from '../../lib/ai.js';
 
 export class AiController {
+  static async getStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      res.json({
+        enabled: isAiEnabled,
+        provider: 'openrouter',
+        model: AI_MODEL,
+        mode: isAiEnabled ? 'live' : 'offline-fallback',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async queryChatbot(req: Request, res: Response, next: NextFunction) {
     try {
       const { query, mode } = req.body;
