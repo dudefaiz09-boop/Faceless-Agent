@@ -4,17 +4,66 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // Check both local, monorepo root, and pnpm virtual store for monorepo compatibility
-    def gradlePluginPath = "../node_modules/@react-native/gradle-plugin"
-    if (!file(gradlePluginPath).exists()) {
-        gradlePluginPath = "../../../node_modules/@react-native/gradle-plugin"
+
+    def checkedPaths = []
+    def resolvedGradlePluginPath = null
+
+    def candidates = [
+        new File(rootDir, "../node_modules/@react-native/gradle-plugin"),
+        new File(rootDir, "../../../node_modules/@react-native/gradle-plugin")
+    ]
+
+    for (def candidate : candidates) {
+        checkedPaths.add(candidate.absolutePath)
+        if (candidate.exists()) {
+            resolvedGradlePluginPath = candidate.absolutePath
+            break
+        }
     }
-    // Fallback for pnpm symlink structure
-    if (!file(gradlePluginPath).exists()) {
-        gradlePluginPath = new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json')"].execute(null, rootDir).text.trim()).parent
+
+    if (!resolvedGradlePluginPath) {
+        def stdout = new ByteArrayOutputStream()
+        def stderr = new ByteArrayOutputStream()
+        try {
+            def process = new ProcessBuilder(
+                "node",
+                "--print",
+                "require.resolve('@react-native/gradle-plugin/package.json')"
+            )
+                .directory(rootDir)
+                .redirectErrorStream(false)
+                .start()
+
+            process.consumeProcessOutput(stdout, stderr)
+            def exitCode = process.waitFor()
+            def resolvedPackageJson = stdout.toString().trim()
+
+            if (exitCode == 0 && resolvedPackageJson) {
+                def resolvedDir = new File(resolvedPackageJson).parentFile
+                checkedPaths.add(resolvedDir?.absolutePath ?: resolvedPackageJson)
+                if (resolvedDir != null && resolvedDir.exists()) {
+                    resolvedGradlePluginPath = resolvedDir.absolutePath
+                }
+            } else {
+                checkedPaths.add("node resolution failed: ${stderr.toString().trim()}")
+            }
+        } catch (Exception error) {
+            checkedPaths.add("node resolution threw: ${error.message}")
+        }
     }
-    includeBuild(gradlePluginPath)
+
+    if (!resolvedGradlePluginPath) {
+        throw new GradleException(
+            "Unable to resolve @react-native/gradle-plugin. " +
+            "Run pnpm install from the repository root before building Android. " +
+            "rootDir=${rootDir}. Checked=${checkedPaths.join(' | ')}"
+        )
+    }
+
+    println("Using React Native Gradle plugin: ${resolvedGradlePluginPath}")
+    includeBuild(resolvedGradlePluginPath)
 }
+
 plugins {
     id("com.facebook.react.settings")
 }
