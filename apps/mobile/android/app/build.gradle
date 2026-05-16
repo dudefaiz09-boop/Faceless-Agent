@@ -1,8 +1,9 @@
 plugins {
     id("com.android.application")
     id("com.facebook.react")
-    id("com.google.gms.google-services")
 }
+
+def enableHermes = true
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -10,17 +11,18 @@ plugins {
  */
 react {
     /* Folders */
-    //   The root of your project, i.e. where "package.json" lives. Default is '..'
+    // The root of the React Native mobile app, where apps/mobile/package.json lives.
     root = file("../../")
-    
-    // Explicitly point to hoisted node_modules for plugin internal path resolution
-    reactNativeDir = file("../../../../node_modules/react-native")
-    codegenDir = file("../../../../node_modules/@react-native/codegen")
+
+    // pnpm installs the mobile app's direct React Native dependencies under apps/mobile/node_modules.
+    // Do not point these at the repository root node_modules, because CI may not hoist react-native there.
+    reactNativeDir = file("../../node_modules/react-native")
+    codegenDir = file("../../node_modules/@react-native/codegen")
 
     // Trigger autolinking
     autolinkLibrariesWithApp()
 
-    hermesEnabled = true
+    hermesEnabled = enableHermes
 }
 
 android {
@@ -53,4 +55,25 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+
+    if (enableHermes) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation("org.webkit:android-jsc:+")
+    }
+}
+
+// Firebase/Google Services is optional for this app. CI and local debug builds should not fail
+// when google-services.json is absent. Add apps/mobile/android/app/google-services.json locally
+// or through CI secrets, then the plugin will be applied automatically.
+def googleServicesFile = file("google-services.json")
+if (googleServicesFile.exists()) {
+    apply plugin: "com.google.gms.google-services"
+    logger.lifecycle("Google Services plugin enabled using ${googleServicesFile}")
+} else {
+    logger.lifecycle("Google Services plugin skipped: ${googleServicesFile} not found")
 }

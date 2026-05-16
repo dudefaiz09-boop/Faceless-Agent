@@ -31,7 +31,6 @@ public class MainApplication extends Application implements ReactApplication {
           return "index";
         }
 
-        @Override
         protected boolean isNewArchitectureEnabled() {
           return BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
         }
