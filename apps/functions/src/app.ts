@@ -134,8 +134,9 @@ publicRouter.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Safe public status endpoint. It never exposes the OpenRouter key.
+// Safe public AI endpoints. These never expose the OpenRouter key.
 publicRouter.get('/ai/status', AiController.getStatus);
+publicRouter.post('/ai/query', AiController.publicQueryChatbot);
 
 publicRouter.get('/ready', async (req, res) => {
   try {
