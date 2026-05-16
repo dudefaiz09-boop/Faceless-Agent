@@ -46,6 +46,24 @@ const modes = [
   { key: 'announcement', label: 'Draft', icon: Wand2 },
 ] as const;
 
+function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
+  const message = err instanceof Error ? err.message : String(err || '');
+
+  if (message.toLowerCase().includes('tenant')) {
+    return 'AI request failed because your account is missing school/tenant context. Please sign out and sign back in, then retry.';
+  }
+
+  if (message.toLowerCase().includes('unauthorized') || message.includes('401')) {
+    return 'AI request failed because your session is not active. Please sign out and sign back in, then retry.';
+  }
+
+  if (aiStatus?.enabled) {
+    return 'AI request failed after reaching the API. Please retry; if it continues, check the API deployment logs for /api/ai/query.';
+  }
+
+  return 'AI request failed. Check OPENROUTER_API_KEY environment variable on the API server, then retry.';
+}
+
 export const ChatbotPage = () => {
   const { user, role, isAdmin, isTeacher, canManageAssignments } = useAuth();
   const userId = user?.uid;
@@ -136,13 +154,7 @@ export const ChatbotPage = () => {
     } catch (err) {
       console.error('Failed to get AI response:', err);
       setQuery(currentQuery || previousQuery);
-      if (isAdmin || isTeacher || canManageAssignments) {
-        setError(
-          'AI request failed. Check OPENROUTER_API_KEY environment variable on the API server, then retry.'
-        );
-      } else {
-        setError('AI request failed. Please try again or contact support if the issue persists.');
-      }
+      setError(getFriendlyAiError(err, aiStatus));
     } finally {
       setLoading(false);
     }
@@ -261,14 +273,20 @@ export const ChatbotPage = () => {
           <textarea
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            rows={1}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void sendQuery();
+              }
+            }}
             placeholder={`Ask as ${role || 'student'}...`}
-            className="max-h-32 min-h-12 flex-1 resize-none bg-transparent px-4 py-3 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+            rows={1}
+            className="max-h-32 min-h-[48px] flex-1 resize-none bg-transparent px-4 py-3 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
           />
           <button
             type="submit"
             disabled={loading || !query.trim()}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-100 disabled:opacity-50"
+            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-100 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
           </button>

@@ -1,2 +1,3 @@
 pnpm-lock.yaml
 apps/functions/src/features/ai/ai.service.ts
+apps/functions/src/features/ai/ai.controller.ts
