@@ -3,6 +3,8 @@ plugins {
     id("com.facebook.react")
 }
 
+def enableHermes = true
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, it is all handled by the CLI.
@@ -20,7 +22,7 @@ react {
     // Trigger autolinking
     autolinkLibrariesWithApp()
 
-    hermesEnabled = true
+    hermesEnabled = enableHermes
 }
 
 android {
@@ -52,6 +54,16 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
+    }
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+
+    if (enableHermes) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation("org.webkit:android-jsc:+")
     }
 }
 
