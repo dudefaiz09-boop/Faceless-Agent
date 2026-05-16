@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("com.facebook.react")
-    id("com.google.gms.google-services")
 }
 
 /**
@@ -54,4 +53,15 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
+}
+
+// Firebase/Google Services is optional for this app. CI and local debug builds should not fail
+// when google-services.json is absent. Add apps/mobile/android/app/google-services.json locally
+// or through CI secrets, then the plugin will be applied automatically.
+def googleServicesFile = file("google-services.json")
+if (googleServicesFile.exists()) {
+    apply plugin: "com.google.gms.google-services"
+    logger.lifecycle("Google Services plugin enabled using ${googleServicesFile}")
+} else {
+    logger.lifecycle("Google Services plugin skipped: ${googleServicesFile} not found")
 }
