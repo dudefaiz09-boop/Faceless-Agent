@@ -3,7 +3,12 @@ import { generateSafeContent } from '../../lib/ai.js';
 import { db } from '../../lib/documents.js';
 
 export class AiService {
-  static async getChatbotResponse(userId: string, role: string, query: string, mode = 'chat') {
+  static async getChatbotResponse(
+    userId: string,
+    role: string,
+    query: string,
+    mode = 'chat'
+  ) {
     const roleContexts: Record<string, string> = {
       student:
         'You are EduConnect AI for students. Help with homework, study planning, concept explanations, revision notes, and confidence. Be clear, safe, encouraging, and concise.',
@@ -64,7 +69,10 @@ export class AiService {
         response: responseText,
       };
     } catch (error) {
-      console.error('[AI] Chat log save failed. Returning AI response without persisted log:', error);
+      console.error(
+        '[AI] Chat log save failed. Returning AI response without persisted log:',
+        error
+      );
       return {
         id: randomUUID(),
         response: responseText,
