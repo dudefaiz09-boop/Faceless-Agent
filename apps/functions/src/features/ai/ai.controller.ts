@@ -16,6 +16,39 @@ export class AiController {
     }
   }
 
+  static async publicQueryChatbot(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { query, mode } = req.body || {};
+      const tenantId = req.tenantId || (req.headers['x-school-id'] as string | undefined);
+      const fallbackRole = typeof req.headers['x-user-role'] === 'string' ? req.headers['x-user-role'] : 'student';
+
+      if (!tenantId) {
+        return res.status(400).json({
+          error: 'Tenant Context Required',
+          message: 'x-school-id header is required for AI chat.',
+        });
+      }
+
+      if (typeof query !== 'string' || query.trim().length === 0 || query.length > 2000) {
+        return res.status(400).json({
+          error: 'Invalid AI query',
+          message: 'query must be a non-empty string under 2000 characters.',
+        });
+      }
+
+      const { id, response } = await AiService.getChatbotResponse(
+        `tenant:${tenantId}:ai-user`,
+        fallbackRole,
+        query.trim(),
+        mode
+      );
+
+      res.json({ success: true, id, response, timestamp: new Date().toISOString() });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async queryChatbot(req: Request, res: Response, next: NextFunction) {
     try {
       const { query, mode } = req.body;
