@@ -10,12 +10,13 @@ plugins {
  */
 react {
     /* Folders */
-    //   The root of your project, i.e. where "package.json" lives. Default is '..'
+    // The root of the React Native mobile app, where apps/mobile/package.json lives.
     root = file("../../")
-    
-    // Explicitly point to hoisted node_modules for plugin internal path resolution
-    reactNativeDir = file("../../../../node_modules/react-native")
-    codegenDir = file("../../../../node_modules/@react-native/codegen")
+
+    // pnpm installs the mobile app's direct React Native dependencies under apps/mobile/node_modules.
+    // Do not point these at the repository root node_modules, because CI may not hoist react-native there.
+    reactNativeDir = file("../../node_modules/react-native")
+    codegenDir = file("../../node_modules/@react-native/codegen")
 
     // Trigger autolinking
     autolinkLibrariesWithApp()
