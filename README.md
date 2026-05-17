@@ -61,6 +61,19 @@ Quick deploy checks:
 
 Demo data can be seeded from the manual `Seed Supabase Demo Data` GitHub Actions workflow after adding `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as repository secrets.
 
+### AI Configuration (Optional)
+
+The AI Assistant uses OpenRouter and is strictly restricted to free models to avoid accidental costs.
+
+**Required environment variables for the API:**
+- `OPENROUTER_API_KEY`: Your OpenRouter API key.
+- `OPENROUTER_MODEL`: OpenRouter free model slug (e.g., `google/gemma-3-4b-it:free`).
+
+**Safety Notes:**
+- Only OpenRouter free model slugs (ending in `:free`) are supported.
+- If a paid or invalid model is configured, the system automatically falls back to an approved free model.
+- Direct OpenAI API keys or paid models are not supported.
+
 ## Testing
 
 Run the monorepo test pipeline:

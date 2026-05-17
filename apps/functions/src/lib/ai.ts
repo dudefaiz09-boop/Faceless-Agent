@@ -2,12 +2,41 @@ import { env } from './config.js';
 
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
+/**
+ * Strict free-model allowlist.
+ * Ensures the app only uses approved OpenRouter free models.
+ */
+export const FREE_OPENROUTER_MODELS = new Set([
+  'google/gemma-3-4b-it:free',
+  'google/gemma-3-12b-it:free',
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
+  'openrouter/auto',
+]);
+
+const DEFAULT_FREE_MODEL = 'google/gemma-3-4b-it:free';
+
 function getOpenRouterApiKey() {
   return process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY || '';
 }
 
-function getOpenRouterModel() {
-  return process.env.OPENROUTER_MODEL || env.OPENROUTER_MODEL || 'google/gemma-3-4b-it:free';
+/**
+ * Safe helper to retrieve the OpenRouter model.
+ * Enforces use of free models from the allowlist.
+ */
+export function getOpenRouterModel() {
+  const configuredModel =
+    process.env.OPENROUTER_MODEL || env.OPENROUTER_MODEL || DEFAULT_FREE_MODEL;
+
+  if (!FREE_OPENROUTER_MODELS.has(configuredModel)) {
+    console.warn('[AI] Blocked non-free OpenRouter model. Falling back to default.', {
+      configuredModel,
+      fallback: DEFAULT_FREE_MODEL,
+    });
+    return DEFAULT_FREE_MODEL;
+  }
+
+  return configuredModel;
 }
 
 // Determine HTTP-Referer for OpenRouter
@@ -44,6 +73,8 @@ export function getAiRuntimeStatus() {
     mode: hasOpenRouterKey ? 'live' : 'offline-fallback',
     hasOpenRouterKey,
     keySource,
+    freeModelEnforced: true,
+    allowedFreeModels: Array.from(FREE_OPENROUTER_MODELS),
     runtime: process.env.VERCEL_URL ? 'vercel' : 'local',
     checkedAt: new Date().toISOString(),
   };
