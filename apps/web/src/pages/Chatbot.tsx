@@ -51,7 +51,10 @@ function getFriendlyAiError(err: any, aiStatus: AiStatus | null) {
   const message = err?.message || String(err || '');
   const errorData = err?.data || {};
 
-  if (status === 400 && message.toLowerCase().includes('tenant')) {
+  if (
+    status === 400 &&
+    (message.toLowerCase().includes('tenant') || message.toLowerCase().includes('school'))
+  ) {
     return 'AI request failed because school context was not sent. Sign out and sign back in, then retry.';
   }
 
@@ -74,8 +77,12 @@ function getFriendlyAiError(err: any, aiStatus: AiStatus | null) {
     return 'AI request failed because the web app could not reach the API. Check VITE_API_BASE_URL on educonnect-web and redeploy.';
   }
 
-  if (aiStatus?.enabled) {
-    return 'AI request failed after reaching the API. Please retry later.';
+  if (status >= 400) {
+    return `AI request failed (Status: ${status}). ${message}`;
+  }
+
+  if (aiStatus === null) {
+    return 'AI request failed and AI status is unavailable. This usually means the web app cannot reach the API server.';
   }
 
   return 'AI request failed. Please try again later.';

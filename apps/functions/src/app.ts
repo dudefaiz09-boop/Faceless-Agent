@@ -10,6 +10,7 @@ import { logger } from '@educonnect/logger';
 import { authMiddleware } from './middleware/auth.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { globalErrorHandler } from './middleware/error.js';
+import { isAiEnabled, openRouterKeySource } from './lib/ai.js';
 
 // Features (Refactored)
 import studentRoutes from './features/students/student.routes.js';
@@ -215,5 +216,14 @@ app.use('/api/notifications', notificationsRouter);
 
 // 6. Global Error Handling (MUST be last)
 app.use(globalErrorHandler);
+
+// Startup logs for environment diagnostics
+logger.info(
+  {
+    isAiEnabled,
+    openRouterKeySource,
+  },
+  'AI Environment Diagnostic'
+);
 
 export default app;

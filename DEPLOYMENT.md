@@ -57,7 +57,7 @@ Create a second Vercel project from the same GitHub repository with these settin
 
 The [apps/functions/vercel.json](./apps/functions/vercel.json) file handles the API entrypoint when `apps/functions` is the Vercel project root. The root [vercel.json](./vercel.json) is kept as a fallback for repository-root API deployments.
 
-Set these API environment variables:
+Set these API environment variables in your Vercel project settings for `educonnect-api`:
 
 ```bash
 NODE_ENV=production
@@ -66,9 +66,12 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=https://your-web-project.vercel.app
-OPENROUTER_API_KEY=your_openrouter_key_if_using_ai
+OPENROUTER_API_KEY=your_openrouter_key
 OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
+PUBLIC_APP_URL=https://your-web-project.vercel.app
 ```
+
+**Note:** Ensure `OPENROUTER_API_KEY` is set correctly to enable live AI responses. If missing, the assistant will run in offline mode.
 
 `OPENROUTER_API_KEY` is optional. Omit it if AI features are not being used. Keep it only in the API project.
 

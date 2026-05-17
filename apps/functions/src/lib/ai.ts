@@ -21,12 +21,17 @@ function getHttpReferer(): string {
 
 export const AI_MODEL = openRouterModel;
 export const isAiEnabled = !!openRouterApiKey;
+export const openRouterKeySource = env.OPENROUTER_API_KEY
+  ? 'env'
+  : process.env.OPENROUTER_API_KEY
+    ? 'process.env'
+    : 'missing';
 export const AI_HTTP_REFERER = getHttpReferer();
 
 function fallbackResponse(userPrompt: string) {
   const trimmed = userPrompt.trim().replace(/\s+/g, ' ').slice(0, 220);
   return [
-    'AI is running in offline-safe mode because OPENROUTER_API_KEY is not configured.',
+    'AI Assistant is currently in offline mode. The API server environment is missing the required OPENROUTER_API_KEY to enable live responses.',
     '',
     trimmed
       ? `Here is a practical starting point for: "${trimmed}"`

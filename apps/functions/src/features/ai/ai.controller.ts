@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AiService } from './ai.service.js';
-import { isAiEnabled, AI_MODEL } from '../../lib/ai.js';
+import { isAiEnabled, AI_MODEL, openRouterKeySource } from '../../lib/ai.js';
 
 export class AiController {
   static async getStatus(req: Request, res: Response, next: NextFunction) {
@@ -10,6 +10,8 @@ export class AiController {
         provider: 'openrouter',
         model: AI_MODEL,
         mode: isAiEnabled ? 'live' : 'offline-fallback',
+        hasOpenRouterKey: isAiEnabled,
+        keySource: openRouterKeySource,
       });
     } catch (error) {
       next(error);
