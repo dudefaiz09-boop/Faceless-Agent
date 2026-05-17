@@ -40,7 +40,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       req.user = {
         uid: decodedToken.uid,
         email: decodedToken.email,
-        displayName: (decodedToken as any).name,
+        displayName: (decodedToken as { name?: string }).name,
         role,
         roles: roles.length > 0 ? roles : [role],
         isAdmin: !!decodedToken.isAdmin || role === 'admin' || roles.includes('admin'),
@@ -58,7 +58,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       if (req.user.status === 'inactive') {
         return res.status(403).json({ error: 'User account is inactive' });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error({ err: error, path: req.path }, 'Error verifying token');
     }
   }

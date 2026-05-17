@@ -6,8 +6,11 @@ import { createNotification } from '../lib/notifications.js';
 
 const router: Router = Router();
 
-function canSeeNotification(notification: any, user: NonNullable<Request['user']>) {
-  const targetUserIds = notification.targetUserIds || [];
+function canSeeNotification(
+  notification: Record<string, unknown>,
+  user: NonNullable<Request['user']>
+) {
+  const targetUserIds = (notification.targetUserIds as string[]) || [];
   const targetRoles = notification.targetRoles || ['all'];
   const targetClasses = notification.targetClasses || ['all'];
   const schoolId = notification.schoolId || notification.tenantId;
@@ -85,7 +88,7 @@ router.patch('/read-all', async (req, res, next) => {
       .filter((notification) => canSeeNotification(notification, req.user!));
 
     await Promise.all(
-      visible.map((notification: any) =>
+      visible.map((notification: Record<string, unknown>) =>
         db
           .collection('notifications')
           .doc(notification.id)

@@ -57,18 +57,18 @@ router.get('/report/:classId', requireAttendanceViewer, async (req, res, next) =
     const { classId } = req.params;
     const { startDate, endDate } = req.query;
 
-    let query: any = db
+    let query = db
       .collection('attendance')
-      .where('tenantId', '==', req.tenantId)
+      .where('tenantId', '==', req.tenantId!)
       .where('classId', '==', classId);
 
-    if (startDate) query = query.where('date', '>=', startDate);
+    if (startDate) query = query.where('date', '>=', startDate as string);
     if (endDate) query = query.where('date', '<=', endDate);
 
     const snapshot = await query.get();
 
-    const stats = snapshot.docs.map((doc: any) => {
-      const data = doc.data() || {};
+    const stats = snapshot.docs.map((doc) => {
+      const data = (doc.data() as Record<string, unknown>) || {};
       // Flatten the record structure for the calculator
       const records = data.records || [];
       return AttendanceAnalytics.calculateStats(records, req.tenantId!, data.date);
@@ -100,8 +100,8 @@ router.get('/history/:uid', async (req, res, next) => {
       .where('classId', '==', classId)
       .get();
     const history = snapshot.docs
-      .map((doc: any) => {
-        const data = doc.data() || {};
+      .map((doc) => {
+        const data = (doc.data() as Record<string, unknown>) || {};
         const record = data.records?.find((r: AttendanceEntry) => r.studentId === uid);
         return record ? { id: doc.id, date: data.date, status: record.status } : null;
       })
@@ -122,9 +122,9 @@ router.get('/:classId?', requireAttendanceViewer, async (req, res, next) => {
       return res.status(400).json({ error: 'classId is required' });
     }
 
-    let query: any = db
+    let query = db
       .collection('attendance')
-      .where('tenantId', '==', req.tenantId)
+      .where('tenantId', '==', req.tenantId!)
       .where('classId', '==', classId);
 
     if (date) {
@@ -132,7 +132,10 @@ router.get('/:classId?', requireAttendanceViewer, async (req, res, next) => {
     }
 
     const snapshot = await query.get();
-    const days = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    const days = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as Record<string, unknown>),
+    }));
     if (date) {
       const day = days[0];
       const records = (day?.records || []) as AttendanceEntry[];

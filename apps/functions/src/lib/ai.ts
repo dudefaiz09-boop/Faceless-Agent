@@ -79,7 +79,7 @@ function emptyResponseFallback() {
   return 'AI provider returned an empty response. Please retry later.';
 }
 
-function getMessageText(payload: any) {
+function getMessageText(payload: unknown) {
   const message = payload?.choices?.[0]?.message?.content;
   if (Array.isArray(message)) {
     return message
@@ -99,7 +99,7 @@ function getMessageText(payload: any) {
 export async function generateSafeContent(
   systemInstruction: string,
   userPrompt: string,
-  config: any = {},
+  config: Record<string, unknown> = {},
   retries = 2
 ): Promise<string> {
   const apiKey = getOpenRouterApiKey();
@@ -162,7 +162,7 @@ export async function generateSafeContent(
     }
 
     return text;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error?.name === 'AbortError') {
       if (retries > 0) {
         await new Promise((resolve) => setTimeout(resolve, 800));

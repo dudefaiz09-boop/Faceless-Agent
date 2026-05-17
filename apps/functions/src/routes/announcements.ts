@@ -14,7 +14,7 @@ router.get('/', async (req, res, next) => {
 
     const announcements = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((announcement: any) => {
+      .filter((announcement: Record<string, unknown>) => {
         if (announcement.status === 'archived') return false;
         const targetRoles = announcement.targetRoles || ['all'];
         const targetClasses = announcement.targetClasses || ['all'];

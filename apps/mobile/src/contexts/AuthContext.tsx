@@ -49,7 +49,7 @@ async function getProfile(uid: string) {
     .maybeSingle();
 
   if (error) throw error;
-  return (data?.data || {}) as Record<string, any>;
+  return (data?.data || {}) as Record<string, unknown>;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
