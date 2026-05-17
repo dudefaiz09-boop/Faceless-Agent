@@ -6,15 +6,19 @@ const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
  * Strict free-model allowlist.
  * Ensures the app only uses approved OpenRouter free models.
  */
-export const FREE_OPENROUTER_MODELS = new Set([
+/**
+ * Prioritized list of approved free OpenRouter models for fallback.
+ */
+export const FREE_MODEL_PRIORITY = [
   'google/gemma-3-4b-it:free',
-  'google/gemma-3-12b-it:free',
-  'meta-llama/llama-3.2-3b-instruct:free',
   'mistralai/mistral-7b-instruct:free',
-  'openrouter/auto',
-]);
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'google/gemma-3-12b-it:free',
+];
 
-const DEFAULT_FREE_MODEL = 'google/gemma-3-4b-it:free';
+export const FREE_OPENROUTER_MODELS = new Set([...FREE_MODEL_PRIORITY, 'openrouter/auto']);
+
+const DEFAULT_FREE_MODEL = FREE_MODEL_PRIORITY[0];
 
 function getOpenRouterApiKey() {
   return process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY || '';
@@ -123,21 +127,39 @@ function getMessageText(payload: any) {
 
 /**
  * Safe AI Wrapper
- * - Enforces structured prompt handling
- * - Implements token budgeting
- * - Prevents prompt injection by isolating system instructions
+ * - Enforces strict free-model usage with automatic fallback.
+ * - Blocks premium model requests.
+ * - Implements retries across different models.
  */
 export async function generateSafeContent(
   systemInstruction: string,
   userPrompt: string,
   config: any = {},
-  retries = 2
+  retries = 2,
+  modelIndex = -1
 ): Promise<string> {
   const apiKey = getOpenRouterApiKey();
-  const model = getOpenRouterModel();
 
   if (!apiKey) {
     return missingKeyFallback(userPrompt);
+  }
+
+  // Premium model detection
+  const normalizedPrompt = userPrompt.toLowerCase();
+  const premiumKeywords = ['gpt-4', 'gpt4', 'claude-3', 'claude 3', 'gemini pro', 'premium model'];
+  if (premiumKeywords.some((k) => normalizedPrompt.includes(k))) {
+    return 'Only free models are enabled on this platform. Please use your own API key for premium access.';
+  }
+
+  // Determine model: if retrying, move to next model in priority list
+  let model: string;
+  if (modelIndex === -1) {
+    model = getOpenRouterModel();
+    // find index of configured model to know where to start fallbacks
+    modelIndex = FREE_MODEL_PRIORITY.indexOf(model);
+    if (modelIndex === -1) modelIndex = 0; // fallback default
+  } else {
+    model = FREE_MODEL_PRIORITY[modelIndex] || DEFAULT_FREE_MODEL;
   }
 
   try {
@@ -168,20 +190,28 @@ export async function generateSafeContent(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      // Log provider error details server-side only, don't expose to frontend
       const body = await response.text().catch(() => '');
-      console.error('[AI] OpenRouter provider error', {
+      console.error('[AI] OpenRouter provider failure', {
         status: response.status,
         model,
-        body: body.slice(0, 500),
+        retriesRemaining: retries,
+        body: body.slice(0, 200),
       });
 
-      if ((response.status === 429 || response.status >= 500) && retries > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
+      // Retry with NEXT model if possible, otherwise same model if retries allow
+      if (retries > 0) {
+        const nextModelIndex = (modelIndex + 1) % FREE_MODEL_PRIORITY.length;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return generateSafeContent(
+          systemInstruction,
+          userPrompt,
+          config,
+          retries - 1,
+          nextModelIndex
+        );
       }
 
-      return providerErrorFallback();
+      return 'EduConnect AI is temporarily overloaded. Please try again in a few moments.';
     }
 
     const payload = await response.json();
@@ -189,24 +219,23 @@ export async function generateSafeContent(
 
     if (!text) {
       console.warn('[AI] OpenRouter empty response', { model });
+      if (retries > 0) {
+        return generateSafeContent(systemInstruction, userPrompt, config, retries - 1, (modelIndex + 1) % FREE_MODEL_PRIORITY.length);
+      }
       return emptyResponseFallback();
     }
 
     return text;
   } catch (error: any) {
-    if (error?.name === 'AbortError') {
-      if (retries > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
-      }
-      console.error('[AI] OpenRouter timeout');
-      return timeoutFallback();
+    console.error('[AI] Generation failed:', { model, message: error?.message });
+
+    if (retries > 0) {
+      const nextModelIndex = (modelIndex + 1) % FREE_MODEL_PRIORITY.length;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return generateSafeContent(systemInstruction, userPrompt, config, retries - 1, nextModelIndex);
     }
 
-    console.error('[AI] Generation failed:', {
-      name: error?.name,
-      message: error?.message,
-    });
+    if (error?.name === 'AbortError') return timeoutFallback();
     return providerErrorFallback();
   }
 }

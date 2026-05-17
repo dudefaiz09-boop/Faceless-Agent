@@ -66,15 +66,15 @@ Demo data can be seeded from the manual `Seed Supabase Demo Data` GitHub Actions
 The AI Assistant uses OpenRouter and is strictly restricted to free models to avoid accidental costs.
 
 **Required environment variables for the API:**
-
 - `OPENROUTER_API_KEY`: Your OpenRouter API key.
 - `OPENROUTER_MODEL`: OpenRouter free model slug (e.g., `google/gemma-3-4b-it:free`).
 
 **Safety Notes:**
-
 - Only OpenRouter free model slugs (ending in `:free`) are supported.
-- If a paid or invalid model is configured, the system automatically falls back to an approved free model.
-- Direct OpenAI API keys or paid models are not supported.
+- The system prioritizes `google/gemma-3-4b-it:free`, then retries with other free models (Mistral, Llama) if the primary fails.
+- If a paid or invalid model is configured, the system automatically falls back to the approved free list.
+- Direct OpenAI API keys or paid models (e.g., GPT-4) are blocked and will return a zero-cost rejection message.
+- Factual school data is retrieved from the database first; AI is only used for natural-language explanations.
 
 ## Testing
 

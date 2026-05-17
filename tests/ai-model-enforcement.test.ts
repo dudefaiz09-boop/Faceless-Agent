@@ -60,9 +60,7 @@ describe('AI Model Enforcement', () => {
         freeModelEnforced: true,
       });
 
-      expect(status.allowedFreeModels).toEqual(
-        expect.arrayContaining(['google/gemma-3-4b-it:free'])
-      );
+      expect(status.allowedFreeModels).toEqual(expect.arrayContaining(['google/gemma-3-4b-it:free']));
 
       // Ensure API key is NOT in the status object
       const statusString = JSON.stringify(status);
