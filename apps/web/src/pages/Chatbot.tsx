@@ -46,19 +46,43 @@ const modes = [
   { key: 'announcement', label: 'Draft', icon: Wand2 },
 ] as const;
 
-function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
-  const message = err instanceof Error ? err.message : String(err || '');
+function getFriendlyAiError(err: any, aiStatus: AiStatus | null) {
+  const status = err?.status;
+  const message = err?.message || String(err || '');
+  const errorData = err?.data || {};
 
-  if (message.toLowerCase().includes('tenant')) {
-    return 'AI request failed because your account is missing school/tenant context. Please sign out and sign back in, then retry.';
+  if (
+    status === 400 &&
+    (message.toLowerCase().includes('tenant') || message.toLowerCase().includes('school'))
+  ) {
+    return 'AI request failed because school context was not sent. Sign out and sign back in, then retry.';
   }
 
-  if (message.toLowerCase().includes('unauthorized') || message.includes('401')) {
-    return 'AI request failed because your session is not active. Please sign out and sign back in, then retry.';
+  if (status === 401 || message.toLowerCase().includes('unauthorized')) {
+    return 'AI request failed because your login session expired. Sign out and sign back in, then retry.';
   }
 
-  if (aiStatus?.enabled) {
-    return 'AI request failed after reaching the API. Please retry later.';
+  if (status === 400) {
+    return message || 'AI request failed due to invalid query parameters.';
+  }
+
+  if (status === 502 || errorData.error === 'AI_PROVIDER_ERROR') {
+    return 'AI provider request failed. This usually means the AI model is overloaded or the provider key is missing. Check server logs.';
+  }
+
+  if (
+    !status &&
+    (message.toLowerCase().includes('fetch') || message.toLowerCase().includes('network'))
+  ) {
+    return 'AI request failed because the web app could not reach the API. Check your connection or the API server status.';
+  }
+
+  if (status >= 400) {
+    return `AI request failed (Status: ${status}). ${message}`;
+  }
+
+  if (aiStatus === null) {
+    return 'AI request failed and AI status is unavailable. This usually means the web app cannot reach the API server.';
   }
 
   return 'AI request failed. Please try again later.';
@@ -135,6 +159,9 @@ export const ChatbotPage = () => {
         },
       ]);
     } catch (err) {
+      if (import.meta.env.DEV || import.meta.env.MODE === 'preview') {
+        console.error('Full AI Error Object:', err);
+      }
       console.error('Failed to get AI response:', err);
       setQuery(currentQuery || previousQuery);
       setError(getFriendlyAiError(err, aiStatus));

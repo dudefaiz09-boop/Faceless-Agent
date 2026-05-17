@@ -10,6 +10,7 @@ import { logger } from '@educonnect/logger';
 import { authMiddleware } from './middleware/auth.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { globalErrorHandler } from './middleware/error.js';
+import { getAiRuntimeStatus, isAiEnabled } from './lib/ai.js';
 
 // Features (Refactored)
 import studentRoutes from './features/students/student.routes.js';
@@ -165,7 +166,7 @@ publicRouter.get('/ready', async (req, res) => {
       status: 'ready',
       environment: process.env.NODE_ENV || 'development',
       features: {
-        ai: !!process.env.OPENROUTER_API_KEY,
+        ai: isAiEnabled(),
         uploads: !!process.env.SUPABASE_UPLOADS_BUCKET,
       },
       timestamp: new Date().toISOString(),
@@ -215,5 +216,8 @@ app.use('/api/notifications', notificationsRouter);
 
 // 6. Global Error Handling (MUST be last)
 app.use(globalErrorHandler);
+
+// Startup logs for environment diagnostics
+logger.info(getAiRuntimeStatus(), 'AI Environment Diagnostic');
 
 export default app;

@@ -1,16 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { AiService } from './ai.service.js';
-import { isAiEnabled, AI_MODEL } from '../../lib/ai.js';
+import { getAiRuntimeStatus } from '../../lib/ai.js';
 
 export class AiController {
   static async getStatus(req: Request, res: Response, next: NextFunction) {
     try {
-      res.json({
-        enabled: isAiEnabled,
-        provider: 'openrouter',
-        model: AI_MODEL,
-        mode: isAiEnabled ? 'live' : 'offline-fallback',
-      });
+      res.json(getAiRuntimeStatus());
     } catch (error) {
       next(error);
     }
@@ -23,6 +18,7 @@ export class AiController {
       const fallbackRole = typeof req.headers['x-user-role'] === 'string' ? req.headers['x-user-role'] : 'student';
 
       if (!tenantId) {
+        console.warn('[AI] Missing tenant header (x-school-id) for public query');
         return res.status(400).json({
           error: 'Tenant Context Required',
           message: 'x-school-id header is required for AI chat.',
@@ -30,6 +26,7 @@ export class AiController {
       }
 
       if (typeof query !== 'string' || query.trim().length === 0 || query.length > 2000) {
+        console.warn('[AI] Validation failure:', { queryLength: query?.length, mode });
         return res.status(400).json({
           error: 'Invalid AI query',
           message: 'query must be a non-empty string under 2000 characters.',
@@ -44,7 +41,14 @@ export class AiController {
       );
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.status === 502 || error.message?.includes('AI provider')) {
+        return res.status(502).json({
+          error: 'AI_PROVIDER_ERROR',
+          message: 'AI provider request failed',
+          details: error.message,
+        });
+      }
       next(error);
     }
   }
@@ -70,7 +74,14 @@ export class AiController {
       const { id, response } = await AiService.getChatbotResponse(userId, role, query, mode);
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
-    } catch (error) {
+    } catch (error: any) {
+      if (error.status === 502 || error.message?.includes('AI provider')) {
+        return res.status(502).json({
+          error: 'AI_PROVIDER_ERROR',
+          message: 'AI provider request failed',
+          details: error.message,
+        });
+      }
       next(error);
     }
   }
