@@ -5,7 +5,7 @@ import { createManagedUser, updateManagedUser } from '../../lib/user-management.
 type Actor = { uid: string; email?: string; schoolId?: string | null };
 
 export class StudentRepository {
-  static async create(studentData: Record<string, unknown>, actor: Actor) {
+  static async create(studentData: any, actor: Actor) {
     return createManagedUser(
       {
         ...studentData,
@@ -17,7 +17,7 @@ export class StudentRepository {
     );
   }
 
-  static async update(uid: string, data: Record<string, unknown>, actor: Actor) {
+  static async update(uid: string, data: any, actor: Actor) {
     return updateManagedUser(
       uid,
       {

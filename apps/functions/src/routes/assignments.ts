@@ -38,21 +38,17 @@ router.get('/report/:classId', checkPermission('manageAssignments'), async (req,
       .where('targetClasses', 'array-contains', classId)
       .get();
 
-    const assignments = assignmentsSnap.docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() }) as Record<string, unknown>
-    );
+    const assignments = assignmentsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as any);
 
     // 2. Get all submissions for these assignments
     const report = await Promise.all(
-      assignments.map(async (assignment: Record<string, unknown>) => {
+      assignments.map(async (assignment: any) => {
         const submissionsSnap = await db
           .collection('submissions')
-          .where('assignmentId', '==', assignment.id as string)
+          .where('assignmentId', '==', assignment.id)
           .get();
 
-        const submissions = submissionsSnap.docs.map(
-          (doc) => doc.data() as Record<string, unknown>
-        );
+        const submissions = submissionsSnap.docs.map((doc) => doc.data() as any);
         return AssignmentAnalytics.calculateStats(assignment, submissions);
       })
     );
@@ -104,15 +100,15 @@ router.get(
 router.get('/:classId?', async (req, res, next) => {
   try {
     const classId = req.params.classId || (req.query.classId as string);
-    let query = db.collection('assignments').where('tenantId', '==', req.tenantId!);
+    let query: any = db.collection('assignments').where('tenantId', '==', req.tenantId);
 
     if (classId) {
       query = query.where('targetClasses', 'array-contains', classId);
     }
 
     const snapshot = await query.get();
-    const assignments = snapshot.docs.map((doc) => {
-      const data = doc.data() as Record<string, unknown>;
+    const assignments = snapshot.docs.map((doc: any) => {
+      const data = doc.data();
       return {
         id: doc.id,
         ...data,

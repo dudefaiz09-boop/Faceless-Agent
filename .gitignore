@@ -10,5 +10,3 @@ coverage/
 firebase-applet-config.json
 EduConnect-App/mobile/android/app/google-services.json
 .turbo
-playwright-report/
-test-results/

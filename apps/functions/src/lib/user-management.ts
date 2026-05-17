@@ -90,7 +90,7 @@ function arrayOfStrings(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : [];
 }
 
-function resolveRole(payload: ManagedUserPayload, existing?: Record<string, unknown>): Role {
+function resolveRole(payload: ManagedUserPayload, existing?: Record<string, any>): Role {
   const requestedRole =
     payload.role || payload.roles?.[0] || existing?.role || existing?.roles?.[0];
   if (!isRole(requestedRole)) {
@@ -99,11 +99,7 @@ function resolveRole(payload: ManagedUserPayload, existing?: Record<string, unkn
   return requestedRole;
 }
 
-function resolveModules(
-  role: Role,
-  payload: ManagedUserPayload,
-  existing?: Record<string, unknown>
-) {
+function resolveModules(role: Role, payload: ManagedUserPayload, existing?: Record<string, any>) {
   if (role === 'admin') return [...ALL_MODULES];
 
   const source = payload.assignedModules ?? existing?.assignedModules;
@@ -114,7 +110,7 @@ function resolveModules(
 function resolvePermissions(
   role: Role,
   payload: ManagedUserPayload,
-  existing?: Record<string, unknown>
+  existing?: Record<string, any>
 ) {
   const basePermissions = {
     ...getDefaultPermissionMap(role),
@@ -146,13 +142,13 @@ function resolvePermissions(
   );
 }
 
-function resolveStatus(status: unknown, existing?: Record<string, unknown>) {
+function resolveStatus(status: unknown, existing?: Record<string, any>) {
   if (status === 'inactive') return 'inactive';
   if (status === 'active') return 'active';
   return existing?.status === 'inactive' ? 'inactive' : 'active';
 }
 
-function resolveClassIds(payload: ManagedUserPayload, existing?: Record<string, unknown>) {
+function resolveClassIds(payload: ManagedUserPayload, existing?: Record<string, any>) {
   const explicit = payload.classIds ?? existing?.classIds;
   const values = arrayOfStrings(explicit);
   if (values.length > 0) return values;
@@ -161,7 +157,7 @@ function resolveClassIds(payload: ManagedUserPayload, existing?: Record<string, 
   return legacyClassId ? [legacyClassId] : [];
 }
 
-function getChangedKeys(before: Record<string, unknown>, after: Record<string, unknown>) {
+function getChangedKeys(before: Record<string, any>, after: Record<string, any>) {
   return [
     'role',
     'roles',
@@ -186,8 +182,8 @@ async function countActiveAdmins() {
 export async function ensureAdminChangeIsSafe(
   targetUid: string,
   actorUid: string,
-  before: Record<string, unknown>,
-  after: Record<string, unknown>
+  before: Record<string, any>,
+  after: Record<string, any>
 ) {
   const wasAdmin = before.role === 'admin' || before.roles?.includes('admin');
   const remainsActiveAdmin =
@@ -213,7 +209,7 @@ export function buildManagedUserProfile(
   uid: string,
   payload: ManagedUserPayload,
   actor: Actor,
-  existing: Record<string, unknown> = {}
+  existing: Record<string, any> = {}
 ) {
   const role = resolveRole(payload, existing);
   const roles = [role];
@@ -256,7 +252,7 @@ export function buildManagedUserProfile(
   };
 }
 
-export function buildClaims(profile: Record<string, unknown>) {
+export function buildClaims(profile: Record<string, any>) {
   return {
     role: profile.role,
     roles: profile.roles,
@@ -278,8 +274,8 @@ export async function writeAuditLog(args: {
   targetUid: string;
   performedBy: string;
   details: string;
-  before?: Record<string, unknown> | null;
-  after?: Record<string, unknown> | null;
+  before?: Record<string, any> | null;
+  after?: Record<string, any> | null;
   schoolId?: string | null;
 }) {
   await db.collection('auditLogs').add({

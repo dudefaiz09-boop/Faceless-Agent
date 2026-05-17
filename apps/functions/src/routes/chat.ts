@@ -139,9 +139,7 @@ router.get('/rooms', async (req, res, next) => {
     const snapshot = await db.collection('conversations').get();
     const rooms = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((room: Record<string, unknown>) =>
-        (room.participants as string[])?.includes(user.uid)
-      );
+      .filter((room: any) => room.participants?.includes(user.uid));
 
     res.json(rooms);
   } catch (error) {
@@ -253,13 +251,13 @@ router.post('/send', async (req, res, next) => {
 
     const now = new Date().toISOString();
     let conversationId = String(req.body.conversationId || '').trim();
-    let conversation: Record<string, unknown> | null = null;
+    let conversation: any = null;
 
     if (conversationId) {
       const snapshot = await db.collection('conversations').doc(conversationId).get();
       if (!snapshot.exists) return res.status(404).json({ error: 'Conversation not found' });
-      conversation = (snapshot.data() as Record<string, unknown>) || {};
-      if (!(conversation.participants as string[])?.includes(user.uid)) {
+      conversation = snapshot.data() || {};
+      if (!conversation.participants?.includes(user.uid)) {
         return res.status(403).json({ error: 'You are not a participant in this conversation' });
       }
     } else {
@@ -284,7 +282,7 @@ router.post('/send', async (req, res, next) => {
       const ref = db.collection('conversations').doc(conversationId);
       const snapshot = await ref.get();
       conversation = snapshot.exists
-        ? (snapshot.data() as Record<string, unknown>) || {}
+        ? snapshot.data() || {}
         : {
             participants: [user.uid, recipientId],
             type: 'direct',
@@ -363,8 +361,8 @@ router.patch('/rooms/:id/read', async (req, res, next) => {
     const roomSnapshot = await db.collection('conversations').doc(req.params.id).get();
     if (!roomSnapshot.exists) return res.status(404).json({ error: 'Conversation not found' });
 
-    const conversation = (roomSnapshot.data() as Record<string, unknown>) || {};
-    if (!(conversation.participants as string[])?.includes(user.uid)) {
+    const conversation = roomSnapshot.data() || {};
+    if (!conversation.participants?.includes(user.uid)) {
       return res.status(403).json({ error: 'You are not a participant in this conversation' });
     }
 
@@ -376,7 +374,7 @@ router.patch('/rooms/:id/read', async (req, res, next) => {
 
     await Promise.all(
       snapshot.docs.map((doc) => {
-        const message = (doc.data() as Record<string, unknown>) || {};
+        const message = doc.data() || {};
         return db
           .collection(`conversations/${req.params.id}/messages`)
           .doc(doc.id)

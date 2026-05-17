@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export type DocumentData = Record<string, unknown>;
+export type DocumentData = Record<string, any>;
 
 function requiredEnv(name: string) {
   const value = process.env[name];

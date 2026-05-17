@@ -42,13 +42,12 @@ export class AiController {
       );
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
-    } catch (error: unknown) {
-      const err = error as { status?: number; message?: string };
-      if (err.status === 502 || err.message?.includes('AI provider')) {
+    } catch (error: any) {
+      if (error.status === 502 || error.message?.includes('AI provider')) {
         return res.status(502).json({
           error: 'AI_PROVIDER_ERROR',
           message: 'AI provider request failed',
-          details: err.message,
+          details: error.message,
         });
       }
       next(error);
@@ -76,13 +75,12 @@ export class AiController {
       const { id, response } = await AiService.getChatbotResponse(userId, role, query, mode);
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
-    } catch (error: unknown) {
-      const err = error as { status?: number; message?: string };
-      if (err.status === 502 || err.message?.includes('AI provider')) {
+    } catch (error: any) {
+      if (error.status === 502 || error.message?.includes('AI provider')) {
         return res.status(502).json({
           error: 'AI_PROVIDER_ERROR',
           message: 'AI provider request failed',
-          details: err.message,
+          details: error.message,
         });
       }
       next(error);
@@ -108,17 +106,16 @@ export class AiController {
       const inferred = AiContextService.inferModulesFromQuery(query);
       const finalModules = Array.from(new Set([...inferred, ...(requestedModules || [])]));
 
-      const context = await AiContextService.getModuleContext(userId, role, tid, finalModules as string[]);
+      const context = await AiContextService.getModuleContext(userId, role, tid, finalModules as any);
       const { id, response } = await AiService.getChatbotResponse(userId, role, query, mode, context);
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
-    } catch (error: unknown) {
-      const err = error as { status?: number; message?: string };
-      if (err.status === 502 || err.message?.includes('AI provider')) {
+    } catch (error: any) {
+      if (error.status === 502 || error.message?.includes('AI provider')) {
         return res.status(502).json({
           error: 'AI_PROVIDER_ERROR',
           message: 'AI provider request failed',
-          details: err.message,
+          details: error.message,
         });
       }
       next(error);

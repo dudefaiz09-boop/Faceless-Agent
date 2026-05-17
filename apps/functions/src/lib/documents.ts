@@ -9,7 +9,7 @@ type FilterOperator = '==' | '>=' | '<=' | '>' | '<' | 'array-contains' | 'array
 interface QueryFilter {
   field: string;
   op: FilterOperator;
-  value: unknown;
+  value: any;
 }
 
 interface QueryOrder {
@@ -42,9 +42,7 @@ class SupabaseQuerySnapshot {
 }
 
 function getFieldValue(data: DocumentData, field: string) {
-  return field
-    .split('.')
-    .reduce<unknown>((value: unknown, key) => (value as Record<string, unknown>)?.[key], data);
+  return field.split('.').reduce<any>((value, key) => value?.[key], data);
 }
 
 function matchesFilter(data: DocumentData, filter: QueryFilter) {
@@ -169,7 +167,7 @@ class SupabaseCollectionReference {
     return new SupabaseDocumentReference(this.collectionName, id);
   }
 
-  where(field: string, op: FilterOperator, value: unknown) {
+  where(field: string, op: FilterOperator, value: any) {
     const next = new SupabaseCollectionReference(this.collectionName);
     next.filters = [...this.filters, { field, op, value }];
     next.order = this.order;

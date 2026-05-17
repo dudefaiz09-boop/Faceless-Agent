@@ -1,11 +1,10 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, CheckCircle2, ExternalLink, Trash2, Loader2, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
-import { useDocuments } from '../../lib/documents';
 import { cn } from '../../lib/utils';
 import { useToast } from './ToastProvider';
 
@@ -25,104 +24,114 @@ interface NotificationRecord {
 }
 
 export function NotificationDropdown() {
-  const { user, role, roles, classIds, schoolId } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [localReadIds, setLocalReadIds] = useState<Set<string>>(() => new Set());
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<Error | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const {
-    data,
-    loading,
-    error: fetchError,
-    reload,
-  } = useDocuments<NotificationRecord>('notifications', {
-    limit: 20,
-    order: { field: 'createdAt', ascending: false },
-    realtime: true,
-  });
-  const visibleNotifications = useMemo(
-    () =>
-      data.filter((item) => {
-        const targetUserIds = item.targetUserIds || [];
-        const targetRoles = item.targetRoles || ['all'];
-        const targetClasses = item.targetClasses || ['all'];
-        const userMatch = targetUserIds.length === 0 || targetUserIds.includes(user?.uid || '');
-        const roleMatch =
-          targetRoles.includes('all') ||
-          [role, ...roles]
-            .filter(Boolean)
-            .some((candidate) => targetRoles.includes(candidate as string));
-        const classMatch =
-          targetClasses.includes('all') ||
-          classIds.some((classId) => targetClasses.includes(classId));
-        const schoolMatch = !item.schoolId || !schoolId || item.schoolId === schoolId;
-        return !item.read && userMatch && roleMatch && classMatch && schoolMatch;
-      }),
-    [classIds, data, role, roles, schoolId, user?.uid]
-  );
 
-  const notifications = visibleNotifications.length
-    ? visibleNotifications
-    : [
-        {
-          id: 'demo-welcome',
-          title: 'Realtime center ready',
-          message: 'Announcements, chat, and admin events can surface here.',
-          read: true,
-          readBy: user?.uid ? [user.uid] : [],
-          targetRoles: ['all'],
-          targetClasses: ['all'],
-          createdAt: new Date().toISOString(),
-        },
-      ];
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiClient.request<NotificationRecord[]>('/api/notifications');
+      setNotifications(data);
+      setFetchError(null);
+    } catch (err) {
+      setFetchError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const init = async () => {
+      if (mounted) await reload();
+    };
+    void init();
+    return () => {
+      mounted = false;
+    };
+  }, [reload]);
+
   const isRead = (item: NotificationRecord) =>
-    item.read ||
-    (item.id ? localReadIds.has(item.id) : false) ||
-    (user?.uid ? item.readBy?.includes(user.uid) : false);
+    item.read || (user?.uid ? item.readBy?.includes(user.uid) : false);
+
   const unread = notifications.filter((item) => !isRead(item)).length;
 
   const markRead = async (item: NotificationRecord) => {
-    if (!item.id || item.id.startsWith('demo-') || isRead(item)) return;
-    setLocalReadIds((current) => new Set(current).add(item.id!));
+    if (!item.id || isRead(item) || !user?.uid) return;
+
+    const original = [...notifications];
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === item.id
+          ? { ...n, readBy: Array.from(new Set([...(n.readBy || []), user.uid])) }
+          : n
+      )
+    );
+
     try {
       await apiClient.request(`/api/notifications/${item.id}/read`, { method: 'PATCH' });
     } catch (error) {
-      setLocalReadIds((current) => {
-        const next = new Set(current);
-        next.delete(item.id!);
-        return next;
-      });
+      setNotifications(original);
       toast({
         tone: 'error',
-        title: 'Notification update failed',
+        title: 'Update failed',
         description: error instanceof Error ? error.message : 'Unable to mark notification read.',
       });
     }
   };
 
   const markAllRead = async () => {
-    const ids = notifications.map((item) => item.id).filter(Boolean) as string[];
-    setLocalReadIds((current) => new Set([...current, ...ids]));
+    if (unread === 0 || !user?.uid) return;
+
+    const original = [...notifications];
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, readBy: Array.from(new Set([...(n.readBy || []), user.uid])) }))
+    );
+
     try {
       await apiClient.request('/api/notifications/read-all', { method: 'PATCH' });
       toast({
         tone: 'success',
-        title: 'Notifications cleared',
-        description: 'Visible updates were marked as read.',
+        title: 'All read',
+        description: 'Updates were marked as read.',
       });
     } catch (error) {
-      setLocalReadIds((current) => {
-        const next = new Set(current);
-        ids.forEach((id) => next.delete(id));
-        return next;
-      });
+      setNotifications(original);
       toast({
         tone: 'error',
-        title: 'Notification update failed',
-        description:
-          error instanceof Error ? error.message : 'Unable to mark all notifications read.',
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Unable to mark all as read.',
+      });
+    }
+  };
+
+  const clearRead = async () => {
+    const readCount = notifications.filter(isRead).length;
+    if (readCount === 0) return;
+
+    const original = [...notifications];
+    setNotifications((prev) => prev.filter((n) => !isRead(n)));
+
+    try {
+      await apiClient.request('/api/notifications/read', { method: 'DELETE' });
+      toast({
+        tone: 'success',
+        title: 'Cleared',
+        description: 'Read notifications were removed from your view.',
+      });
+    } catch (error) {
+      setNotifications(original);
+      toast({
+        tone: 'error',
+        title: 'Clear failed',
+        description: error instanceof Error ? error.message : 'Unable to clear read notifications.',
       });
     }
   };
@@ -137,16 +146,20 @@ export function NotificationDropdown() {
 
   const deleteNotification = async (item: NotificationRecord, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!item.id || item.id.startsWith('demo-')) return;
+    if (!item.id) return;
+
+    const original = [...notifications];
+    setNotifications((prev) => prev.filter((n) => n.id !== item.id));
 
     try {
       await apiClient.request(`/api/notifications/${item.id}`, { method: 'DELETE' });
       toast({
         tone: 'success',
-        title: 'Notification deleted',
-        description: 'The notification has been removed.',
+        title: 'Deleted',
+        description: 'Notification removed.',
       });
     } catch (error) {
+      setNotifications(original);
       toast({
         tone: 'error',
         title: 'Delete failed',
@@ -188,8 +201,8 @@ export function NotificationDropdown() {
     if (open && dropdownRef.current) {
       const rect = dropdownRef.current.getBoundingClientRect();
       setDropdownPosition({
-        top: rect.bottom,
-        right: window.innerWidth - rect.right,
+        top: rect.bottom + 12,
+        right: Math.max(16, window.innerWidth - rect.right),
       });
     }
   }, [open]);
@@ -232,40 +245,36 @@ export function NotificationDropdown() {
               style={{
                 top: `${dropdownPosition.top}px`,
                 right: `${dropdownPosition.right}px`,
+                maxHeight: 'min(70vh, 480px)',
               }}
-              className="fixed z-[9999] mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
+              className="fixed z-[9999] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 flex flex-col"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
                 <div>
                   <p className="text-sm font-black text-slate-950 dark:text-white">Notifications</p>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     {unread} unread updates
                   </p>
                 </div>
-
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => void reload()}
                     disabled={loading}
-                    className="rounded-xl bg-slate-50 p-2 text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:text-slate-400"
+                    className="rounded-xl bg-slate-50 p-2 text-slate-600 transition-colors hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400"
                     title="Refresh"
-                    aria-label="Refresh notifications"
                   >
                     <RefreshCw size={16} className={cn(loading && 'animate-spin')} />
                   </button>
-
                   <button
                     onClick={markAllRead}
                     className="rounded-xl bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
                     title="Mark all read"
-                    aria-label="Mark all notifications as read"
                   >
                     <CheckCircle2 size={18} />
                   </button>
                 </div>
               </div>
-
-              <div className="max-h-96 overflow-y-auto p-2">
+              <div className="flex-1 overflow-y-auto p-2">
                 {loading && notifications.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <Loader2 className="mb-2 h-8 w-8 animate-spin text-blue-600" />
@@ -287,10 +296,29 @@ export function NotificationDropdown() {
                   </div>
                 )}
 
-                {!loading && !fetchError && notifications.length === 0 && (
+                {!loading && !fetchError && notifications.length === 0 && !import.meta.env.DEV && (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <Bell className="mb-2 h-10 w-10 text-slate-200" />
                     <p className="text-sm font-medium text-slate-500">All caught up!</p>
+                  </div>
+                )}
+
+                {!loading && !fetchError && notifications.length === 0 && import.meta.env.DEV && (
+                  <div className="group relative rounded-2xl bg-blue-50/70 p-3 transition-colors hover:bg-slate-50 dark:bg-blue-950/30 dark:hover:bg-slate-900">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-blue-600" />
+                      <div className="min-w-0 flex-1 pr-8">
+                        <p className="truncate font-bold text-slate-900 dark:text-white">
+                          Realtime center ready (Dev)
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                          Announcements, chat, and admin events can surface here.
+                        </p>
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          Just now
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -299,7 +327,7 @@ export function NotificationDropdown() {
                     key={item.id}
                     className={cn(
                       'group relative rounded-2xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-900',
-                      !isRead(item) && 'bg-blue-50/70 dark:bg-blue-950/30'
+                      !isRead(item) && 'bg-blue-50/10 dark:bg-blue-950/20'
                     )}
                   >
                     <button
@@ -333,18 +361,26 @@ export function NotificationDropdown() {
                         </div>
                       </div>
                     </button>
-                    {!item.id?.startsWith('demo-') && (
-                      <button
-                        onClick={(e) => void deleteNotification(item, e)}
-                        className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950"
-                        title="Delete notification"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => void deleteNotification(item, e)}
+                      className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-900/40"
+                      title="Dismiss"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ))}
               </div>
+              {notifications.length > 0 && (
+                <div className="border-t border-slate-100 bg-slate-50/50 p-2 dark:border-slate-800 dark:bg-slate-900/50 shrink-0">
+                  <button
+                    onClick={clearRead}
+                    className="flex w-full items-center justify-center rounded-xl py-2 text-xs font-black uppercase tracking-widest text-slate-500 transition-colors hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  >
+                    Clear Read Notifications
+                  </button>
+                </div>
+              )}
             </motion.div>,
             document.body
           )}

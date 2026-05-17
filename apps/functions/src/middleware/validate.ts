@@ -18,7 +18,7 @@ export const validate =
     } catch (error) {
       if (error instanceof ZodError) {
         const details = error.issues
-          .map((err) => `${err.path.join('.')}: ${err.message}`)
+          .map((err: any) => `${err.path.join('.')}: ${err.message}`)
           .join(', ');
         return next(new AppError(`Validation failed: ${details}`, 400));
       }

@@ -6,11 +6,11 @@ import { createNotification } from '../lib/notifications.js';
 
 const router: Router = Router();
 
-function canSeeNotification(
-  notification: Record<string, unknown>,
-  user: NonNullable<Request['user']>
-) {
-  const targetUserIds = (notification.targetUserIds as string[]) || [];
+function canSeeNotification(notification: any, user: NonNullable<Request['user']>) {
+  const archivedBy = notification.archivedBy || [];
+  if (archivedBy.includes(user.uid)) return false;
+
+  const targetUserIds = notification.targetUserIds || [];
   const targetRoles = notification.targetRoles || ['all'];
   const targetClasses = notification.targetClasses || ['all'];
   const schoolId = notification.schoolId || notification.tenantId;
@@ -88,7 +88,7 @@ router.patch('/read-all', async (req, res, next) => {
       .filter((notification) => canSeeNotification(notification, req.user!));
 
     await Promise.all(
-      visible.map((notification: Record<string, unknown>) =>
+      visible.map((notification: any) =>
         db
           .collection('notifications')
           .doc(notification.id)
@@ -126,6 +126,39 @@ router.patch('/:id/read', async (req, res, next) => {
   }
 });
 
+router.delete('/read', async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const snapshot = await db
+      .collection('notifications')
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+    const visible = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((notification) => canSeeNotification(notification, req.user!));
+
+    const readNotifications = visible.filter((n: any) => n.readBy?.includes(req.user!.uid));
+
+    await Promise.all(
+      readNotifications.map((n: any) =>
+        db
+          .collection('notifications')
+          .doc(n.id)
+          .update({
+            archivedBy: Array.from(new Set([...(n.archivedBy || []), req.user!.uid])),
+            updatedAt: new Date().toISOString(),
+          })
+      )
+    );
+
+    res.json({ success: true, count: readNotifications.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -139,7 +172,19 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await ref.delete();
+    // Only allow actual deletion if user is admin OR author.
+    // Otherwise, just archive it for this user.
+    if (req.user.isAdmin || (notification as any).actorId === req.user.uid) {
+      await ref.delete();
+    } else {
+      await ref.update({
+        archivedBy: Array.from(
+          new Set([...((notification as any).archivedBy || []), req.user.uid])
+        ),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     res.json({ success: true });
   } catch (error) {
     next(error);
