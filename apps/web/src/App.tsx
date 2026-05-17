@@ -178,7 +178,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 w-72 bg-white/85 border-r border-white/80 z-50 transform lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out px-4 py-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:bg-slate-950/90 dark:border-slate-800 dark:shadow-none',
+          'fixed inset-y-0 left-0 w-72 bg-white/85 border-r border-white/80 z-40 transform lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out px-4 py-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:bg-slate-950/90 dark:border-slate-800 dark:shadow-none',
           'flex flex-col',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
@@ -217,8 +217,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-20 bg-white/75 border-b border-white/80 flex items-center justify-between px-6 lg:px-10 backdrop-blur-xl dark:bg-slate-950/75 dark:border-slate-800">
+      <main className="flex-1 flex flex-col min-w-0 relative z-0">
+        <header className="h-20 bg-white/75 border-b border-white/80 flex items-center justify-between px-6 lg:px-10 backdrop-blur-xl dark:bg-slate-950/75 dark:border-slate-800 sticky top-0 z-30">
           <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600">
             <Menu size={24} />
           </button>

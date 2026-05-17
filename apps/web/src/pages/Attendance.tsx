@@ -18,6 +18,8 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { useDebounce } from '../lib/hooks';
 import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
 import { Card } from '../components/ui/Card';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useDocuments } from '../lib/documents';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
@@ -283,62 +285,59 @@ export const AttendancePage = () => {
   }, [view, canManageAttendance, loadMarkingData, loadHistory, loadReports, toast]);
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Attendance</h1>
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="rounded-xl bg-slate-100 p-2 text-slate-600 hover:bg-slate-200 disabled:opacity-50 transition-colors"
-              title="Refresh attendance data"
-            >
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            </button>
-          </div>
-          <p className="text-slate-500 mt-1">
-            {canManageAttendance
-              ? 'Track student attendance and review history.'
-              : 'View your attendance record.'}
-          </p>
-        </div>
-
-        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm self-start md:self-center">
-          {canManageAttendance && (
-            <button
-              onClick={() => setView('marking')}
-              className={cn(
-                'px-6 py-2.5 rounded-xl text-sm font-bold transition-all',
-                view === 'marking' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-600'
-              )}
-            >
-              Marking
-            </button>
-          )}
+    <PageShell maxWidth="max-w-6xl">
+      <PageHeader
+        title="Attendance"
+        description={
+          canManageAttendance
+            ? 'Track student attendance and review history.'
+            : 'View your attendance record.'
+        }
+      >
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => setView('history')}
-            className={cn(
-              'px-6 py-2.5 rounded-xl text-sm font-bold transition-all',
-              view === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-600'
-            )}
+            onClick={handleRefresh}
+            disabled={loading}
+            className="rounded-xl bg-white border border-slate-200 p-3 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm"
+            title="Refresh attendance data"
           >
-            History
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-          {canManageAttendance && (
+          <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+            {canManageAttendance && (
+              <button
+                onClick={() => setView('marking')}
+                className={cn(
+                  'px-6 py-2 rounded-xl text-sm font-bold transition-all',
+                  view === 'marking' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-600'
+                )}
+              >
+                Marking
+              </button>
+            )}
             <button
-              onClick={() => setView('reports')}
+              onClick={() => setView('history')}
               className={cn(
-                'px-6 py-2.5 rounded-xl text-sm font-bold transition-all',
-                view === 'reports' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-600'
+                'px-6 py-2 rounded-xl text-sm font-bold transition-all',
+                view === 'history' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-600'
               )}
             >
-              Reports
+              History
             </button>
-          )}
+            {canManageAttendance && (
+              <button
+                onClick={() => setView('reports')}
+                className={cn(
+                  'px-6 py-2 rounded-xl text-sm font-bold transition-all',
+                  view === 'reports' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-600'
+                )}
+              >
+                Reports
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      </PageHeader>
 
       <div className="grid grid-cols-1 gap-8">
         {view === 'marking' ? (
@@ -632,6 +631,6 @@ export const AttendancePage = () => {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };

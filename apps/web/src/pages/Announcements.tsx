@@ -21,6 +21,8 @@ import { useDebounce } from '../lib/hooks';
 import { useDocuments } from '../lib/documents';
 import { EmptyState } from '../components/saas/EmptyState';
 import { LoadingSkeleton } from '../components/saas/LoadingSkeleton';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 import { cn } from '../lib/utils';
 
@@ -195,42 +197,31 @@ export const AnnouncementsPage = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-7">
-      <section className="relative overflow-hidden rounded-[36px] bg-slate-950 p-6 text-white shadow-2xl shadow-blue-950/20 md:p-8">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.5),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.35),transparent_36%)]" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
-              <Bell size={14} />
-              Realtime announcements
-            </p>
-            <h1 className="text-4xl font-black tracking-tight md:text-6xl">School Updates</h1>
-            <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-300">
-              Priority-aware broadcasts, role targeting, scheduling, and instant delivery for the
-              whole school.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
+    <PageShell>
+      <PageHeader
+        title="School Updates"
+        description="Priority-aware broadcasts, role targeting, scheduling, and instant delivery for the whole school."
+      >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleReload}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white border border-slate-200 p-3 font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 shadow-sm"
+            title="Refresh announcements"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+          {canPost && (
             <button
-              onClick={handleReload}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/10 border border-white/20 px-4 py-3 font-bold text-white hover:bg-white/20 disabled:opacity-50"
-              title="Refresh announcements"
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
             >
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              <Plus size={20} />
+              New Announcement
             </button>
-            {canPost && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-black text-slate-950 shadow-xl shadow-blue-950/20 hover:bg-cyan-50"
-              >
-                <Plus size={18} />
-                New Announcement
-              </button>
-            )}
-          </div>
+          )}
         </div>
-      </section>
+      </PageHeader>
 
       <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
         {canPost && (
@@ -497,7 +488,7 @@ export const AnnouncementsPage = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PageShell>
   );
 };
 

@@ -33,6 +33,8 @@ import {
 } from 'recharts';
 import { DataTable, type DataTableColumn } from '../components/saas/DataTable';
 import { SearchBar } from '../components/saas/SearchBar';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 
 interface PerformanceRecord {
@@ -240,33 +242,25 @@ export const PerformancePage = () => {
   ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-indigo-100">
-            <BarChart3 size={32} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-              Performance Analytics
-            </h1>
-            <p className="text-slate-500 font-medium">
-              {isStudent
-                ? 'Visualize your academic growth and AI study tips.'
-                : 'Track class performance and subject trends.'}
-            </p>
-          </div>
-        </div>
-
+    <PageShell>
+      <PageHeader
+        title="Performance Analytics"
+        description={
+          isStudent
+            ? 'Visualize your academic growth and AI study tips.'
+            : 'Track class performance and subject trends.'
+        }
+      >
         <div className="flex items-center gap-3">
           {!isStudent && (
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-2">
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-2 dark:bg-slate-900">
               <button
                 onClick={() => handleViewChange('analytics')}
                 className={cn(
                   'px-4 py-2 rounded-xl text-sm font-bold transition-all',
-                  view === 'analytics' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                  view === 'analytics'
+                    ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-400'
+                    : 'text-slate-500'
                 )}
               >
                 Analytics
@@ -276,7 +270,9 @@ export const PerformancePage = () => {
                 onClick={() => handleViewChange('management')}
                 className={cn(
                   'px-4 py-2 rounded-xl text-sm font-bold transition-all',
-                  view === 'management' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                  view === 'management'
+                    ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-400'
+                    : 'text-slate-500'
                 )}
               >
                 Management
@@ -293,7 +289,7 @@ export const PerformancePage = () => {
             </button>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {isStudent ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -687,6 +683,6 @@ export const PerformancePage = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PageShell>
   );
 };
