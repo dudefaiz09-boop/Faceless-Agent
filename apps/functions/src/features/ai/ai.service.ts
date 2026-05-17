@@ -53,7 +53,7 @@ export class AiService {
       roleContexts[role] || 'You are a helpful assistant for the EduConnect management system.',
       `Current mode: ${mode}.`,
       context || '',
-      'IMPORTANT: Always use the provided school context if available. Do not invent factual school records. If data is missing, state what is needed. Keep answers concise and practical.',
+      'IMPORTANT: Always use the provided school database context as the source of truth if available. If the context includes specific school records (e.g., attendance), answer the user query directly using that data. If no record is found in the provided context for a specific date or student, state that "No record was found", do not say you do not have access. Never invent or hallucinate school data.',
       'Use markdown for formatting.',
     ].join('\n');
 
