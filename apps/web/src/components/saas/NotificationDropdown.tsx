@@ -244,53 +244,55 @@ export function NotificationDropdown() {
                 </div>
 
                 <div className="flex items-center gap-2">
-  <button
-    onClick={() => void reload()}
-    disabled={loading}
-    className="rounded-xl bg-slate-50 p-2 text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:text-slate-400"
-    title="Refresh"
-    aria-label="Refresh notifications"
-  >
-    <RefreshCw size={16} className={cn(loading && 'animate-spin')} />
-  </button>
+                  <button
+                    onClick={() => void reload()}
+                    disabled={loading}
+                    className="rounded-xl bg-slate-50 p-2 text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:text-slate-400"
+                    title="Refresh"
+                    aria-label="Refresh notifications"
+                  >
+                    <RefreshCw size={16} className={cn(loading && 'animate-spin')} />
+                  </button>
 
-  <button
-    onClick={markAllRead}
-    className="rounded-xl bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
-    title="Mark all read"
-    aria-label="Mark all notifications as read"
-  >
-    <CheckCircle2 size={18} />
-  </button>
-</div>
-</div>
+                  <button
+                    onClick={markAllRead}
+                    className="rounded-xl bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+                    title="Mark all read"
+                    aria-label="Mark all notifications as read"
+                  >
+                    <CheckCircle2 size={18} />
+                  </button>
+                </div>
+              </div>
 
-<div className="max-h-96 overflow-y-auto p-2">
-  {loading && notifications.length === 0 && (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <Loader2 className="mb-2 h-8 w-8 animate-spin text-blue-600" />
-      <p className="text-sm font-medium text-slate-500">Fetching updates...</p>
-    </div>
-  )}
+              <div className="max-h-96 overflow-y-auto p-2">
+                {loading && notifications.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Loader2 className="mb-2 h-8 w-8 animate-spin text-blue-600" />
+                    <p className="text-sm font-medium text-slate-500">Fetching updates...</p>
+                  </div>
+                )}
 
-  {fetchError && notifications.length === 0 && (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <p className="mb-4 text-sm font-medium text-red-600">Failed to load notifications</p>
-      <button
-        onClick={() => void reload()}
-        className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-slate-800"
-      >
-        Retry
-      </button>
-    </div>
-  )}
+                {fetchError && notifications.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <p className="mb-4 text-sm font-medium text-red-600">
+                      Failed to load notifications
+                    </p>
+                    <button
+                      onClick={() => void reload()}
+                      className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-slate-800"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
 
-  {!loading && !fetchError && notifications.length === 0 && (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <Bell className="mb-2 h-10 w-10 text-slate-200" />
-      <p className="text-sm font-medium text-slate-500">All caught up!</p>
-    </div>
-  )}
+                {!loading && !fetchError && notifications.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Bell className="mb-2 h-10 w-10 text-slate-200" />
+                    <p className="text-sm font-medium text-slate-500">All caught up!</p>
+                  </div>
+                )}
 
                 {notifications.map((item) => (
                   <div
