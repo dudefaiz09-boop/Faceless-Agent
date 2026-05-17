@@ -46,15 +46,32 @@ const modes = [
   { key: 'announcement', label: 'Draft', icon: Wand2 },
 ] as const;
 
-function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
-  const message = err instanceof Error ? err.message : String(err || '');
+function getFriendlyAiError(err: any, aiStatus: AiStatus | null) {
+  const status = err?.status;
+  const message = err?.message || String(err || '');
+  const errorData = err?.data || {};
 
-  if (message.toLowerCase().includes('tenant')) {
-    return 'AI request failed because your account is missing school/tenant context. Please sign out and sign back in, then retry.';
+  if (status === 400 && message.toLowerCase().includes('tenant')) {
+    return 'AI request failed because school context was not sent. Sign out and sign back in, then retry.';
   }
 
-  if (message.toLowerCase().includes('unauthorized') || message.includes('401')) {
-    return 'AI request failed because your session is not active. Please sign out and sign back in, then retry.';
+  if (status === 401 || message.toLowerCase().includes('unauthorized')) {
+    return 'AI request failed because your login session expired. Sign out and sign back in, then retry.';
+  }
+
+  if (status === 400) {
+    return message || 'AI request failed due to invalid query parameters.';
+  }
+
+  if (status === 502 || errorData.error === 'AI_PROVIDER_ERROR') {
+    return 'AI provider request failed. Check educonnect-api Vercel logs for /api/ai/query.';
+  }
+
+  if (
+    !status &&
+    (message.toLowerCase().includes('fetch') || message.toLowerCase().includes('network'))
+  ) {
+    return 'AI request failed because the web app could not reach the API. Check VITE_API_BASE_URL on educonnect-web and redeploy.';
   }
 
   if (aiStatus?.enabled) {
@@ -135,6 +152,9 @@ export const ChatbotPage = () => {
         },
       ]);
     } catch (err) {
+      if (import.meta.env.DEV || import.meta.env.MODE === 'preview') {
+        console.error('Full AI Error Object:', err);
+      }
       console.error('Failed to get AI response:', err);
       setQuery(currentQuery || previousQuery);
       setError(getFriendlyAiError(err, aiStatus));

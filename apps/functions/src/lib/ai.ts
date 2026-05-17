@@ -100,8 +100,7 @@ export async function generateSafeContent(
       // Log provider error details server-side only, don't expose to frontend
       const body = await response.text().catch(() => '');
       console.error('[AI] Provider error:', response.status, body.slice(0, 200));
-      // Return safe fallback instead of throwing
-      return fallbackResponse(userPrompt);
+      throw new AppError(`AI provider request failed with status ${response.status}`, 502);
     }
 
     const payload = await response.json();
