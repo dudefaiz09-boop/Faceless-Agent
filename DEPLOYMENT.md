@@ -71,7 +71,7 @@ OPENROUTER_MODEL=google/gemma-3-4b-it:free
 PUBLIC_APP_URL=https://your-web-project.vercel.app
 ```
 
-**Note:** Ensure `OPENROUTER_API_KEY` is set correctly to enable live AI responses. If missing, the assistant will run in offline mode. The default model is `google/gemma-3-4b-it:free`.
+**Note:** Ensure `OPENROUTER_API_KEY` is set correctly to enable live AI responses. If missing, the assistant will run in offline mode. The default model is `google/gemma-3-4b-it:free`. The system enforces strict free-model usage with automatic fallback.
 
 `OPENROUTER_API_KEY` is optional. Omit it if AI features are not being used. Keep it only in the API project.
 

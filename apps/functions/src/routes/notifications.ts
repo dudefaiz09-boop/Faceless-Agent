@@ -172,8 +172,6 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Only allow actual deletion if user is admin OR author.
-    // Otherwise, just archive it for this user.
     if (req.user.isAdmin || (notification as any).actorId === req.user.uid) {
       await ref.delete();
     } else {

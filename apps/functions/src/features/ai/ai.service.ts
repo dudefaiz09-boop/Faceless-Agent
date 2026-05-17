@@ -2,6 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { generateSafeContent } from '../../lib/ai.js';
 import { db } from '../../lib/documents.js';
 
+type CachedAiResponse = {
+  response: string;
+  expires: number;
+};
+
+const AI_CACHE = new Map<string, CachedAiResponse>();
+const CACHE_TTL = 5 * 60 * 1000;
+
 export class AiService {
   static async getChatbotResponse(
     userId: string,
@@ -10,6 +18,20 @@ export class AiService {
     mode = 'chat',
     context?: string
   ) {
+    const tenantId = userId.startsWith('tenant:') ? userId.split(':')[1] : 'default';
+    const normalizedQuery = query.trim().toLowerCase();
+    const cacheKey = `${tenantId}:${role}:${userId}:${mode}:${normalizedQuery}`;
+
+    const cached = AI_CACHE.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      console.log('[AI] Serving cached response for query:', normalizedQuery.slice(0, 50));
+      return {
+        id: `cached-${randomUUID()}`,
+        response: cached.response,
+        cached: true,
+      };
+    }
+
     const roleContexts: Record<string, string> = {
       student:
         'You are EduConnect AI for students. Help with homework, study planning, concept explanations, revision notes, and confidence. Be clear, safe, encouraging, and concise.',
@@ -31,7 +53,8 @@ export class AiService {
       roleContexts[role] || 'You are a helpful assistant for the EduConnect management system.',
       `Current mode: ${mode}.`,
       context || '',
-      'Use markdown. Avoid inventing private records. If data is missing, state what is needed.',
+      'IMPORTANT: Always use the provided school context if available. Do not invent factual school records. If data is missing, state what is needed. Keep answers concise and practical.',
+      'Use markdown for formatting.',
     ].join('\n');
 
     let history = '';
@@ -45,7 +68,12 @@ export class AiService {
 
       history = historySnapshot.docs
         .reverse()
-        .map((doc: any) => `User: ${doc.data().query}\nAssistant: ${doc.data().response}`)
+        .map(
+          (doc) =>
+            `User: ${(doc.data() as { query: string }).query}\nAssistant: ${
+              (doc.data() as { response: string }).response
+            }`
+        )
         .join('\n\n');
     } catch (error) {
       console.error('[AI] Chat history load failed. Continuing without history:', error);
@@ -56,6 +84,11 @@ export class AiService {
       : query;
 
     const responseText = await generateSafeContent(systemInstruction, fullPrompt);
+
+    AI_CACHE.set(cacheKey, {
+      response: responseText,
+      expires: Date.now() + CACHE_TTL,
+    });
 
     try {
       const docRef = await db.collection('chatbotLogs').add({
