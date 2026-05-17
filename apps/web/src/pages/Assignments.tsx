@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -13,6 +13,7 @@ import {
   ExternalLink,
   CheckCircle2,
   Clock,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -21,7 +22,6 @@ import {
   Assignment,
   AssignmentSubmission as Submission,
 } from '@educonnect/shared-education';
-import { useAssignments, useAssignmentSubmissions } from '@educonnect/shared-api';
 import { assignmentsService } from '../lib/api-client';
 import { FileUpload } from '../components/FileUpload';
 import { EmptyState } from '../components/saas/EmptyState';
@@ -39,16 +39,38 @@ export const AssignmentsPage = () => {
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [lastSyncTime] = useState(() => Date.now());
+  const [lastSyncTime, setLastSyncTime] = useState(() => Date.now());
 
-  const {
-    data: assignmentsData = [],
-    isLoading: loading,
-    createAssignment,
-  } = useAssignments(assignmentsService, selectedClass);
+  // Local State replacement for hooks
+  const [assignmentsData, setAssignmentsData] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAssignments = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await assignmentsService.listAssignments(selectedClass);
+      const data = Array.isArray(result) ? result : [];
+      setAssignmentsData(data);
+      setLastSyncTime(Date.now());
+    } catch (err) {
+      setAssignmentsData([]);
+      setError(err instanceof Error ? err.message : 'Unable to load assignments.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedClass]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAssignments();
+  }, [loadAssignments]);
 
   // Guard against invalid data
-  const assignments = React.useMemo(
+  const assignments = useMemo(
     () => (Array.isArray(assignmentsData) ? assignmentsData.filter((a) => a && a.id) : []),
     [assignmentsData]
   );
@@ -64,10 +86,42 @@ export const AssignmentsPage = () => {
 
   // Submission/Grading View State
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-  const { data: submissions = [] } = useAssignmentSubmissions(
-    assignmentsService,
-    selectedAssignment?.id || ''
-  );
+
+  const loadSubmissions = useCallback(async () => {
+    if (!selectedAssignment?.id || !canManageAssignments) {
+      setSubmissions([]);
+      return;
+    }
+    setSubmissionsLoading(true);
+    try {
+      const result = await assignmentsService.getSubmissions(selectedAssignment.id);
+      setSubmissions(Array.isArray(result) ? result : []);
+    } catch {
+      setSubmissions([]);
+    } finally {
+      setSubmissionsLoading(false);
+    }
+  }, [selectedAssignment, canManageAssignments]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadSubmissions();
+  }, [loadSubmissions]);
+
+  // Sync selected assignment after reload
+  useEffect(() => {
+    if (selectedAssignment && assignments.length > 0) {
+      const exists = assignments.find((a) => a.id === selectedAssignment.id);
+      if (!exists) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedAssignment(null);
+      } else if (exists !== selectedAssignment) {
+        // Refresh the selected assignment object to keep it in sync
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedAssignment(exists);
+      }
+    }
+  }, [assignments, selectedAssignment]);
 
   const [gradingState, setGradingState] = useState<{
     studentId: string;
@@ -81,12 +135,14 @@ export const AssignmentsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<Record<string, Submission>>({});
 
-  const loadMyHistory = React.useCallback(async () => {
+  const loadMyHistory = useCallback(async () => {
     if (!uid) return;
     try {
       const data = await assignmentsService.getMyHistory(uid);
       const map: Record<string, Submission> = {};
-      data.forEach((s: Submission) => (map[s.assignmentId] = s));
+      if (Array.isArray(data)) {
+        data.forEach((s: Submission) => (map[s.assignmentId] = s));
+      }
       setMySubmissions(map);
     } catch (err) {
       console.error(err);
@@ -96,14 +152,14 @@ export const AssignmentsPage = () => {
   useEffect(() => {
     if (isStudent) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      loadMyHistory();
+      void loadMyHistory();
     }
   }, [loadMyHistory, isStudent]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createAssignment({
+      await assignmentsService.createAssignment({
         ...newAssignment,
         tenantId: schoolId || undefined,
         status: ASSIGNMENT_STATUS.PUBLISHED,
@@ -119,6 +175,7 @@ export const AssignmentsPage = () => {
         title: 'Assignment created',
         description: `${newAssignment.title} was published for ${newAssignment.classId}.`,
       });
+      void loadAssignments();
     } catch {
       toast({
         tone: 'error',
@@ -143,6 +200,7 @@ export const AssignmentsPage = () => {
         title: 'Grade published',
         description: 'The student can now view the final feedback.',
       });
+      void loadSubmissions();
     } catch {
       toast({
         tone: 'error',
@@ -163,7 +221,8 @@ export const AssignmentsPage = () => {
       setSubmissionContent('');
       setSubmissionFileUrl('');
       setSelectedAssignment(null);
-      loadMyHistory();
+      void loadMyHistory();
+      void loadAssignments();
       toast({
         tone: 'success',
         title: 'Submission uploaded',
@@ -180,7 +239,7 @@ export const AssignmentsPage = () => {
     }
   };
 
-  const filteredAssignments = React.useMemo(() => {
+  const filteredAssignments = useMemo(() => {
     return assignments.filter((assignment) => {
       if (!assignment || !assignment.id) return false;
       const query = search.trim().toLowerCase();
@@ -193,8 +252,8 @@ export const AssignmentsPage = () => {
     });
   }, [assignments, search]);
 
-  const submittedCount = React.useMemo(() => Object.keys(mySubmissions).length, [mySubmissions]);
-  const dueSoonCount = React.useMemo(() => {
+  const submittedCount = useMemo(() => Object.keys(mySubmissions).length, [mySubmissions]);
+  const dueSoonCount = useMemo(() => {
     return assignments.filter((assignment) => {
       if (!assignment || !assignment.dueDate) return false;
       try {
@@ -286,6 +345,20 @@ export const AssignmentsPage = () => {
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 border border-red-100 p-8 rounded-3xl text-center flex flex-col items-center gap-4">
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-red-500 shadow-sm">
+                <AlertCircle size={32} />
+              </div>
+              <p className="text-red-700 font-medium">{error}</p>
+              <button
+                onClick={() => void loadAssignments()}
+                className="flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-red-700 transition-all"
+              >
+                <RefreshCw size={16} />
+                Retry
+              </button>
             </div>
           ) : filteredAssignments.length === 0 ? (
             <EmptyState
@@ -495,137 +568,143 @@ export const AssignmentsPage = () => {
                       Submissions ({submissions.length})
                     </h4>
 
-                    <div className="space-y-3">
-                      {submissions.length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">No submissions yet.</p>
-                      ) : (
-                        submissions.map((sub) => (
-                          <div
-                            key={sub.studentId}
-                            className="bg-slate-50 p-4 rounded-2xl space-y-3"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-bold text-slate-900 text-sm">
-                                  {sub.studentName}
+                    {submissionsLoading ? (
+                      <div className="flex justify-center py-10">
+                        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {submissions.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No submissions yet.</p>
+                        ) : (
+                          submissions.map((sub) => (
+                            <div
+                              key={sub.studentId}
+                              className="bg-slate-50 p-4 rounded-2xl space-y-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-bold text-slate-900 text-sm">
+                                    {sub.studentName}
+                                  </p>
+                                  <div className="flex gap-1 mt-1">
+                                    {sub.checkedByAI && (
+                                      <span className="bg-blue-100 text-blue-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                        AI Score: {sub.aiScore}
+                                      </span>
+                                    )}
+                                    {sub.recheckedByTeacher && (
+                                      <span className="bg-indigo-100 text-indigo-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md">
+                                        Verified
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span
+                                    className={cn(
+                                      'text-[10px] font-black uppercase px-2 py-0.5 rounded-full',
+                                      sub.status === 'graded'
+                                        ? 'bg-emerald-50 text-emerald-600'
+                                        : 'bg-blue-50 text-blue-600'
+                                    )}
+                                  >
+                                    {sub.status}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 line-clamp-2 italic">
+                                  &quot;{sub.content}&quot;
                                 </p>
-                                <div className="flex gap-1 mt-1">
-                                  {sub.checkedByAI && (
-                                    <span className="bg-blue-100 text-blue-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                                      AI Score: {sub.aiScore}
-                                    </span>
-                                  )}
-                                  {sub.recheckedByTeacher && (
-                                    <span className="bg-indigo-100 text-indigo-600 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md">
-                                      Verified
-                                    </span>
-                                  )}
-                                </div>
-                                <span
-                                  className={cn(
-                                    'text-[10px] font-black uppercase px-2 py-0.5 rounded-full',
-                                    sub.status === 'graded'
-                                      ? 'bg-emerald-50 text-emerald-600'
-                                      : 'bg-blue-50 text-blue-600'
-                                  )}
-                                >
-                                  {sub.status}
-                                </span>
                               </div>
-                              <p className="text-xs text-slate-600 line-clamp-2 italic">
-                                &quot;{sub.content}&quot;
-                              </p>
-                            </div>
 
-                            {gradingState?.studentId === sub.studentId ? (
-                              <div className="pt-4 space-y-3 border-t border-slate-200 mt-2">
-                                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                  <p className="text-[10px] font-black text-blue-600 uppercase mb-1">
-                                    AI Draft Analysis
-                                  </p>
-                                  <p className="text-sm font-bold text-blue-900">
-                                    Score: {sub.aiScore}
-                                  </p>
-                                  <p className="text-xs text-blue-800 mt-1 italic">
-                                    &quot;{sub.aiFeedback}&quot;
-                                  </p>
+                              {gradingState?.studentId === sub.studentId ? (
+                                <div className="pt-4 space-y-3 border-t border-slate-200 mt-2">
+                                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                                    <p className="text-[10px] font-black text-blue-600 uppercase mb-1">
+                                      AI Draft Analysis
+                                    </p>
+                                    <p className="text-sm font-bold text-blue-900">
+                                      Score: {sub.aiScore}
+                                    </p>
+                                    <p className="text-xs text-blue-800 mt-1 italic">
+                                      &quot;{sub.aiFeedback}&quot;
+                                    </p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">
+                                      Final Grade to Publish
+                                    </label>
+                                    <input
+                                      placeholder="e.g. 8.5"
+                                      defaultValue={sub.grade || ''}
+                                      className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 font-bold"
+                                      onChange={(e) =>
+                                        setGradingState({
+                                          ...gradingState!,
+                                          studentId: sub.studentId,
+                                          grade: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">
+                                      Final Teacher Feedback
+                                    </label>
+                                    <textarea
+                                      rows={3}
+                                      placeholder="Enter final feedback to publish to student..."
+                                      defaultValue={sub.feedback || ''}
+                                      className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100"
+                                      onChange={(e) =>
+                                        setGradingState({
+                                          ...gradingState!,
+                                          studentId: sub.studentId,
+                                          feedback: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div className="flex gap-2 pt-2">
+                                    <button
+                                      onClick={handleGrade}
+                                      className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-colors"
+                                    >
+                                      Publish to Student
+                                    </button>
+                                    <button
+                                      onClick={() => setGradingState(null)}
+                                      className="px-4 bg-slate-200 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-300 transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-500 uppercase">
-                                    Final Grade to Publish
-                                  </label>
-                                  <input
-                                    placeholder="e.g. 8.5"
-                                    defaultValue={sub.grade || ''}
-                                    className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 font-bold"
-                                    onChange={(e) =>
-                                      setGradingState({
-                                        ...gradingState,
-                                        studentId: sub.studentId,
-                                        grade: e.target.value,
-                                      })
-                                    }
+                              ) : (
+                                <button
+                                  onClick={() =>
+                                    setGradingState({
+                                      studentId: sub.studentId,
+                                      grade: sub.grade || sub.aiScore?.toString() || '',
+                                      feedback: sub.feedback || sub.aiFeedback || '',
+                                    })
+                                  }
+                                  className="w-full text-xs font-bold text-indigo-600 hover:text-indigo-700 text-left flex items-center gap-1 group/btn mt-2 bg-indigo-50 p-2 rounded-lg"
+                                >
+                                  {sub.recheckedByTeacher
+                                    ? 'Edit Published Grade'
+                                    : sub.checkedByAI
+                                      ? 'Review AI Draft & Publish'
+                                      : 'Grade Submission manually'}
+                                  <ChevronRight
+                                    size={12}
+                                    className="group-hover/btn:translate-x-0.5 transition-transform"
                                   />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-500 uppercase">
-                                    Final Teacher Feedback
-                                  </label>
-                                  <textarea
-                                    rows={3}
-                                    placeholder="Enter final feedback to publish to student..."
-                                    defaultValue={sub.feedback || ''}
-                                    className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100"
-                                    onChange={(e) =>
-                                      setGradingState({
-                                        ...gradingState,
-                                        studentId: sub.studentId,
-                                        feedback: e.target.value,
-                                      })
-                                    }
-                                  />
-                                </div>
-                                <div className="flex gap-2 pt-2">
-                                  <button
-                                    onClick={handleGrade}
-                                    className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-colors"
-                                  >
-                                    Publish to Student
-                                  </button>
-                                  <button
-                                    onClick={() => setGradingState(null)}
-                                    className="px-4 bg-slate-200 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-300 transition-colors"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() =>
-                                  setGradingState({
-                                    studentId: sub.studentId,
-                                    grade: sub.grade || sub.aiScore?.toString() || '',
-                                    feedback: sub.feedback || sub.aiFeedback || '',
-                                  })
-                                }
-                                className="w-full text-xs font-bold text-indigo-600 hover:text-indigo-700 text-left flex items-center gap-1 group/btn mt-2 bg-indigo-50 p-2 rounded-lg"
-                              >
-                                {sub.recheckedByTeacher
-                                  ? 'Edit Published Grade'
-                                  : sub.checkedByAI
-                                    ? 'Review AI Draft & Publish'
-                                    : 'Grade Submission manually'}
-                                <ChevronRight
-                                  size={12}
-                                  className="group-hover/btn:translate-x-0.5 transition-transform"
-                                />
-                              </button>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
+                                </button>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -703,6 +782,7 @@ export const AssignmentsPage = () => {
                     >
                       <option value="10A">10A</option>
                       <option value="10B">10B</option>
+                      <option value="9A">9A</option>
                     </select>
                   </div>
                 </div>

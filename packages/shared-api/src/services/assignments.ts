@@ -8,6 +8,10 @@ export class AssignmentsService {
     return this.client.get<Assignment[]>(`/assignments${classId ? `?classId=${classId}` : ''}`);
   }
 
+  async listAssignments(classId?: string) {
+    return this.getAssignments(classId);
+  }
+
   async createAssignment(data: Partial<Assignment>) {
     return this.client.post<Assignment>('/assignments/create', data);
   }
