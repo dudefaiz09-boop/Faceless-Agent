@@ -139,7 +139,9 @@ router.get('/rooms', async (req, res, next) => {
     const snapshot = await db.collection('conversations').get();
     const rooms = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((room: Record<string, unknown>) => (room.participants as string[])?.includes(user.uid));
+      .filter((room: Record<string, unknown>) =>
+        (room.participants as string[])?.includes(user.uid)
+      );
 
     res.json(rooms);
   } catch (error) {

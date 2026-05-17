@@ -99,7 +99,11 @@ function resolveRole(payload: ManagedUserPayload, existing?: Record<string, unkn
   return requestedRole;
 }
 
-function resolveModules(role: Role, payload: ManagedUserPayload, existing?: Record<string, unknown>) {
+function resolveModules(
+  role: Role,
+  payload: ManagedUserPayload,
+  existing?: Record<string, unknown>
+) {
   if (role === 'admin') return [...ALL_MODULES];
 
   const source = payload.assignedModules ?? existing?.assignedModules;

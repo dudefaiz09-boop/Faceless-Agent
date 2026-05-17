@@ -132,7 +132,10 @@ router.get('/:classId?', requireAttendanceViewer, async (req, res, next) => {
     }
 
     const snapshot = await query.get();
-    const days = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Record<string, unknown>) }));
+    const days = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as Record<string, unknown>),
+    }));
     if (date) {
       const day = days[0];
       const records = (day?.records || []) as AttendanceEntry[];

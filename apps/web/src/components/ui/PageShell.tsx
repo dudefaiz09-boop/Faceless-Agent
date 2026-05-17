@@ -8,7 +8,5 @@ interface PageShellProps {
 }
 
 export const PageShell = ({ children, maxWidth = 'max-w-7xl', className }: PageShellProps) => (
-  <div className={cn('mx-auto space-y-8 pb-12', maxWidth, className)}>
-    {children}
-  </div>
+  <div className={cn('mx-auto space-y-8 pb-12', maxWidth, className)}>{children}</div>
 );

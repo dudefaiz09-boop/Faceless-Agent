@@ -42,7 +42,9 @@ class SupabaseQuerySnapshot {
 }
 
 function getFieldValue(data: DocumentData, field: string) {
-  return field.split('.').reduce<unknown>((value: unknown, key) => (value as Record<string, unknown>)?.[key], data);
+  return field
+    .split('.')
+    .reduce<unknown>((value: unknown, key) => (value as Record<string, unknown>)?.[key], data);
 }
 
 function matchesFilter(data: DocumentData, filter: QueryFilter) {

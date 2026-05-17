@@ -38,7 +38,9 @@ router.get('/report/:classId', checkPermission('manageAssignments'), async (req,
       .where('targetClasses', 'array-contains', classId)
       .get();
 
-    const assignments = assignmentsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Record<string, unknown>);
+    const assignments = assignmentsSnap.docs.map(
+      (doc) => ({ id: doc.id, ...doc.data() }) as Record<string, unknown>
+    );
 
     // 2. Get all submissions for these assignments
     const report = await Promise.all(
@@ -48,7 +50,9 @@ router.get('/report/:classId', checkPermission('manageAssignments'), async (req,
           .where('assignmentId', '==', assignment.id as string)
           .get();
 
-        const submissions = submissionsSnap.docs.map((doc) => doc.data() as Record<string, unknown>);
+        const submissions = submissionsSnap.docs.map(
+          (doc) => doc.data() as Record<string, unknown>
+        );
         return AssignmentAnalytics.calculateStats(assignment, submissions);
       })
     );

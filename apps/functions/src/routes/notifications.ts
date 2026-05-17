@@ -6,7 +6,10 @@ import { createNotification } from '../lib/notifications.js';
 
 const router: Router = Router();
 
-function canSeeNotification(notification: Record<string, unknown>, user: NonNullable<Request['user']>) {
+function canSeeNotification(
+  notification: Record<string, unknown>,
+  user: NonNullable<Request['user']>
+) {
   const targetUserIds = (notification.targetUserIds as string[]) || [];
   const targetRoles = notification.targetRoles || ['all'];
   const targetClasses = notification.targetClasses || ['all'];
