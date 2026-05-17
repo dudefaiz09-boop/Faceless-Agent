@@ -11,6 +11,8 @@ import {
   Sparkles,
   Wand2,
   AlertCircle,
+  Database,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
@@ -88,10 +90,19 @@ function getFriendlyAiError(err: any, aiStatus: AiStatus | null) {
   return 'AI request failed. Please try again later.';
 }
 
+const contextModules = [
+  { key: 'fees', label: 'Fees' },
+  { key: 'attendance', label: 'Attendance' },
+  { key: 'assignments', label: 'Assignments' },
+  { key: 'performance', label: 'Performance' },
+  { key: 'library', label: 'Library' },
+] as const;
+
 export const ChatbotPage = () => {
   const { role, isAdmin, isTeacher, canManageAssignments } = useAuth();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<(typeof modes)[number]['key']>('chat');
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [logs, setLogs] = useState<ChatLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,10 +154,23 @@ export const ChatbotPage = () => {
     setError(null);
 
     try {
-      const data = await apiClient.request<AiQueryResponse>('/api/ai/query', {
-        method: 'POST',
-        body: JSON.stringify({ query: currentQuery, mode }),
-      });
+      let data: AiQueryResponse;
+      try {
+        data = await apiClient.request<AiQueryResponse>('/api/ai/context-query', {
+          method: 'POST',
+          body: JSON.stringify({
+            query: currentQuery,
+            mode,
+            modules: selectedModules,
+          }),
+        });
+      } catch (contextErr) {
+        console.warn('Contextual AI failed, falling back to basic query:', contextErr);
+        data = await apiClient.request<AiQueryResponse>('/api/ai/query', {
+          method: 'POST',
+          body: JSON.stringify({ query: currentQuery, mode }),
+        });
+      }
 
       setLogs((prev) => [
         ...prev,
@@ -199,22 +223,48 @@ export const ChatbotPage = () => {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {modes.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setMode(item.key)}
-                className={cn(
-                  'flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-widest transition-all',
-                  mode === item.key
-                    ? 'bg-white text-slate-950'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                )}
-              >
-                <item.icon size={14} />
-                {item.label}
-              </button>
-            ))}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              {modes.map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setMode(item.key)}
+                  className={cn(
+                    'flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-widest transition-all',
+                    mode === item.key
+                      ? 'bg-white text-slate-950'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  )}
+                >
+                  <item.icon size={14} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 border-t border-white/10 pt-3">
+              <span className="flex items-center gap-1.5 px-1 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <Database size={10} /> Data Access:
+              </span>
+              {contextModules.map((mod) => (
+                <button
+                  key={mod.key}
+                  onClick={() =>
+                    setSelectedModules((prev) =>
+                      prev.includes(mod.key) ? prev.filter((k) => k !== mod.key) : [...prev, mod.key]
+                    )
+                  }
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-[10px] font-black transition-all ring-1',
+                    selectedModules.includes(mod.key)
+                      ? 'bg-cyan-500/20 text-cyan-200 ring-cyan-500/50'
+                      : 'bg-white/5 text-slate-400 ring-white/10 hover:bg-white/10'
+                  )}
+                >
+                  {selectedModules.includes(mod.key) && <CheckCircle2 size={10} />}
+                  {mod.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
