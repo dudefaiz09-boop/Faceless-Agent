@@ -90,24 +90,25 @@ export class AiController {
   static async contextQueryChatbot(req: Request, res: Response, next: NextFunction) {
     try {
       const { query, mode, modules: requestedModules } = req.body;
-      const user = req.user;
 
-      if (!user) {
-        return res.status(401).json({
-          error: 'Unauthorized',
-          message: 'Authentication required for contextual AI queries.',
-        });
-      }
+      // 1. Resolve user context
+      const userContext = await AiContextService.resolveAiUserContext(req);
 
-      const userId = user.uid;
-      const role = user.role || user.roles?.[0] || 'student';
-      const tid = user.schoolId || req.tenantId || '';
-
+      // 2. Infer modules and prepare query
       const inferred = AiContextService.inferModulesFromQuery(query);
       const finalModules = Array.from(new Set([...inferred, ...(requestedModules || [])]));
 
-      const context = await AiContextService.getModuleContext(userId, role, tid, finalModules as any);
-      const { id, response } = await AiService.getChatbotResponse(userId, role, query, mode, context);
+      // 3. Fetch data context
+      const context = await AiContextService.getModuleContext(userContext, finalModules as any);
+
+      // 4. Generate AI response
+      const { id, response } = await AiService.getChatbotResponse(
+        userContext.uid,
+        userContext.role,
+        query,
+        mode,
+        context
+      );
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
     } catch (error: any) {

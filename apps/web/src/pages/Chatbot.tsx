@@ -104,7 +104,13 @@ export const ChatbotPage = () => {
   const { role, isAdmin, isTeacher, canManageAssignments } = useAuth();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<(typeof modes)[number]['key']>('chat');
-  const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [selectedModules, setSelectedModules] = useState<string[]>([
+    'fees',
+    'attendance',
+    'assignments',
+    'performance',
+    'library',
+  ]);
   const [logs, setLogs] = useState<ChatLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -4,7 +4,15 @@ import { getSupabaseAdmin, type DocumentData } from './supabase.js';
 // Compatibility layer for the migration. Existing routes keep their
 // document-store shaped calls while the storage underneath runs on Supabase.
 
-type FilterOperator = '==' | '>=' | '<=' | '>' | '<' | 'array-contains' | 'array-contains-any';
+type FilterOperator =
+  | '=='
+  | '>='
+  | '<='
+  | '>'
+  | '<'
+  | 'array-contains'
+  | 'array-contains-any'
+  | 'in';
 
 interface QueryFilter {
   field: string;
@@ -67,6 +75,8 @@ function matchesFilter(data: DocumentData, filter: QueryFilter) {
         Array.isArray(filter.value) &&
         filter.value.some((item) => actual.includes(item))
       );
+    case 'in':
+      return Array.isArray(filter.value) && filter.value.includes(actual);
     default:
       return false;
   }
