@@ -67,11 +67,11 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=https://your-web-project.vercel.app
 OPENROUTER_API_KEY=your_openrouter_key
-OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
+OPENROUTER_MODEL=google/gemma-3-4b-it:free
 PUBLIC_APP_URL=https://your-web-project.vercel.app
 ```
 
-**Note:** Ensure `OPENROUTER_API_KEY` is set correctly to enable live AI responses. If missing, the assistant will run in offline mode.
+**Note:** Ensure `OPENROUTER_API_KEY` is set correctly to enable live AI responses. If missing, the assistant will run in offline mode. The default model is `google/gemma-3-4b-it:free`.
 
 `OPENROUTER_API_KEY` is optional. Omit it if AI features are not being used. Keep it only in the API project.
 
@@ -124,7 +124,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=http://localhost:5173
 OPENROUTER_API_KEY=your_openrouter_key_if_using_ai
-OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
+OPENROUTER_MODEL=google/gemma-3-4b-it:free
 ```
 
 ## Deployment Order

@@ -1,10 +1,14 @@
-import { AppError } from '../middleware/error.js';
 import { env } from './config.js';
 
-const openRouterApiKey = env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
-const openRouterModel =
-  env.OPENROUTER_MODEL || process.env.OPENROUTER_MODEL || 'mistralai/mistral-7b-instruct:free';
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
+
+function getOpenRouterApiKey() {
+  return process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY || '';
+}
+
+function getOpenRouterModel() {
+  return process.env.OPENROUTER_MODEL || env.OPENROUTER_MODEL || 'google/gemma-3-4b-it:free';
+}
 
 // Determine HTTP-Referer for OpenRouter
 function getHttpReferer(): string {
@@ -19,28 +23,60 @@ function getHttpReferer(): string {
   return 'http://localhost:5173';
 }
 
-export const AI_MODEL = openRouterModel;
-export const isAiEnabled = !!openRouterApiKey;
-export const openRouterKeySource = env.OPENROUTER_API_KEY
-  ? 'env'
-  : process.env.OPENROUTER_API_KEY
+export function isAiEnabled() {
+  return !!getOpenRouterApiKey();
+}
+
+export function getAiRuntimeStatus() {
+  const hasOpenRouterKey = !!getOpenRouterApiKey();
+  const model = getOpenRouterModel();
+
+  const keySource = process.env.OPENROUTER_API_KEY
     ? 'process.env'
-    : 'missing';
+    : env.OPENROUTER_API_KEY
+      ? 'env'
+      : 'missing';
+
+  return {
+    enabled: hasOpenRouterKey,
+    provider: 'openrouter',
+    model,
+    mode: hasOpenRouterKey ? 'live' : 'offline-fallback',
+    hasOpenRouterKey,
+    keySource,
+    runtime: process.env.VERCEL_URL ? 'vercel' : 'local',
+    checkedAt: new Date().toISOString(),
+  };
+}
+
 export const AI_HTTP_REFERER = getHttpReferer();
 
-function fallbackResponse(userPrompt: string) {
-  const trimmed = userPrompt.trim().replace(/\s+/g, ' ').slice(0, 220);
+function getTrimmedPrompt(userPrompt: string) {
+  return userPrompt.trim().replace(/\s+/g, ' ').slice(0, 220);
+}
+
+function missingKeyFallback(userPrompt: string) {
+  const trimmed = getTrimmedPrompt(userPrompt);
   return [
-    'AI Assistant is currently in offline mode. The API server environment is missing the required OPENROUTER_API_KEY to enable live responses.',
+    'AI is currently running in offline-safe mode because the API AI provider key is not configured.',
     '',
-    trimmed
-      ? `Here is a practical starting point for: "${trimmed}"`
-      : 'Ask a focused question and I will help you break it down.',
-    '',
-    '- Identify the goal and the deadline.',
-    '- Break the work into 3-5 concrete steps.',
-    '- Track blockers early and ask a teacher or admin for help when needed.',
+    trimmed ? `Practical starting point for "${trimmed}":` : 'Ask a focused question to start:',
+    '- Identify your specific goal.',
+    '- Break the task into 3 small steps.',
+    '- Ask an admin to check the AI configuration if live AI is required.',
   ].join('\n');
+}
+
+function providerErrorFallback() {
+  return 'AI provider is currently unavailable. Please retry later or ask an admin to check the API provider logs.';
+}
+
+function timeoutFallback() {
+  return 'AI provider request timed out. Please retry later.';
+}
+
+function emptyResponseFallback() {
+  return 'AI provider returned an empty response. Please retry later.';
 }
 
 function getMessageText(payload: any) {
@@ -66,8 +102,11 @@ export async function generateSafeContent(
   config: any = {},
   retries = 2
 ): Promise<string> {
-  if (!isAiEnabled) {
-    return fallbackResponse(userPrompt);
+  const apiKey = getOpenRouterApiKey();
+  const model = getOpenRouterModel();
+
+  if (!apiKey) {
+    return missingKeyFallback(userPrompt);
   }
 
   try {
@@ -78,13 +117,13 @@ export async function generateSafeContent(
       method: 'POST',
       signal: controller.signal,
       headers: {
-        Authorization: `Bearer ${openRouterApiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': AI_HTTP_REFERER,
         'X-Title': 'EduConnect AI',
       },
       body: JSON.stringify({
-        model: openRouterModel,
+        model,
         messages: [
           { role: 'system', content: systemInstruction },
           { role: 'user', content: userPrompt },
@@ -98,31 +137,45 @@ export async function generateSafeContent(
     clearTimeout(timeout);
 
     if (!response.ok) {
+      // Log provider error details server-side only, don't expose to frontend
+      const body = await response.text().catch(() => '');
+      console.error('[AI] OpenRouter provider error', {
+        status: response.status,
+        model,
+        body: body.slice(0, 500),
+      });
+
       if ((response.status === 429 || response.status >= 500) && retries > 0) {
         await new Promise((resolve) => setTimeout(resolve, 1200));
         return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
       }
-      // Log provider error details server-side only, don't expose to frontend
-      const body = await response.text().catch(() => '');
-      console.error('[AI] Provider error:', response.status, body.slice(0, 200));
-      throw new AppError(`AI provider request failed with status ${response.status}`, 502);
+
+      return providerErrorFallback();
     }
 
     const payload = await response.json();
     const text = getMessageText(payload);
 
     if (!text) {
-      throw new AppError('AI provider returned an empty response.', 502);
+      console.warn('[AI] OpenRouter empty response', { model });
+      return emptyResponseFallback();
     }
 
     return text;
   } catch (error: any) {
-    if (error?.name === 'AbortError' && retries > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
+    if (error?.name === 'AbortError') {
+      if (retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return generateSafeContent(systemInstruction, userPrompt, config, retries - 1);
+      }
+      console.error('[AI] OpenRouter timeout');
+      return timeoutFallback();
     }
 
-    console.error('[AI] Generation failed:', error);
-    return fallbackResponse(userPrompt);
+    console.error('[AI] Generation failed:', {
+      name: error?.name,
+      message: error?.message,
+    });
+    return providerErrorFallback();
   }
 }

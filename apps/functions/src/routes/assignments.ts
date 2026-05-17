@@ -224,11 +224,8 @@ router.post(['/:id/submit', '/submit'], async (req, res, next) => {
 
     // Trigger AI Grading
     try {
-      if (!isAiEnabled) {
-        logger.info(
-          { assignmentId },
-          'Skipping AI grading because OPENROUTER_API_KEY is not configured'
-        );
+      if (!isAiEnabled()) {
+        logger.info({ assignmentId }, 'Skipping AI grading because AI provider is not configured');
         return res.json({ success: true, id: docId });
       }
 
