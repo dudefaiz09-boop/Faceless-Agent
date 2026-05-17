@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  BarChart3,
   TrendingUp,
   Award,
   Brain,

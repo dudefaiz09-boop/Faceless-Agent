@@ -18,7 +18,7 @@ export const tenantMiddleware = (req: Request, res: Response, next: NextFunction
   const headerTenantId = req.headers['x-school-id'] as string;
 
   // 2. Try to infer from the authenticated user's custom claims (set during signup/provisioning)
-  const userTenantId = (req.user as any)?.schoolId as string;
+  const userTenantId = req.user?.schoolId;
 
   const resolvedTenantId = headerTenantId || userTenantId;
 

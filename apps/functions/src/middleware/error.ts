@@ -21,9 +21,14 @@ export class AppError extends Error {
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@educonnect/logger';
 
-export const globalErrorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
-  const status = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+export const globalErrorHandler = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+) => {
+  const status = (err as { statusCode?: number }).statusCode || 500;
+  const message = (err as Error).message || 'Internal Server Error';
 
   // Log the error with correlation ID if available
   const correlationId = req.headers['x-correlation-id'] || 'N/A';
@@ -35,7 +40,7 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, _next:
       message,
       path: req.path,
       method: req.method,
-      userId: (req as any).user?.uid || 'anonymous',
+      userId: req.user?.uid || 'anonymous',
       correlationId,
     },
     'Request failed'

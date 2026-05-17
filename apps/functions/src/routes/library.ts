@@ -84,7 +84,7 @@ router.get('/resources', async (req, res, next) => {
 
     // Filter resources based on visibility and user role/class
     const allResources = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    const filteredResources = allResources.filter((resource: any) => {
+    const filteredResources = allResources.filter((resource: Record<string, unknown>) => {
       // Admin/librarian/principal see all
       if (user?.isAdmin || user?.roles.includes('librarian') || user?.roles.includes('principal')) {
         return true;
@@ -181,7 +181,7 @@ router.post('/upload', checkPermission('manageLibrary'), async (req, res, next) 
     const ref = await db.collection('library').add(resource);
 
     // Determine notification targets based on visibility
-    let notificationTargets: any = {};
+    const notificationTargets: Record<string, unknown> = {};
     if (visibility === 'all') {
       notificationTargets.targetRoles = ['student', 'teacher', 'parent'];
     } else if (visibility === 'roles') {

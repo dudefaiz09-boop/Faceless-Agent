@@ -45,7 +45,10 @@ export class AiService {
 
       history = historySnapshot.docs
         .reverse()
-        .map((doc: any) => `User: ${doc.data().query}\nAssistant: ${doc.data().response}`)
+        .map((doc: { data: () => Record<string, unknown> }) => {
+          const data = doc.data();
+          return `User: ${data.query}\nAssistant: ${data.response}`;
+        })
         .join('\n\n');
     } catch (error) {
       console.error('[AI] Chat history load failed. Continuing without history:', error);
@@ -82,7 +85,7 @@ export class AiService {
     }
   }
 
-  static async getPerformanceSuggestions(studentId: string, records: any[]) {
+  static async getPerformanceSuggestions(studentId: string, records: unknown[]) {
     const systemInstruction =
       'You are an academic performance analyst. Analyze student scores and provide 3-5 actionable study tips.';
     const userPrompt = `Student Data: ${JSON.stringify(records)}`;

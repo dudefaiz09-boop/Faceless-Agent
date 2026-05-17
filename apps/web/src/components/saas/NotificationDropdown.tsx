@@ -211,73 +211,73 @@ export function NotificationDropdown() {
               }}
               className="fixed z-[9999] mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
             >
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div>
-                <p className="text-sm font-black text-slate-950 dark:text-white">Notifications</p>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {unread} unread updates
-                </p>
-              </div>
-              <button
-                onClick={markAllRead}
-                className="rounded-xl bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
-                title="Mark all read"
-              >
-                <CheckCircle2 size={18} />
-              </button>
-            </div>
-            <div className="max-h-96 overflow-y-auto p-2">
-              {notifications.map((item) => (
-                <div
-                  key={item.id}
-                  className={cn(
-                    'group relative rounded-2xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-900',
-                    !isRead(item) && 'bg-blue-50/70 dark:bg-blue-950/30'
-                  )}
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div>
+                  <p className="text-sm font-black text-slate-950 dark:text-white">Notifications</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {unread} unread updates
+                  </p>
+                </div>
+                <button
+                  onClick={markAllRead}
+                  className="rounded-xl bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+                  title="Mark all read"
                 >
-                  <button
-                    onClick={() => void openNotification(item)}
-                    className="w-full p-3 text-left"
+                  <CheckCircle2 size={18} />
+                </button>
+              </div>
+              <div className="max-h-96 overflow-y-auto p-2">
+                {notifications.map((item) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      'group relative rounded-2xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-900',
+                      !isRead(item) && 'bg-blue-50/70 dark:bg-blue-950/30'
+                    )}
                   >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className={cn(
-                          'mt-1 h-2.5 w-2.5 shrink-0 rounded-full',
-                          isRead(item) ? 'bg-slate-200 dark:bg-slate-700' : 'bg-blue-600'
-                        )}
-                      />
-                      <div className="min-w-0 flex-1 pr-8">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate font-bold text-slate-900 dark:text-white">
-                            {item.title || 'Notification'}
+                    <button
+                      onClick={() => void openNotification(item)}
+                      className="w-full p-3 text-left"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={cn(
+                            'mt-1 h-2.5 w-2.5 shrink-0 rounded-full',
+                            isRead(item) ? 'bg-slate-200 dark:bg-slate-700' : 'bg-blue-600'
+                          )}
+                        />
+                        <div className="min-w-0 flex-1 pr-8">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate font-bold text-slate-900 dark:text-white">
+                              {item.title || 'Notification'}
+                            </p>
+                            {item.href && (
+                              <ExternalLink size={12} className="shrink-0 text-slate-300" />
+                            )}
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                            {item.message}
                           </p>
-                          {item.href && (
-                            <ExternalLink size={12} className="shrink-0 text-slate-300" />
+                          {item.createdAt && (
+                            <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                              {new Date(item.createdAt).toLocaleString()}
+                            </p>
                           )}
                         </div>
-                        <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                          {item.message}
-                        </p>
-                        {item.createdAt && (
-                          <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            {new Date(item.createdAt).toLocaleString()}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                  </button>
-                  {!item.id?.startsWith('demo-') && (
-                    <button
-                      onClick={(e) => void deleteNotification(item, e)}
-                      className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950"
-                      title="Delete notification"
-                    >
-                      <Trash2 size={14} />
                     </button>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {!item.id?.startsWith('demo-') && (
+                      <button
+                        onClick={(e) => void deleteNotification(item, e)}
+                        className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-950"
+                        title="Delete notification"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </motion.div>,
             document.body
           )}

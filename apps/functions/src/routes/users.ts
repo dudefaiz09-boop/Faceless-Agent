@@ -9,9 +9,9 @@ import {
 
 const router: Router = Router();
 
-function actorFromRequest(req: any) {
+function actorFromRequest(req: Request) {
   return {
-    uid: req.user.uid,
+    uid: req.user!.uid,
     email: req.user.email,
     schoolId: req.user.schoolId,
   };
