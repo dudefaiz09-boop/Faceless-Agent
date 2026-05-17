@@ -48,7 +48,10 @@ const modes = [
   { key: 'announcement', label: 'Draft', icon: Wand2 },
 ] as const;
 
-function getFriendlyAiError(err: { status?: number; message?: string; data?: { error?: string } }, aiStatus: AiStatus | null) {
+function getFriendlyAiError(
+  err: { status?: number; message?: string; data?: { error?: string } },
+  aiStatus: AiStatus | null
+) {
   const status = err?.status;
   const message = err?.message || String(err || '');
   const errorData = err?.data || {};
@@ -250,7 +253,9 @@ export const ChatbotPage = () => {
                   key={mod.key}
                   onClick={() =>
                     setSelectedModules((prev) =>
-                      prev.includes(mod.key) ? prev.filter((k) => k !== mod.key) : [...prev, mod.key]
+                      prev.includes(mod.key)
+                        ? prev.filter((k) => k !== mod.key)
+                        : [...prev, mod.key]
                     )
                   }
                   className={cn(

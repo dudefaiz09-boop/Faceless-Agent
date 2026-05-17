@@ -20,10 +20,14 @@ export class AiContextService {
       modules.push('attendance');
     if (q.includes('assignment') || q.includes('homework') || q.includes('submit'))
       modules.push('assignments');
-    if (q.includes('grade') || q.includes('score') || q.includes('performance') || q.includes('mark'))
+    if (
+      q.includes('grade') ||
+      q.includes('score') ||
+      q.includes('performance') ||
+      q.includes('mark')
+    )
       modules.push('performance');
-    if (q.includes('book') || q.includes('library') || q.includes('read'))
-      modules.push('library');
+    if (q.includes('book') || q.includes('library') || q.includes('read')) modules.push('library');
     return [...new Set(modules)];
   }
 
@@ -50,9 +54,7 @@ export class AiContextService {
             .where('tenantId', '==', tenantId)
             .where('studentId', '==', userId)
             .get();
-          const list = snap.docs.map(
-            (d) => `${d.data()?.amountDue} due on ${d.data()?.dueDate}`
-          );
+          const list = snap.docs.map((d) => `${d.data()?.amountDue} due on ${d.data()?.dueDate}`);
           contextParts.push(`[Your Fees] ${list.join('; ') || 'No pending fees.'}`);
         }
       }
@@ -84,7 +86,9 @@ export class AiContextService {
               .map((doc) => {
                 const data = doc.data();
                 if (!data) return null;
-                const record = data.records?.find((r: { studentId: string }) => r.studentId === userId);
+                const record = data.records?.find(
+                  (r: { studentId: string }) => r.studentId === userId
+                );
                 return record ? `${data.date}: ${record.status}` : null;
               })
               .filter(Boolean);
