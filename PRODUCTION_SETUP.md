@@ -74,7 +74,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=https://your-web-project.vercel.app
 OPENROUTER_API_KEY=your_openrouter_key_if_using_ai
-OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
+OPENROUTER_MODEL=google/gemma-3-4b-it:free
 ```
 
 `OPENROUTER_API_KEY` is optional and must stay server-side in the API project.
