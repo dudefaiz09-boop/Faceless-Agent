@@ -166,9 +166,9 @@ export class AiContextService {
 
       // 2. Attendance Context
       if (modules.includes('attendance') && canAccess('attendance')) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[AI-Context] Processing attendance for role:', role);
-      }
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[AI-Context] Processing attendance for role:', role);
+        }
 
         if (['admin', 'principal'].includes(role)) {
           const snap = await db
@@ -238,7 +238,9 @@ export class AiContextService {
               .filter(Boolean);
 
             if (process.env.NODE_ENV !== 'production') {
-              console.log(`[AI-Context] Student specific dates attendance found: ${history.length} records`);
+              console.log(
+                `[AI-Context] Student specific dates attendance found: ${history.length} records`
+              );
             }
 
             if (history.length === 0) {
@@ -260,7 +262,9 @@ export class AiContextService {
                 .filter(Boolean);
 
               if (process.env.NODE_ENV !== 'production') {
-                console.log(`[AI-Context] Student recent attendance fallback found: ${recentHistory.length} records`);
+                console.log(
+                  `[AI-Context] Student recent attendance fallback found: ${recentHistory.length} records`
+                );
               }
 
               contextParts.push(
@@ -359,7 +363,9 @@ export class AiContextService {
             `[Children Attendance]\n${studentRecords.join('\n') || 'No recent records found for your children.'}`
           );
         } else {
-          contextParts.push('[Attendance] No linked student records found for your parent account.');
+          contextParts.push(
+            '[Attendance] No linked student records found for your parent account.'
+          );
         }
       }
     } catch (error) {
