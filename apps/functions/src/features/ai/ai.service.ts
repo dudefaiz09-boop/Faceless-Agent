@@ -67,7 +67,12 @@ export class AiService {
 
       history = historySnapshot.docs
         .reverse()
-        .map((doc: any) => `User: ${doc.data().query}\nAssistant: ${doc.data().response}`)
+        .map(
+          (doc) =>
+            `User: ${(doc.data() as { query: string }).query}\nAssistant: ${
+              (doc.data() as { response: string }).response
+            }`
+        )
         .join('\n\n');
     } catch (error) {
       console.error('[AI] Chat history load failed. Continuing without history:', error);

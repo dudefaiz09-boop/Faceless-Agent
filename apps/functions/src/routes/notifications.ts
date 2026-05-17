@@ -10,6 +10,7 @@ function canSeeNotification(notification: any, user: NonNullable<Request['user']
   const targetUserIds = notification.targetUserIds || [];
   const targetRoles = notification.targetRoles || ['all'];
   const targetClasses = notification.targetClasses || ['all'];
+  const archivedBy = notification.archivedBy || [];
   const schoolId = notification.schoolId || notification.tenantId;
 
   const userMatch = targetUserIds.length === 0 || targetUserIds.includes(user.uid);
@@ -20,7 +21,14 @@ function canSeeNotification(notification: any, user: NonNullable<Request['user']
     user.classIds.some((classId) => targetClasses.includes(classId));
   const schoolMatch = !schoolId || !user.schoolId || schoolId === user.schoolId;
 
-  return !notification.archived && userMatch && roleMatch && classMatch && schoolMatch;
+  return (
+    !notification.archived &&
+    !archivedBy.includes(user.uid) &&
+    userMatch &&
+    roleMatch &&
+    classMatch &&
+    schoolMatch
+  );
 }
 
 router.get('/', async (req, res, next) => {
@@ -123,6 +131,40 @@ router.patch('/:id/read', async (req, res, next) => {
   }
 });
 
+// Bulk archive read notifications for the current user
+router.delete('/read', async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const snapshot = await db
+      .collection('notifications')
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
+    const visible = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((notification) => canSeeNotification(notification, req.user!));
+
+    const toArchive = visible.filter((n: any) => n.readBy?.includes(req.user!.uid));
+
+    await Promise.all(
+      toArchive.map((notification: any) =>
+        db
+          .collection('notifications')
+          .doc(notification.id)
+          .update({
+            archivedBy: Array.from(new Set([...(notification.archivedBy || []), req.user!.uid])),
+            updatedAt: new Date().toISOString(),
+          })
+      )
+    );
+
+    res.json({ success: true, count: toArchive.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id', async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -132,11 +174,15 @@ router.delete('/:id', async (req, res, next) => {
     if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
 
     const notification = { id: snapshot.id, ...snapshot.data() };
+    // Check if user can see it (not archived already)
     if (!canSeeNotification(notification, req.user)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await ref.delete();
+    // Individual dismissal: add to archivedBy instead of global deletion
+    const archivedBy = Array.from(new Set([...(notification.archivedBy || []), req.user.uid]));
+    await ref.update({ archivedBy, updatedAt: new Date().toISOString() });
+
     res.json({ success: true });
   } catch (error) {
     next(error);

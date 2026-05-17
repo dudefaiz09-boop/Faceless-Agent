@@ -1,6 +1,7 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
+import { Bell, CheckCircle2, ExternalLink, Trash2, RefreshCcw, X as CloseIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
@@ -29,12 +30,43 @@ export function NotificationDropdown() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [localReadIds, setLocalReadIds] = useState<Set<string>>(() => new Set());
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const { data } = useDocuments<NotificationRecord>('notifications', {
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    right: number;
+    width: number;
+  } | null>(null);
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const { data, loading, reload } = useDocuments<NotificationRecord>('notifications', {
     limit: 20,
     order: { field: 'createdAt', ascending: false },
     realtime: true,
   });
+
+  const calculatePosition = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+
+    const width = Math.min(400, window.innerWidth - 32);
+    const right = Math.max(16, window.innerWidth - rect.right);
+    const top = rect.bottom + 12;
+
+    return { top, right, width };
+  }, []);
+
+  const handleToggle = () => {
+    const nextOpen = !open;
+    if (nextOpen) {
+      const pos = calculatePosition();
+      setDropdownPosition(pos);
+      if (import.meta.env.DEV) {
+        console.info('[Notifications] Open', pos);
+      }
+    }
+    setOpen(nextOpen);
+  };
   const visibleNotifications = useMemo(
     () =>
       data.filter((item) => {
@@ -51,14 +83,15 @@ export function NotificationDropdown() {
           targetClasses.includes('all') ||
           classIds.some((classId) => targetClasses.includes(classId));
         const schoolMatch = !item.schoolId || !schoolId || item.schoolId === schoolId;
-        return !item.read && userMatch && roleMatch && classMatch && schoolMatch;
+        return userMatch && roleMatch && classMatch && schoolMatch;
       }),
     [classIds, data, role, roles, schoolId, user?.uid]
   );
 
-  const notifications = visibleNotifications.length
-    ? visibleNotifications
-    : [
+  const notifications = useMemo(() => {
+    if (visibleNotifications.length) return visibleNotifications;
+    if (import.meta.env.DEV) {
+      return [
         {
           id: 'demo-welcome',
           title: 'Realtime center ready',
@@ -70,6 +103,9 @@ export function NotificationDropdown() {
           createdAt: new Date().toISOString(),
         },
       ];
+    }
+    return [];
+  }, [visibleNotifications, user]);
   const isRead = (item: NotificationRecord) =>
     item.read ||
     (item.id ? localReadIds.has(item.id) : false) ||
@@ -96,7 +132,12 @@ export function NotificationDropdown() {
   };
 
   const markAllRead = async () => {
-    const ids = notifications.map((item) => item.id).filter(Boolean) as string[];
+    const ids = notifications
+      .filter((n) => !isRead(n))
+      .map((item) => item.id)
+      .filter(Boolean) as string[];
+    if (ids.length === 0) return;
+
     setLocalReadIds((current) => new Set([...current, ...ids]));
     try {
       await apiClient.request('/api/notifications/read-all', { method: 'PATCH' });
@@ -116,6 +157,30 @@ export function NotificationDropdown() {
         title: 'Notification update failed',
         description:
           error instanceof Error ? error.message : 'Unable to mark all notifications read.',
+      });
+    }
+  };
+
+  const clearRead = async () => {
+    const readIds = notifications
+      .filter((n) => isRead(n))
+      .map((n) => n.id)
+      .filter(Boolean) as string[];
+    if (readIds.length === 0) return;
+
+    try {
+      await apiClient.request('/api/notifications/read', { method: 'DELETE' });
+      toast({
+        tone: 'success',
+        title: 'History cleared',
+        description: 'Read notifications were removed from your list.',
+      });
+      void reload();
+    } catch (error) {
+      toast({
+        tone: 'error',
+        title: 'Action failed',
+        description: error instanceof Error ? error.message : 'Unable to clear history.',
       });
     }
   };
@@ -148,10 +213,33 @@ export function NotificationDropdown() {
     }
   };
 
+  // Handle positioning on resize/scroll
+  useEffect(() => {
+    if (!open) return;
+
+    const updatePosition = () => {
+      const pos = calculatePosition();
+      if (pos) setDropdownPosition(pos);
+    };
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [open, calculatePosition]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    if (!open) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      const isTriggerClick = triggerRef.current?.contains(target);
+      const isContentClick = contentRef.current?.contains(target);
+
+      if (!isTriggerClick && !isContentClick) {
         setOpen(false);
       }
     };
@@ -162,37 +250,33 @@ export function NotificationDropdown() {
       }
     };
 
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-        document.removeEventListener('keydown', handleEscape);
-      };
-    }
+    // Use mousedown to catch clicks outside early
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [open]);
 
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setOpen((value) => !value)}
-        className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-      >
-        <Bell size={20} />
-        {unread > 0 && (
-          <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-black text-white">
-            {unread}
-          </span>
-        )}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            className="absolute right-0 z-[300] mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
-          >
+  const dropdownContent = (
+    <AnimatePresence>
+      {open && dropdownPosition && (
+        <motion.div
+          ref={contentRef}
+          role="dialog"
+          aria-label="Notifications"
+          initial={{ opacity: 0, y: 8, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8, scale: 0.99 }}
+          style={{
+            top: dropdownPosition.top,
+            right: dropdownPosition.right,
+            width: dropdownPosition.width,
+            maxHeight: 'min(70vh, 520px)',
+          }}
+          className="fixed z-[99999] flex flex-col overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/20 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
+        >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <p className="text-sm font-black text-slate-950 dark:text-white">Notifications</p>
@@ -200,15 +284,46 @@ export function NotificationDropdown() {
                   {unread} unread updates
                 </p>
               </div>
-              <button
-                onClick={markAllRead}
-                className="rounded-xl bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
-                title="Mark all read"
-              >
-                <CheckCircle2 size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => void reload()}
+                  className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                  title="Refresh"
+                >
+                  <RefreshCcw size={18} className={cn(loading && 'animate-spin')} />
+                </button>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                  title="Close"
+                >
+                  <CloseIcon size={18} />
+                </button>
+              </div>
             </div>
-            <div className="max-h-96 overflow-y-auto p-2">
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {loading && notifications.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <RefreshCcw size={24} className="animate-spin text-blue-600 mb-2" />
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Loading notifications...
+                  </p>
+                </div>
+              )}
+
+              {!loading && notifications.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="mb-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
+                    <Bell size={32} className="text-slate-300" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">All caught up!</p>
+                  <p className="mt-1 text-xs font-medium text-slate-500">
+                    No new notifications found.
+                  </p>
+                </div>
+              )}
+
               {notifications.map((item) => (
                 <div
                   key={item.id}
@@ -260,9 +375,48 @@ export function NotificationDropdown() {
                 </div>
               ))}
             </div>
+
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-3 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={markAllRead}
+                disabled={unread === 0}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-100 py-2.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-900"
+              >
+                <CheckCircle2 size={14} />
+                Mark all read
+              </button>
+              <button
+                type="button"
+                onClick={clearRead}
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 py-2.5 text-xs font-bold text-slate-900 transition-all hover:bg-slate-100 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
+              >
+                <Trash2 size={14} />
+                Clear read
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
+    );
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        onClick={handleToggle}
+        aria-label="Open notifications"
+        aria-expanded={open}
+        className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+      >
+        <Bell size={20} />
+        {unread > 0 && (
+          <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+            {unread}
+          </span>
+        )}
+      </button>
+      {createPortal(dropdownContent, document.body)}
     </div>
   );
 }
