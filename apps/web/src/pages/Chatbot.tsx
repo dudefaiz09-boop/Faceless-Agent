@@ -48,7 +48,7 @@ const modes = [
   { key: 'announcement', label: 'Draft', icon: Wand2 },
 ] as const;
 
-function getFriendlyAiError(err: any, aiStatus: AiStatus | null) {
+function getFriendlyAiError(err: { status?: number; message?: string; data?: { error?: string } }, aiStatus: AiStatus | null) {
   const status = err?.status;
   const message = err?.message || String(err || '');
   const errorData = err?.data || {};

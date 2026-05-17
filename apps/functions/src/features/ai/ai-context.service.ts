@@ -50,7 +50,9 @@ export class AiContextService {
             .where('tenantId', '==', tenantId)
             .where('studentId', '==', userId)
             .get();
-          const list = snap.docs.map((d: any) => `${d.data().amountDue} due on ${d.data().dueDate}`);
+          const list = snap.docs.map(
+            (d) => `${d.data()?.amountDue} due on ${d.data()?.dueDate}`
+          );
           contextParts.push(`[Your Fees] ${list.join('; ') || 'No pending fees.'}`);
         }
       }
@@ -65,7 +67,7 @@ export class AiContextService {
             .limit(3)
             .get();
           contextParts.push(
-            `[Attendance] Recent sessions: ${snap.docs.map((d: any) => d.data().date).join(', ')}.`
+            `[Attendance] Recent sessions: ${snap.docs.map((d) => d.data()?.date).join(', ')}.`
           );
         } else {
           const userDoc = await db.collection('users').doc(userId).get();
@@ -79,9 +81,11 @@ export class AiContextService {
               .limit(5)
               .get();
             const history = snap.docs
-              .map((doc: any) => {
-                const record = doc.data().records?.find((r: any) => r.studentId === userId);
-                return record ? `${doc.data().date}: ${record.status}` : null;
+              .map((doc) => {
+                const data = doc.data();
+                if (!data) return null;
+                const record = data.records?.find((r: { studentId: string }) => r.studentId === userId);
+                return record ? `${data.date}: ${record.status}` : null;
               })
               .filter(Boolean);
             contextParts.push(`[Attendance History] ${history.join(', ') || 'No recent records.'}`);
@@ -99,7 +103,7 @@ export class AiContextService {
             .limit(5)
             .get();
           contextParts.push(
-            `[Your Assignments] ${snap.docs.map((d: any) => d.data().title).join(', ')}.`
+            `[Your Assignments] ${snap.docs.map((d) => d.data()?.title).join(', ')}.`
           );
         } else if (role === 'student') {
           const userDoc = await db.collection('users').doc(userId).get();
@@ -112,7 +116,7 @@ export class AiContextService {
               .limit(5)
               .get();
             contextParts.push(
-              `[Pending Assignments] ${snap.docs.map((d: any) => d.data().title).join(', ')}.`
+              `[Pending Assignments] ${snap.docs.map((d) => d.data()?.title).join(', ')}.`
             );
           }
         }
@@ -128,7 +132,7 @@ export class AiContextService {
             .where('studentId', '==', targetId)
             .limit(5)
             .get();
-          const scores = snap.docs.map((d: any) => `${d.data().subject}: ${d.data().score}`);
+          const scores = snap.docs.map((d) => `${d.data()?.subject}: ${d.data()?.score}`);
           contextParts.push(`[Performance] Recent scores: ${scores.join(', ') || 'No data.'}`);
         }
       }
