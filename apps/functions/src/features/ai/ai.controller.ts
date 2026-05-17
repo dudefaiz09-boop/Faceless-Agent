@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AiService } from './ai.service.js';
+import { AiContextService } from './ai-context.service.js';
 import { getAiRuntimeStatus } from '../../lib/ai.js';
 
 export class AiController {
@@ -72,6 +73,40 @@ export class AiController {
       const role = user?.role || user?.roles?.[0] || fallbackRole || 'student';
 
       const { id, response } = await AiService.getChatbotResponse(userId, role, query, mode);
+
+      res.json({ success: true, id, response, timestamp: new Date().toISOString() });
+    } catch (error: any) {
+      if (error.status === 502 || error.message?.includes('AI provider')) {
+        return res.status(502).json({
+          error: 'AI_PROVIDER_ERROR',
+          message: 'AI provider request failed',
+          details: error.message,
+        });
+      }
+      next(error);
+    }
+  }
+
+  static async contextQueryChatbot(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { query, mode, modules: requestedModules } = req.body;
+      const user = req.user;
+      const tenantId = req.tenantId || (req.headers['x-school-id'] as string | undefined);
+
+      if (!user && !tenantId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const fallbackRole = typeof req.headers['x-user-role'] === 'string' ? req.headers['x-user-role'] : 'student';
+      const userId = user?.uid || `tenant:${tenantId}:ai-user`;
+      const role = user?.role || user?.roles?.[0] || fallbackRole || 'student';
+      const tid = tenantId || user?.tenantId || '';
+
+      const inferred = AiContextService.inferModulesFromQuery(query);
+      const finalModules = Array.from(new Set([...inferred, ...(requestedModules || [])]));
+
+      const context = await AiContextService.getModuleContext(userId, role, tid, finalModules as any);
+      const { id, response } = await AiService.getChatbotResponse(userId, role, query, mode, context);
 
       res.json({ success: true, id, response, timestamp: new Date().toISOString() });
     } catch (error: any) {

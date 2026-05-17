@@ -7,7 +7,8 @@ export class AiService {
     userId: string,
     role: string,
     query: string,
-    mode = 'chat'
+    mode = 'chat',
+    context?: string
   ) {
     const roleContexts: Record<string, string> = {
       student:
@@ -29,6 +30,7 @@ export class AiService {
     const systemInstruction = [
       roleContexts[role] || 'You are a helpful assistant for the EduConnect management system.',
       `Current mode: ${mode}.`,
+      context || '',
       'Use markdown. Avoid inventing private records. If data is missing, state what is needed.',
     ].join('\n');
 
