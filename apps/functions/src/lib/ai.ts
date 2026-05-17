@@ -3,10 +3,6 @@ import { env } from './config.js';
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
 /**
- * Strict free-model allowlist.
- * Ensures the app only uses approved OpenRouter free models.
- */
-/**
  * Prioritized list of approved free OpenRouter models for fallback.
  */
 export const FREE_MODEL_PRIORITY = [
@@ -43,7 +39,6 @@ export function getOpenRouterModel() {
   return configuredModel;
 }
 
-// Determine HTTP-Referer for OpenRouter
 function getHttpReferer(): string {
   const publicUrl = env.PUBLIC_APP_URL || process.env.PUBLIC_APP_URL;
   if (publicUrl) return publicUrl;
@@ -144,22 +139,20 @@ export async function generateSafeContent(
     return missingKeyFallback(userPrompt);
   }
 
-  // Premium model detection
   const normalizedPrompt = userPrompt.toLowerCase();
   const premiumKeywords = ['gpt-4', 'gpt4', 'claude-3', 'claude 3', 'gemini pro', 'premium model'];
   if (premiumKeywords.some((k) => normalizedPrompt.includes(k))) {
     return 'Only free models are enabled on this platform. Please use your own API key for premium access.';
   }
 
-  // Determine model: if retrying, move to next model in priority list
   let model: string;
-  if (modelIndex === -1) {
+  let activeModelIndex = modelIndex;
+  if (activeModelIndex === -1) {
     model = getOpenRouterModel();
-    // find index of configured model to know where to start fallbacks
-    modelIndex = FREE_MODEL_PRIORITY.indexOf(model);
-    if (modelIndex === -1) modelIndex = 0; // fallback default
+    activeModelIndex = FREE_MODEL_PRIORITY.indexOf(model);
+    if (activeModelIndex === -1) activeModelIndex = 0;
   } else {
-    model = FREE_MODEL_PRIORITY[modelIndex] || DEFAULT_FREE_MODEL;
+    model = FREE_MODEL_PRIORITY[activeModelIndex] || DEFAULT_FREE_MODEL;
   }
 
   try {
@@ -198,9 +191,8 @@ export async function generateSafeContent(
         body: body.slice(0, 200),
       });
 
-      // Retry with NEXT model if possible, otherwise same model if retries allow
       if (retries > 0) {
-        const nextModelIndex = (modelIndex + 1) % FREE_MODEL_PRIORITY.length;
+        const nextModelIndex = (activeModelIndex + 1) % FREE_MODEL_PRIORITY.length;
         await new Promise((resolve) => setTimeout(resolve, 1000));
         return generateSafeContent(
           systemInstruction,
@@ -220,7 +212,13 @@ export async function generateSafeContent(
     if (!text) {
       console.warn('[AI] OpenRouter empty response', { model });
       if (retries > 0) {
-        return generateSafeContent(systemInstruction, userPrompt, config, retries - 1, (modelIndex + 1) % FREE_MODEL_PRIORITY.length);
+        return generateSafeContent(
+          systemInstruction,
+          userPrompt,
+          config,
+          retries - 1,
+          (activeModelIndex + 1) % FREE_MODEL_PRIORITY.length
+        );
       }
       return emptyResponseFallback();
     }
@@ -230,9 +228,15 @@ export async function generateSafeContent(
     console.error('[AI] Generation failed:', { model, message: error?.message });
 
     if (retries > 0) {
-      const nextModelIndex = (modelIndex + 1) % FREE_MODEL_PRIORITY.length;
+      const nextModelIndex = (activeModelIndex + 1) % FREE_MODEL_PRIORITY.length;
       await new Promise((resolve) => setTimeout(resolve, 800));
-      return generateSafeContent(systemInstruction, userPrompt, config, retries - 1, nextModelIndex);
+      return generateSafeContent(
+        systemInstruction,
+        userPrompt,
+        config,
+        retries - 1,
+        nextModelIndex
+      );
     }
 
     if (error?.name === 'AbortError') return timeoutFallback();

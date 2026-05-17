@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { generateSafeContent } from '../../lib/ai.js';
 import { db } from '../../lib/documents.js';
 
-/**
- * Short-lived in-memory cache for common safe queries.
- */
-const AI_CACHE = new Map<string, { response: string; expires: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+type CachedAiResponse = {
+  response: string;
+  expires: number;
+};
+
+const AI_CACHE = new Map<string, CachedAiResponse>();
+const CACHE_TTL = 5 * 60 * 1000;
 
 export class AiService {
   static async getChatbotResponse(
@@ -16,7 +18,6 @@ export class AiService {
     mode = 'chat',
     context?: string
   ) {
-    // 1. Check Cache
     const tenantId = userId.startsWith('tenant:') ? userId.split(':')[1] : 'default';
     const normalizedQuery = query.trim().toLowerCase();
     const cacheKey = `${tenantId}:${role}:${userId}:${mode}:${normalizedQuery}`;
@@ -84,7 +85,6 @@ export class AiService {
 
     const responseText = await generateSafeContent(systemInstruction, fullPrompt);
 
-    // Update Cache
     AI_CACHE.set(cacheKey, {
       response: responseText,
       expires: Date.now() + CACHE_TTL,
