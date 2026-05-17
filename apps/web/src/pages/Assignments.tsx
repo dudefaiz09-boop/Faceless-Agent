@@ -27,6 +27,8 @@ import { FileUpload } from '../components/FileUpload';
 import { EmptyState } from '../components/saas/EmptyState';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 
 export const AssignmentsPage = () => {
@@ -37,7 +39,7 @@ export const AssignmentsPage = () => {
   const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [renderedAt] = useState(() => Date.now());
+  const [lastSyncTime] = useState(() => Date.now());
 
   const {
     data: assignmentsData = [],
@@ -193,27 +195,22 @@ export const AssignmentsPage = () => {
     if (!assignment || !assignment.dueDate) return false;
     try {
       const due = new Date(assignment.dueDate).getTime();
-      return Number.isFinite(due) && due - renderedAt <= 7 * 86400000 && due >= renderedAt;
+      return Number.isFinite(due) && due - lastSyncTime <= 7 * 86400000 && due >= lastSyncTime;
     } catch {
       return false;
     }
   }).length;
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight dark:text-white">
-            Assignments
-          </h1>
-          <p className="text-slate-500 mt-1 dark:text-slate-400">
-            {isStudent
-              ? 'Track your coursework and submit your work.'
-              : 'Manage assignments and grade student submissions.'}
-          </p>
-        </div>
-
+    <PageShell maxWidth="max-w-6xl">
+      <PageHeader
+        title="Assignments"
+        description={
+          isStudent
+            ? 'Track your coursework and submit your work.'
+            : 'Manage assignments and grade student submissions.'
+        }
+      >
         <div className="flex items-center gap-4">
           {!isStudent && (
             <select
@@ -236,7 +233,7 @@ export const AssignmentsPage = () => {
             </button>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
@@ -723,6 +720,6 @@ export const AssignmentsPage = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PageShell>
   );
 };

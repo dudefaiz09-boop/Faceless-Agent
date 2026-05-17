@@ -23,6 +23,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { EmptyState } from '../components/saas/EmptyState';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 
 type StudentDocument = StudentProfile & {
@@ -199,16 +201,11 @@ export const StudentsPage = () => {
   const sectionCount = new Set(students.map((s) => s.section).filter(Boolean)).size;
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Student Management</h1>
-          <p className="text-slate-500 font-medium mt-1 text-lg">
-            Manage profiles, academic records, and access.
-          </p>
-        </div>
-
+    <PageShell>
+      <PageHeader
+        title="Student Management"
+        description="Manage profiles, academic records, and access."
+      >
         {isAdmin && (
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -216,28 +213,28 @@ export const StudentsPage = () => {
                 setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
                 setIsAddModalOpen(true);
               }}
-              className="px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+              className="px-5 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
             >
-              <Plus size={20} />
+              <Plus size={18} />
               Add Student
             </button>
             <button
               onClick={() => setIsBulkModalOpen(true)}
-              className="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+              className="px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
             >
-              <Upload size={20} />
+              <Upload size={18} />
               Bulk Import
             </button>
             <button
               onClick={() => viewAuditLogs()}
-              className="px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+              className="px-5 py-3 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
             >
-              <History size={20} />
+              <History size={18} />
               System Logs
             </button>
           </div>
         )}
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
@@ -681,6 +678,6 @@ export const StudentsPage = () => {
           </p>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };

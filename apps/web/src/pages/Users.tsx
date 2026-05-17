@@ -33,6 +33,8 @@ import { listDocuments, useDocuments } from '../lib/documents';
 import { cn } from '../lib/utils';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 
 type UserStatus = 'active' | 'inactive';
@@ -326,48 +328,44 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   ).length;
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6">
-        <div>
-          <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
-            User & Role Management
-          </h1>
-          <p className="text-slate-500 mt-2 text-base">
-            Create accounts, assign roles, control module access, and review admin activity.
-          </p>
+    <PageShell>
+      <PageHeader
+        title="User & Role Management"
+        description="Create accounts, assign roles, control module access, and review admin activity."
+      >
+        <div className="flex flex-col items-end gap-3">
+          {isAdmin && (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={openAddModal}
+                className="px-5 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-100"
+              >
+                <Plus size={18} />
+                Add User
+              </button>
+              <button
+                onClick={() => setIsBulkModalOpen(true)}
+                className="px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <Upload size={18} />
+                Bulk Import
+              </button>
+              <button
+                onClick={() => openAuditLogs()}
+                className="px-5 py-3 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
+              >
+                <History size={18} />
+                Audit Logs
+              </button>
+            </div>
+          )}
           {!isAdmin && (
-            <p className="mt-3 text-sm font-semibold text-amber-700 bg-amber-50 rounded-2xl px-4 py-3 inline-flex">
-              You can view this page only if module access was assigned. Admins control changes.
+            <p className="text-sm font-semibold text-amber-700 bg-amber-50 rounded-2xl px-4 py-2 inline-flex border border-amber-100">
+              Read-only view
             </p>
           )}
         </div>
-
-        {isAdmin && (
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={openAddModal}
-              className="px-5 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-100"
-            >
-              <Plus size={18} />
-              Add User
-            </button>
-            <button
-              onClick={() => setIsBulkModalOpen(true)}
-              className="px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50"
-            >
-              <Upload size={18} />
-              Bulk Import
-            </button>
-            <button
-              onClick={() => openAuditLogs()}
-              className="px-5 py-3 bg-slate-900 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800"
-            >
-              <History size={18} />
-              Audit Logs
-            </button>
-          </div>
-        )}
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
@@ -706,7 +704,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
           </Modal>
         )}
       </AnimatePresence>
-    </div>
+    </PageShell>
   );
 };
 

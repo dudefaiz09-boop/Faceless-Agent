@@ -13,6 +13,8 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import {
   StudentProfile,
   AttendanceRecord,
@@ -56,7 +58,7 @@ function unwrapStudentProfile(response: StudentProfileResponse): StudentProfile 
 }
 
 export const ParentPortal = () => {
-  const { linkedStudentIds } = useAuth();
+  const { role, linkedStudentIds } = useAuth();
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     linkedStudentIds[0] || null
   );
@@ -148,18 +150,33 @@ export const ParentPortal = () => {
     0
   );
 
-  return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header & Student Selector */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Parent Portal</h1>
-          <p className="text-slate-500 font-medium mt-1">
-            Monitoring academic progress for your children.
+  if (role === 'admin') {
+    return (
+      <PageShell>
+        <PageHeader
+          title="Parent Portal"
+          description="Monitoring academic progress for your children."
+        />
+        <div className="bg-white p-20 rounded-[40px] text-center border border-slate-100 shadow-sm">
+          <AlertCircle size={48} className="mx-auto text-blue-600 mb-6" />
+          <h3 className="text-xl font-bold text-slate-900">Admin View</h3>
+          <p className="text-slate-500 mt-2 max-w-md mx-auto">
+            The Parent Portal is optimized for parent accounts. As an administrator, please use the{' '}
+            <span className="font-bold text-blue-600">Students</span> module to manage student
+            records and parent-child links.
           </p>
         </div>
+      </PageShell>
+    );
+  }
 
-        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+  return (
+    <PageShell>
+      <PageHeader
+        title="Parent Portal"
+        description="Monitoring academic progress for your children."
+      >
+        <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
           {linkedStudentIds.map((id) => (
             <button
               key={id}
@@ -167,8 +184,8 @@ export const ParentPortal = () => {
               className={cn(
                 'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2',
                 selectedStudentId === id
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-                  : 'text-slate-500 hover:bg-slate-200'
+                  ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400'
+                  : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800'
               )}
             >
               <Baby size={16} />
@@ -178,7 +195,7 @@ export const ParentPortal = () => {
             </button>
           ))}
         </div>
-      </div>
+      </PageHeader>
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -465,6 +482,6 @@ export const ParentPortal = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };

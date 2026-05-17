@@ -91,16 +91,17 @@ export class AiController {
     try {
       const { query, mode, modules: requestedModules } = req.body;
       const user = req.user;
-      const tenantId = req.tenantId || (req.headers['x-school-id'] as string | undefined);
 
-      if (!user && !tenantId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+      if (!user) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Authentication required for contextual AI queries.',
+        });
       }
 
-      const fallbackRole = typeof req.headers['x-user-role'] === 'string' ? req.headers['x-user-role'] : 'student';
-      const userId = user?.uid || `tenant:${tenantId}:ai-user`;
-      const role = user?.role || user?.roles?.[0] || fallbackRole || 'student';
-      const tid = tenantId || user?.tenantId || '';
+      const userId = user.uid;
+      const role = user.role || user.roles?.[0] || 'student';
+      const tid = user.schoolId || req.tenantId || '';
 
       const inferred = AiContextService.inferModulesFromQuery(query);
       const finalModules = Array.from(new Set([...inferred, ...(requestedModules || [])]));

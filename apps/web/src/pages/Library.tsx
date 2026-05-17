@@ -18,6 +18,8 @@ import { useDebounce } from '../lib/hooks';
 import { EmptyState } from '../components/saas/EmptyState';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 
 interface TimestampLike {
@@ -256,24 +258,21 @@ export const LibraryPage = () => {
   });
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Academic Library</h1>
-          <p className="text-slate-500 mt-1 text-lg">
-            Access eBooks, research papers, and study materials.
-          </p>
-        </div>
-
+    <PageShell>
+      <PageHeader
+        title="Academic Library"
+        description="Access eBooks, research papers, and study materials."
+      >
         <div className="flex items-center gap-3">
           {isStudent && (
-            <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
+            <div className="flex bg-slate-100 p-1 rounded-xl mr-2 dark:bg-slate-900">
               <button
                 onClick={() => setView('catalog')}
                 className={cn(
                   'px-4 py-2 rounded-lg text-sm font-bold transition-all',
-                  view === 'catalog' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
+                  view === 'catalog'
+                    ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400'
+                    : 'text-slate-500'
                 )}
               >
                 Catalog
@@ -282,7 +281,9 @@ export const LibraryPage = () => {
                 onClick={() => setView('my-books')}
                 className={cn(
                   'px-4 py-2 rounded-lg text-sm font-bold transition-all',
-                  view === 'my-books' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
+                  view === 'my-books'
+                    ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400'
+                    : 'text-slate-500'
                 )}
               >
                 My Library
@@ -299,7 +300,7 @@ export const LibraryPage = () => {
             </button>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
@@ -616,6 +617,6 @@ export const LibraryPage = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PageShell>
   );
 };

@@ -48,7 +48,7 @@ function isAllowedOrigin(origin: string) {
 }
 
 // 1. Security & Observability
-app.use(pinoHttp({ logger }));
+app.use(pinoHttp({ logger: logger as any }));
 app.use(
   cors({
     credentials: true,

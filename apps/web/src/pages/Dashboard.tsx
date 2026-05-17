@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom';
 import { StatCard } from '../components/saas/StatCard';
 import { AnalyticsChart } from '../components/saas/AnalyticsChart';
 import { QuickActionCard } from '../components/saas/QuickActionCard';
+import { PageShell } from '../components/ui/PageShell';
 import { useAuth } from '../contexts/AuthContext';
 import { useDocuments } from '../lib/documents';
 import { cn } from '../lib/utils';
@@ -217,7 +218,7 @@ export function DashboardPage() {
           ];
 
   return (
-    <div className="space-y-8">
+    <PageShell>
       <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-slate-950 p-6 text-white shadow-2xl shadow-blue-950/20 md:p-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.45),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(6,182,212,0.28),transparent_32%)]" />
         <div className="relative grid gap-8 lg:grid-cols-[1.4fr_0.8fr] lg:items-end">
@@ -346,6 +347,6 @@ export function DashboardPage() {
           </div>
         </section>
       </div>
-    </div>
+    </PageShell>
   );
 }

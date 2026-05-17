@@ -30,6 +30,8 @@ import {
 } from 'recharts';
 import { DataTable, type DataTableColumn } from '../components/saas/DataTable';
 import { SearchBar } from '../components/saas/SearchBar';
+import { PageHeader } from '../components/ui/PageHeader';
+import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 
 interface FeeRecord {
@@ -279,26 +281,25 @@ export const FeesPage = () => {
   ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Financial Management</h1>
-          <p className="text-slate-500 mt-1 text-lg">
-            {isStudent
-              ? 'Track your fee status and make secure payments.'
-              : 'Monitor academy revenue and manage student dues.'}
-          </p>
-        </div>
-
+    <PageShell>
+      <PageHeader
+        title="Financial Management"
+        description={
+          isStudent
+            ? 'Track your fee status and make secure payments.'
+            : 'Monitor academy revenue and manage student dues.'
+        }
+      >
         <div className="flex items-center gap-3">
           {canManageFees && (
-            <div className="flex bg-slate-100 p-1 rounded-xl">
+            <div className="flex bg-slate-100 p-1 rounded-xl dark:bg-slate-900">
               <button
                 onClick={() => setView('management')}
                 className={cn(
                   'px-4 py-2 rounded-lg text-sm font-bold transition-all',
-                  view === 'management' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
+                  view === 'management'
+                    ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400'
+                    : 'text-slate-500'
                 )}
               >
                 Overview
@@ -307,7 +308,9 @@ export const FeesPage = () => {
                 onClick={() => setView('reports')}
                 className={cn(
                   'px-4 py-2 rounded-lg text-sm font-bold transition-all',
-                  view === 'reports' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
+                  view === 'reports'
+                    ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400'
+                    : 'text-slate-500'
                 )}
               >
                 Analytics
@@ -324,7 +327,7 @@ export const FeesPage = () => {
             </button>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {isStudent ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -704,6 +707,6 @@ export const FeesPage = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PageShell>
   );
 };
