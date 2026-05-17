@@ -8,7 +8,12 @@ const router: Router = Router();
 
 router.get('/', async (req, res, next) => {
   try {
-    const snapshot = await db.collection('announcements').orderBy('createdAt', 'desc').get();
+    const snapshot = await db
+      .collection('announcements')
+      .where('tenantId', '==', req.tenantId)
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
     const role = req.user?.role || req.user?.roles?.[0] || 'student';
     const classIds = req.user?.classIds || (req.user?.classId ? [req.user.classId] : []);
 

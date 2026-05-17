@@ -48,9 +48,10 @@ export const AssignmentsPage = () => {
   } = useAssignments(assignmentsService, selectedClass);
 
   // Guard against invalid data
-  const assignments = Array.isArray(assignmentsData)
-    ? assignmentsData.filter((a) => a && a.id)
-    : [];
+  const assignments = React.useMemo(
+    () => (Array.isArray(assignmentsData) ? assignmentsData.filter((a) => a && a.id) : []),
+    [assignmentsData]
+  );
 
   // Creation Form State
   const [newAssignment, setNewAssignment] = useState(() => ({
@@ -179,27 +180,31 @@ export const AssignmentsPage = () => {
     }
   };
 
-  const filteredAssignments = assignments.filter((assignment) => {
-    if (!assignment || !assignment.id) return false;
-    const query = search.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      (assignment.title || '').toLowerCase().includes(query) ||
-      (assignment.description || '').toLowerCase().includes(query) ||
-      (assignment.classId || '').toLowerCase().includes(query)
-    );
-  });
+  const filteredAssignments = React.useMemo(() => {
+    return assignments.filter((assignment) => {
+      if (!assignment || !assignment.id) return false;
+      const query = search.trim().toLowerCase();
+      if (!query) return true;
+      return (
+        (assignment.title || '').toLowerCase().includes(query) ||
+        (assignment.description || '').toLowerCase().includes(query) ||
+        (assignment.classId || '').toLowerCase().includes(query)
+      );
+    });
+  }, [assignments, search]);
 
-  const submittedCount = Object.keys(mySubmissions).length;
-  const dueSoonCount = assignments.filter((assignment) => {
-    if (!assignment || !assignment.dueDate) return false;
-    try {
-      const due = new Date(assignment.dueDate).getTime();
-      return Number.isFinite(due) && due - lastSyncTime <= 7 * 86400000 && due >= lastSyncTime;
-    } catch {
-      return false;
-    }
-  }).length;
+  const submittedCount = React.useMemo(() => Object.keys(mySubmissions).length, [mySubmissions]);
+  const dueSoonCount = React.useMemo(() => {
+    return assignments.filter((assignment) => {
+      if (!assignment || !assignment.dueDate) return false;
+      try {
+        const due = new Date(assignment.dueDate).getTime();
+        return Number.isFinite(due) && due - lastSyncTime <= 7 * 86400000 && due >= lastSyncTime;
+      } catch {
+        return false;
+      }
+    }).length;
+  }, [assignments, lastSyncTime]);
 
   return (
     <PageShell maxWidth="max-w-6xl">

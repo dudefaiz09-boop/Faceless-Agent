@@ -118,13 +118,15 @@ export const AttendancePage = () => {
     enabled: !!schoolId,
   });
 
-  const students = userDocuments.filter((student) => {
-    const studentSchoolId = student.schoolId || student.tenantId;
-    const isStudent = student.role === 'student' || student.roles?.includes('student');
-    const matchesClass = student.classId === selectedClass;
-    const matchesSchool = !schoolId || !studentSchoolId || studentSchoolId === schoolId;
-    return isStudent && matchesClass && matchesSchool;
-  });
+  const students = React.useMemo(() => {
+    return userDocuments.filter((student) => {
+      const studentSchoolId = student.schoolId || student.tenantId;
+      const isStudent = student.role === 'student' || student.roles?.includes('student');
+      const matchesClass = student.classId === selectedClass;
+      const matchesSchool = !schoolId || !studentSchoolId || studentSchoolId === schoolId;
+      return isStudent && matchesClass && matchesSchool;
+    });
+  }, [userDocuments, selectedClass, schoolId]);
 
   const loadMarkingData = useCallback(async () => {
     setLoading(true);
@@ -239,20 +241,25 @@ export const AttendancePage = () => {
     }
   };
 
-  const filteredStudents = students.filter(
-    (s) =>
-      (s.displayName || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      (s.email || '').toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  const filteredStudents = React.useMemo(() => {
+    const query = debouncedSearch.toLowerCase();
+    return students.filter(
+      (s) =>
+        (s.displayName || '').toLowerCase().includes(query) ||
+        (s.email || '').toLowerCase().includes(query)
+    );
+  }, [students, debouncedSearch]);
 
-  const dailySummary = students.reduce(
-    (summary, student) => {
-      const status = dailyRecords[student.uid] || 'absent';
-      summary[status] += 1;
-      return summary;
-    },
-    { present: 0, absent: 0, late: 0 }
-  );
+  const dailySummary = React.useMemo(() => {
+    return students.reduce(
+      (summary, student) => {
+        const status = dailyRecords[student.uid] || 'absent';
+        summary[status] += 1;
+        return summary;
+      },
+      { present: 0, absent: 0, late: 0 }
+    );
+  }, [students, dailyRecords]);
 
   const exportDailyAttendance = () => {
     exportCsv(

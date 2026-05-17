@@ -49,10 +49,11 @@ const modes = [
   { key: 'announcement', label: 'Draft', icon: Wand2 },
 ] as const;
 
-function getFriendlyAiError(err: any, aiStatus: AiStatus | null) {
-  const status = err?.status;
-  const message = err?.message || String(err || '');
-  const errorData = err?.data || {};
+function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
+  const error = err as { status?: number; message?: string; data?: { error?: string } };
+  const status = error?.status;
+  const message = error?.message || String(err || '');
+  const errorData = error?.data || {};
 
   if (
     status === 400 &&

@@ -72,8 +72,10 @@ interface FeeAccountResponse {
 
 function formatDate(value: PaymentRecord['paidAt']) {
   const date =
-    typeof value === 'object' && value !== null && 'toDate' in value ? value.toDate() : value;
-  return new Date(date || Date.now()).toLocaleDateString();
+    typeof value === 'object' && value !== null && 'toDate' in value
+      ? (value as { toDate: () => Date }).toDate()
+      : value;
+  return new Date((date as string | number | Date) || Date.now()).toLocaleDateString();
 }
 
 // Currency configuration - should match backend
@@ -223,19 +225,26 @@ export const FeesPage = () => {
     }
   };
 
-  const totalDue = fees.reduce((sum, f) => sum + f.amountDue, 0);
-  const totalPaid = fees.reduce((sum, f) => sum + f.amountPaid, 0);
+  const totalDue = React.useMemo(() => fees.reduce((sum, f) => sum + f.amountDue, 0), [fees]);
+  const totalPaid = React.useMemo(() => fees.reduce((sum, f) => sum + f.amountPaid, 0), [fees]);
 
-  const reportStats = report
-    ? [
-        { name: 'Paid', value: report.totalPaid, color: '#10b981' },
-        { name: 'Pending', value: report.pending, color: '#ef4444' },
-      ]
-    : [];
-
-  const filteredFeeRecords = (report?.records || []).filter((record) =>
-    record.studentId.toLowerCase().includes(feeSearch.trim().toLowerCase())
+  const reportStats = React.useMemo(
+    () =>
+      report
+        ? [
+            { name: 'Paid', value: report.totalPaid, color: '#10b981' },
+            { name: 'Pending', value: report.pending, color: '#ef4444' },
+          ]
+        : [],
+    [report]
   );
+
+  const filteredFeeRecords = React.useMemo(() => {
+    const query = feeSearch.trim().toLowerCase();
+    return (report?.records || []).filter((record) =>
+      record.studentId.toLowerCase().includes(query)
+    );
+  }, [report, feeSearch]);
 
   const feeColumns: Array<DataTableColumn<FeeReport['records'][number]>> = [
     {

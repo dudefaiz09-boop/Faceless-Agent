@@ -6,7 +6,19 @@ import { createNotification } from '../lib/notifications.js';
 
 const router: Router = Router();
 
-function canSeeNotification(notification: any, user: NonNullable<Request['user']>) {
+interface NotificationDoc {
+  id: string;
+  archivedBy?: string[];
+  targetUserIds?: string[];
+  targetRoles?: string[];
+  targetClasses?: string[];
+  schoolId?: string;
+  tenantId?: string;
+  archived?: boolean;
+  [key: string]: any;
+}
+
+function canSeeNotification(notification: NotificationDoc, user: NonNullable<Request['user']>) {
   const archivedBy = notification.archivedBy || [];
   if (archivedBy.includes(user.uid)) return false;
 
@@ -32,8 +44,9 @@ router.get('/', async (req, res, next) => {
 
     const snapshot = await db
       .collection('notifications')
+      .where('tenantId', '==', req.tenantId)
       .orderBy('createdAt', 'desc')
-      .limit(50)
+      .limit(100)
       .get();
     const notifications = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
@@ -80,15 +93,16 @@ router.patch('/read-all', async (req, res, next) => {
 
     const snapshot = await db
       .collection('notifications')
+      .where('tenantId', '==', req.tenantId)
       .orderBy('createdAt', 'desc')
-      .limit(50)
+      .limit(100)
       .get();
     const visible = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter((notification) => canSeeNotification(notification, req.user!));
 
     await Promise.all(
-      visible.map((notification: any) =>
+      visible.map((notification: NotificationDoc) =>
         db
           .collection('notifications')
           .doc(notification.id)
@@ -132,17 +146,20 @@ router.delete('/read', async (req, res, next) => {
 
     const snapshot = await db
       .collection('notifications')
+      .where('tenantId', '==', req.tenantId)
       .orderBy('createdAt', 'desc')
-      .limit(50)
+      .limit(100)
       .get();
     const visible = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter((notification) => canSeeNotification(notification, req.user!));
 
-    const readNotifications = visible.filter((n: any) => n.readBy?.includes(req.user!.uid));
+    const readNotifications = visible.filter((n: NotificationDoc) =>
+      n.readBy?.includes(req.user!.uid)
+    );
 
     await Promise.all(
-      readNotifications.map((n: any) =>
+      readNotifications.map((n: NotificationDoc) =>
         db
           .collection('notifications')
           .doc(n.id)
