@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -172,6 +173,18 @@ export function NotificationDropdown() {
     }
   }, [open]);
 
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (open && dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom,
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [open]);
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -186,13 +199,18 @@ export function NotificationDropdown() {
         )}
       </button>
       <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            className="absolute right-0 z-[300] mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
-          >
+        {open &&
+          createPortal(
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              style={{
+                top: `${dropdownPosition.top}px`,
+                right: `${dropdownPosition.right}px`,
+              }}
+              className="fixed z-[9999] mt-3 w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border border-white/70 bg-white/95 shadow-2xl shadow-slate-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
+            >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <p className="text-sm font-black text-slate-950 dark:text-white">Notifications</p>
@@ -260,8 +278,9 @@ export function NotificationDropdown() {
                 </div>
               ))}
             </div>
-          </motion.div>
-        )}
+            </motion.div>,
+            document.body
+          )}
       </AnimatePresence>
     </div>
   );

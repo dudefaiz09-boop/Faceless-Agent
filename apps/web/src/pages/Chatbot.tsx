@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { cn } from '../lib/utils';
+import { PageShell } from '../components/ui/PageShell';
 
 interface ChatLog {
   id: string;
@@ -203,7 +204,8 @@ export const ChatbotPage = () => {
   const showOfflineWarning = aiStatus && !aiStatus.enabled;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-140px)] max-w-6xl flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/85 shadow-2xl shadow-slate-200/70 backdrop-blur">
+    <PageShell maxWidth="max-w-6xl">
+      <div className="flex h-[calc(100vh-240px)] flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/85 shadow-2xl shadow-slate-200/70 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
       {showOfflineWarning && isStaffOrAdmin && (
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
           <AlertCircle className="text-amber-600" size={18} />
@@ -351,6 +353,7 @@ export const ChatbotPage = () => {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+    </PageShell>
   );
 };
