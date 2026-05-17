@@ -58,20 +58,18 @@ function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
   }
 
   if (aiStatus?.enabled) {
-    return 'AI request failed after reaching the API. Please retry; if it continues, check the API deployment logs for /api/ai/query.';
+    return 'AI request failed after reaching the API. Please retry later.';
   }
 
-  return 'AI request failed. Check OPENROUTER_API_KEY environment variable on the API server, then retry.';
+  return 'AI request failed. Please try again later.';
 }
 
 export const ChatbotPage = () => {
-  const { user, role, isAdmin, isTeacher, canManageAssignments } = useAuth();
-  const userId = user?.uid;
+  const { role, isAdmin, isTeacher, canManageAssignments } = useAuth();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<(typeof modes)[number]['key']>('chat');
   const [logs, setLogs] = useState<ChatLog[]>([]);
   const [loading, setLoading] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -99,27 +97,12 @@ export const ChatbotPage = () => {
     }
   }, []);
 
-  const loadHistory = useCallback(async () => {
-    if (!userId) return;
-    try {
-      setError(null);
-      const data = await apiClient.request<ChatLog[]>(`/api/ai/history/${userId}`);
-      setLogs((data || []).reverse());
-    } catch (err) {
-      console.error('Error loading chat history:', err);
-      setError('Chat history could not be loaded. You can still send a new message.');
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [userId]);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadAiStatus();
-      void loadHistory();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadAiStatus, loadHistory]);
+  }, [loadAiStatus]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -171,8 +154,7 @@ export const ChatbotPage = () => {
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
           <AlertCircle className="text-amber-600" size={18} />
           <p className="text-sm font-semibold text-amber-800">
-            AI is running in offline mode. Set OPENROUTER_API_KEY in your API environment to enable
-            live responses.
+            AI is running in offline mode. Live responses are currently unavailable.
           </p>
         </div>
       )}
@@ -211,12 +193,7 @@ export const ChatbotPage = () => {
       </header>
 
       <main className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-4 md:p-6">
-        {historyLoading ? (
-          <div className="flex items-center justify-center py-20 text-slate-400">
-            <Loader2 className="mr-2 animate-spin" size={20} />
-            Loading conversation...
-          </div>
-        ) : logs.length === 0 ? (
+        {logs.length === 0 ? (
           <div className="mx-auto mt-12 max-w-2xl rounded-[30px] border border-dashed border-slate-200 bg-white p-8 text-center">
             <Sparkles className="mx-auto mb-4 text-blue-600" size={38} />
             <h2 className="text-2xl font-black text-slate-950">Start with a focused prompt</h2>
