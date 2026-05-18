@@ -65,6 +65,8 @@ interface AuthContextType {
   linkedStudentIds: string[];
   loading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  managedTenantIds: string[];
   isTeacher: boolean;
   isStudent: boolean;
   isParent: boolean;
@@ -103,6 +105,8 @@ const AuthContext = createContext<AuthContextType>({
   linkedStudentIds: [],
   loading: true,
   isAdmin: false,
+  isSuperAdmin: false,
+  managedTenantIds: [],
   isTeacher: false,
   isStudent: false,
   isParent: false,
@@ -143,6 +147,8 @@ async function getProfile(uid: string) {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [managedTenantIds, setManagedTenantIds] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
@@ -182,6 +188,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const profile = await getProfile(session.user.id);
       const appMetadata = session.user.app_metadata || {};
+      const nextIsSuperAdmin = !!profile.is_super_admin || !!appMetadata.isSuperAdmin;
+      const nextManagedTenantIds = profile.managed_tenant_ids || appMetadata.managedTenantIds || [];
+
+      setIsSuperAdmin(nextIsSuperAdmin);
+      setManagedTenantIds(nextManagedTenantIds);
+
       const nextRoles = profile.roles || appMetadata.roles || [];
       const nextPermissions = profile.permissions || appMetadata.permissions || {};
       const nextSchoolId = profile.schoolId || appMetadata.schoolId || null;
@@ -225,7 +237,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const permissionUser = {
     uid: user?.uid || '',
     roles: role ? [role] : [],
-    isAdmin: roles.includes(ROLES.ADMIN),
+    isAdmin: roles.includes(ROLES.ADMIN) || isSuperAdmin,
+    isSuperAdmin,
+    managedTenantIds,
     classId,
     permissions,
   };
@@ -243,7 +257,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     assignedModules,
     linkedStudentIds,
     loading,
-    isAdmin: roles.includes(ROLES.ADMIN),
+    isAdmin: roles.includes(ROLES.ADMIN) || isSuperAdmin,
+    isSuperAdmin,
+    managedTenantIds,
     isTeacher: roles.includes(ROLES.TEACHER),
     isStudent: roles.includes(ROLES.STUDENT),
     isParent: roles.includes(ROLES.PARENT),

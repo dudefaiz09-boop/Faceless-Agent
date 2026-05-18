@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ALL_MODULES,
@@ -25,6 +25,10 @@ import {
   Upload,
   User as UserIcon,
   X,
+  FileText,
+  Download,
+  AlertCircle,
+  School,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
@@ -54,6 +58,7 @@ interface UserProfile {
   sectionIds?: string[];
   linkedStudentIds?: string[];
   updatedAt?: string;
+  schoolId?: string;
 }
 
 interface AuditLogRecord {
@@ -63,6 +68,11 @@ interface AuditLogRecord {
   performedBy?: string;
   details?: string;
   timestamp?: string;
+}
+
+interface Tenant {
+  id: string;
+  name: string;
 }
 
 const emptyForm = {
@@ -81,6 +91,7 @@ const emptyForm = {
   phone: '',
   admissionNumber: '',
   employeeId: '',
+  tenantId: '',
 };
 
 const inputClass =
@@ -120,11 +131,12 @@ function toForm(profile: UserProfile) {
     subjectIds: (profile.subjectIds || []).join(', '),
     sectionIds: (profile.sectionIds || []).join(', '),
     linkedStudentIds: (profile.linkedStudentIds || []).join(', '),
+    tenantId: profile.schoolId || '',
   };
 }
 
 export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin, managedTenantIds, schoolId } = useAuth();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
@@ -134,11 +146,21 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
   const [saving, setSaving] = useState(false);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
   const debouncedSearch = useDebounce(search, 300);
   const { data: allUsers, loading } = useDocuments<UserProfile>('users');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [targetTenantId, setTargetTenantId] = useState(schoolId || '');
+
+  useMemo(() => {
+    if (isSuperAdmin && managedTenantIds.length > 0) {
+      listDocuments<Tenant>('schools').then(setTenants);
+    }
+  }, [isSuperAdmin, managedTenantIds]);
 
   const users = useMemo(() => {
     return allUsers.filter((profile) => {
@@ -161,7 +183,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   }, [allUsers, debouncedSearch, moduleFilter, roleFilter, statusFilter, type]);
 
   const openAddModal = () => {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, tenantId: schoolId || '' });
     setIsUserModalOpen(true);
   };
 
@@ -195,6 +217,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     subjectIds: splitCsv(form.subjectIds),
     sectionIds: splitCsv(form.sectionIds),
     linkedStudentIds: splitCsv(form.linkedStudentIds),
+    tenantId: form.tenantId || undefined,
     phone: form.phone || undefined,
     admissionNumber: form.admissionNumber || undefined,
     employeeId: form.employeeId || undefined,
@@ -220,13 +243,13 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
       setIsUserModalOpen(false);
       toast({
         tone: 'success',
-        title: form.uid ? 'User updated' : 'User created',
-        description: `${form.displayName || form.email} is saved.`,
+        title: isAdmin ? 'User saved' : 'Request sent',
+        description: `${form.displayName || form.email} has been updated.`,
       });
     } catch (error) {
       toast({
         tone: 'error',
-        title: 'User save failed',
+        title: 'Save failed',
         description: (error as Error).message,
       });
     } finally {
@@ -255,27 +278,53 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     }
   };
 
-  const bulkImport = async () => {
-    if (!bulkText.trim()) return;
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const usersToImport = bulkText
-      .trim()
-      .split('\n')
-      .map((line) => {
-        const [email, displayName, role, password, classIds, subjectIds] = line
-          .split(',')
-          .map((item) => item.trim());
-        return {
-          email,
-          displayName,
-          role,
-          password,
-          classIds: classIds ? classIds.split(';').map((item) => item.trim()) : [],
-          subjectIds: subjectIds ? subjectIds.split(';').map((item) => item.trim()) : [],
-        };
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(Boolean);
+      const headers = lines[0].split(',').map(h => h.trim());
+
+      const parsed = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim());
+        const obj: any = {};
+        headers.forEach((h, i) => {
+          obj[h] = values[i];
+        });
+        return obj;
       });
+      setImportPreview(parsed);
+    };
+    reader.readAsText(file);
+  };
 
+  const downloadTemplate = () => {
+    const headers = 'email,role,password,permissions,classId,classIds,linkedStudentIds,tenantId,displayName';
+    const row = 'student.import1@educonnect.test,student,Test@1234,"viewOwnRecords,viewAssignments",A1,"A1,A2",,tenant-a,Imported Student 1';
+    const blob = new Blob([`${headers}\n${row}`], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'educonnect_user_import_template.csv';
+    a.click();
+  };
+
+  const executeBulkImport = async () => {
+    if (importPreview.length === 0) return;
+
+    setSaving(true);
     try {
+      const usersToImport = importPreview.map(u => ({
+        ...u,
+        permissions: u.permissions ? u.permissions.split(',').map((s: string) => s.trim()) : [],
+        classIds: u.classIds ? u.classIds.split(',').map((s: string) => s.trim()) : (u.classId ? [u.classId] : []),
+        linkedStudentIds: u.linkedStudentIds ? u.linkedStudentIds.split(',').map((s: string) => s.trim()) : [],
+        tenantId: u.tenantId || targetTenantId
+      }));
+
       const result = await apiClient.request<{ results: Array<{ success: boolean }> }>(
         '/api/users/bulk-import',
         {
@@ -283,21 +332,19 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
           body: JSON.stringify({ users: usersToImport }),
         }
       );
+
+      const successCount = result.results.filter(r => r.success).length;
       toast({
-        tone: 'success',
+        tone: successCount === usersToImport.length ? 'success' : 'warning',
         title: 'Import complete',
-        description: `Success: ${result.results.filter((item) => item.success).length}, Failed: ${
-          result.results.filter((item) => !item.success).length
-        }`,
+        description: `Successfully imported ${successCount} of ${usersToImport.length} users.`,
       });
-      setBulkText('');
       setIsBulkModalOpen(false);
+      setImportPreview([]);
     } catch (error) {
-      toast({
-        tone: 'error',
-        title: 'Import failed',
-        description: (error as Error).message,
-      });
+      toast({ tone: 'error', title: 'Import failed', description: (error as Error).message });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -571,6 +618,19 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                     <option value="inactive">Inactive</option>
                   </select>
                 </Field>
+                {isSuperAdmin && (
+                  <Field label="Target School">
+                    <select
+                      value={form.tenantId}
+                      onChange={(event) => setForm({ ...form, tenantId: event.target.value })}
+                      className={inputClass}
+                    >
+                      {tenants.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
                 <Field label="Class IDs">
                   <input
                     value={form.classIds}
@@ -647,29 +707,128 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         )}
 
         {isBulkModalOpen && (
-          <Modal onClose={() => setIsBulkModalOpen(false)} title="Bulk Import Users">
-            <div className="space-y-5">
-              <textarea
-                rows={8}
-                value={bulkText}
-                onChange={(event) => setBulkText(event.target.value)}
-                placeholder="email, name, role, password, 10A;10B, math;science"
-                className="w-full bg-slate-50 border border-slate-100 p-5 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 font-mono text-sm"
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={bulkImport}
-                  className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs"
-                >
-                  Import
-                </button>
-                <button
-                  onClick={() => setIsBulkModalOpen(false)}
-                  className="px-8 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase tracking-widest text-xs"
-                >
-                  Cancel
-                </button>
+          <Modal onClose={() => setIsBulkModalOpen(false)} title="Enterprise Bulk Import">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl space-y-4">
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                    <Download size={20} className="text-blue-600" />
+                    1. Get Template
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Use our standard CSV structure to ensure your data is imported correctly.
+                  </p>
+                  <button
+                    onClick={downloadTemplate}
+                    className="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-colors"
+                  >
+                    Download CSV Template
+                  </button>
+                </div>
+
+                <div className="p-6 bg-blue-50 border border-blue-100 rounded-3xl space-y-4">
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                    <Upload size={20} className="text-blue-600" />
+                    2. Upload File
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Select your completed CSV file. Max size 5MB.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                  >
+                    Select CSV File
+                  </button>
+                </div>
               </div>
+
+              {isSuperAdmin && (
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-4">
+                  <School size={20} className="text-slate-400" />
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Default Target School
+                    </p>
+                    <select
+                      value={targetTenantId}
+                      onChange={(e) => setTargetTenantId(e.target.value)}
+                      className="bg-transparent font-bold text-slate-700 outline-none w-full"
+                    >
+                      {tenants.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {importPreview.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-900">
+                      Preview ({importPreview.length} rows detected)
+                    </h3>
+                    <button
+                      onClick={() => setImportPreview([])}
+                      className="text-xs font-bold text-red-600 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="border border-slate-100 rounded-2xl overflow-hidden overflow-x-auto">
+                    <table className="w-full text-left text-sm border-collapse">
+                      <thead className="bg-slate-50 border-b border-slate-100">
+                        <tr>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">Email</th>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">Name</th>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">Role</th>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">School</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.slice(0, 5).map((row, i) => (
+                          <tr key={i} className="border-b border-slate-50">
+                            <td className="p-3 font-semibold text-slate-700">{row.email}</td>
+                            <td className="p-3 text-slate-600">{row.displayName}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-1 bg-slate-100 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                                {row.role}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-400 text-xs">{row.tenantId || targetTenantId}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {importPreview.length > 5 && (
+                      <div className="p-3 bg-slate-50 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        And {importPreview.length - 5} more rows...
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex p-4 bg-amber-50 border border-amber-100 rounded-2xl gap-3">
+                    <AlertCircle className="text-amber-600 shrink-0" size={20} />
+                    <p className="text-xs font-medium text-amber-700">
+                      Ensure passwords meet complexity requirements. Existing users with the same email will be updated if the backend logic allows.
+                    </p>
+                  </div>
+                  <button
+                    onClick={executeBulkImport}
+                    disabled={saving}
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Processing Import...' : 'Confirm and Execute Import'}
+                  </button>
+                </div>
+              )}
             </div>
           </Modal>
         )}

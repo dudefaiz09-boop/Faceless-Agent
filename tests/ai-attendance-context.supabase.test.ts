@@ -99,8 +99,10 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
 
     const context = await AiContextService.getModuleContext(parentContext, ['attendance']);
 
-    expect(mockSupabase.in).toHaveBeenCalledWith('student_id', ['student1', 'student2']);
-    expect(context).toContain('Student student1: 2024-05-21: present');
-    expect(context).toContain('Student student2: 2024-05-21: absent');
+    // New aggregated parent context format
+    expect(context).toContain('Real-time Parent Context (Children Records)');
+    expect(context).toContain('[Student: student1]');
+    expect(context).toContain('[Student: student2]');
+    expect(context).toContain('2024-05-21: present');
   });
 });

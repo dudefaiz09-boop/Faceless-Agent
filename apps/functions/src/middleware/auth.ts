@@ -13,6 +13,8 @@ declare global {
         role: string;
         roles: string[];
         isAdmin: boolean;
+        isSuperAdmin?: boolean;
+        managedTenantIds?: string[];
         schoolId: string | null;
         classId: string | null;
         classIds: string[];
@@ -37,13 +39,16 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       const role = (decodedToken.role as string) || getUserRole(roles);
       const classId = (decodedToken.classId as string) || null;
       const classIds = (decodedToken.classIds as string[]) || (classId ? [classId] : []);
+      const isSuperAdmin = !!decodedToken.isSuperAdmin;
       req.user = {
         uid: decodedToken.uid,
         email: decodedToken.email,
         displayName: (decodedToken as any).name,
         role,
         roles: roles.length > 0 ? roles : [role],
-        isAdmin: !!decodedToken.isAdmin || role === 'admin' || roles.includes('admin'),
+        isAdmin: !!decodedToken.isAdmin || role === 'admin' || roles.includes('admin') || isSuperAdmin,
+        isSuperAdmin,
+        managedTenantIds: (decodedToken.managedTenantIds as string[]) || [],
         schoolId: (decodedToken.schoolId as string) || null,
         classId,
         classIds,

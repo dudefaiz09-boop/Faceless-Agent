@@ -143,6 +143,24 @@ export class AiContextService {
       }
     });
 
+    // Parent Role: Special handling to aggregate data for all linked children
+    if (context.role === 'parent' && context.linkedStudentIds.length > 0) {
+      const studentContexts = await Promise.all(
+        context.linkedStudentIds.map(async (sid) => {
+          const studentUserContext: UserContext = {
+            ...context,
+            uid: sid,
+            role: 'student', // Temporarily assume student role to fetch their data
+          };
+          const parts = await Promise.all(
+            activeModules.map((m) => PROVIDERS[m]?.getModuleContext(studentUserContext, tenantId))
+          );
+          return `[Student: ${sid}]\n${parts.filter(Boolean).join('\n')}`;
+        })
+      );
+      return `Real-time Parent Context (Children Records):\n${studentContexts.join('\n\n')}`;
+    }
+
     const results = await Promise.all(contextPromises);
     const contextParts = results.filter(Boolean) as string[];
 

@@ -36,7 +36,44 @@ router.post('/bulk-import', checkAdmin, async (req, res, next) => {
     const results = [];
     for (const user of users) {
       try {
-        const profile = await createManagedUser(user, actorFromRequest(req));
+        // Support per-user tenantId from CSV or fallback to request tenantId
+        const payload = {
+          ...user,
+          tenantId: user.tenantId || req.tenantId
+        };
+        const profile = await createManagedUser(payload, actorFromRequest(req));
+        results.push({ success: true, uid: profile.uid, email: profile.email });
+      } catch (error) {
+        results.push({
+          success: false,
+          email: user.email,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    res.json({ success: true, results });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/import-csv', checkAdmin, async (req, res, next) => {
+  // Re-use the logic from bulk-import directly to avoid recursion with router.handle
+  try {
+    const users = Array.isArray(req.body?.users) ? (req.body.users as ManagedUserPayload[]) : [];
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'users array is required' });
+    }
+
+    const results = [];
+    for (const user of users) {
+      try {
+        const payload = {
+          ...user,
+          tenantId: user.tenantId || req.tenantId
+        };
+        const profile = await createManagedUser(payload, actorFromRequest(req));
         results.push({ success: true, uid: profile.uid, email: profile.email });
       } catch (error) {
         results.push({

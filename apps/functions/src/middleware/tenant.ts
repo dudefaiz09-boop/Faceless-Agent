@@ -20,8 +20,19 @@ export const tenantMiddleware = (req: Request, res: Response, next: NextFunction
 
   // 2. Try to infer from the authenticated user's custom claims (set during signup/provisioning)
   const userTenantId = (req.user as any)?.schoolId as string;
+  const isSuperAdmin = (req.user as any)?.isSuperAdmin;
+  const managedTenantIds = (req.user as any)?.managedTenantIds || [];
 
-  const resolvedTenantId = headerTenantId || userTenantId;
+  let resolvedTenantId = headerTenantId || userTenantId;
+
+  // Super admin can switch to any tenant they manage via header
+  if (isSuperAdmin && headerTenantId && managedTenantIds.includes(headerTenantId)) {
+    resolvedTenantId = headerTenantId;
+  } else if (!isSuperAdmin && headerTenantId && headerTenantId !== userTenantId) {
+    // Normal users cannot override their assigned tenant
+    logger.warn({ uid: req.user?.uid, requested: headerTenantId, actual: userTenantId }, 'Tenant override attempt denied');
+    resolvedTenantId = userTenantId;
+  }
 
   if (!resolvedTenantId) {
     logger.warn({ path: req.path, uid: req.user?.uid }, 'Missing Tenant ID (x-school-id)');

@@ -248,6 +248,8 @@ async function getUserProfile(uid: string) {
 }
 
 export const auth = {
+  getSupabaseAdmin,
+
   async verifyIdToken(token: string) {
     const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin.auth.getUser(token);

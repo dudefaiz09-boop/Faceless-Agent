@@ -24,6 +24,7 @@ export type ManagedUserPayload = {
   subjectIds?: string[];
   sectionIds?: string[];
   linkedStudentIds?: string[];
+  tenantId?: string;
   status?: 'active' | 'inactive';
   phone?: string;
   admissionNumber?: string;
@@ -244,8 +245,8 @@ export function buildManagedUserProfile(
     section: sectionIds[0] || existing.section || null,
     linkedStudentIds,
     status: resolveStatus(payload.status, existing),
-    schoolId: actor.schoolId || existing.schoolId || 'default-school',
-    tenantId: actor.schoolId || existing.tenantId || existing.schoolId || 'default-school',
+    schoolId: payload.tenantId || actor.schoolId || existing.schoolId || 'default-school',
+    tenantId: payload.tenantId || actor.schoolId || existing.tenantId || existing.schoolId || 'default-school',
     updatedAt: now,
     updatedBy: actor.uid,
     createdAt: existing.createdAt || now,
@@ -257,6 +258,8 @@ export function buildClaims(profile: Record<string, any>) {
     role: profile.role,
     roles: profile.roles,
     isAdmin: profile.isAdmin,
+    isSuperAdmin: profile.isSuperAdmin,
+    managedTenantIds: profile.managedTenantIds,
     permissions: profile.permissions,
     schoolId: profile.schoolId,
     classId: profile.classId,
@@ -310,6 +313,21 @@ export async function updateManagedUser(
   await userRef.update(after);
   await auth.setCustomUserClaims(uid, buildClaims(after));
 
+  // Update user_tenants if schoolId changed
+  if (before.schoolId !== after.schoolId) {
+    const supabase = (auth as any).getSupabaseAdmin ? (auth as any).getSupabaseAdmin() : null;
+    if (supabase) {
+      await supabase.from('user_tenants').upsert({
+        user_id: uid,
+        email: after.email,
+        tenant_id: after.schoolId,
+        role: after.role,
+        is_default: true,
+        is_active: after.status === 'active'
+      }, { onConflict: 'email,tenant_id' });
+    }
+  }
+
   const changedKeys = getChangedKeys(before, after);
   await writeAuditLog({
     action,
@@ -342,6 +360,19 @@ export async function createManagedUser(payload: ManagedUserPayload, actor: Acto
   const profile = buildManagedUserProfile(userRecord.uid, payload, actor);
   await db.collection('users').doc(userRecord.uid).set(profile);
   await auth.setCustomUserClaims(userRecord.uid, buildClaims(profile));
+
+  // Link user to tenant in user_tenants table
+  const supabase = (auth as any).getSupabaseAdmin ? (auth as any).getSupabaseAdmin() : null;
+  if (supabase) {
+    await supabase.from('user_tenants').upsert({
+      user_id: userRecord.uid,
+      email: profile.email,
+      tenant_id: profile.schoolId,
+      role: profile.role,
+      is_default: true,
+      is_active: profile.status === 'active'
+    }, { onConflict: 'email,tenant_id' });
+  }
 
   await writeAuditLog({
     action: 'user_created',
