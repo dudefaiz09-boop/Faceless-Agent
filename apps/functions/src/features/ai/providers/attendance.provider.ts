@@ -45,7 +45,8 @@ export class AttendanceProvider implements AiModuleProvider {
         .order('attendance_date', { ascending: false })
         .limit(100);
 
-      if (error || !data || data.length === 0) return '[Attendance] No recent records for your classes.';
+      if (error || !data || data.length === 0)
+        return '[Attendance] No recent records for your classes.';
 
       // Aggregate by date and class
       const aggregated: Record<string, { present: number; total: number }> = {};
