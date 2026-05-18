@@ -74,7 +74,9 @@ export const TenantSwitcher = () => {
                     <p
                       className={cn(
                         'text-sm font-bold truncate',
-                        tenant.id === schoolId ? 'text-blue-600' : 'text-slate-700 dark:text-slate-200'
+                        tenant.id === schoolId
+                          ? 'text-blue-600'
+                          : 'text-slate-700 dark:text-slate-200'
                       )}
                     >
                       {tenant.name}

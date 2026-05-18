@@ -286,10 +286,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const lines = text.split('\n').filter(Boolean);
-      const headers = lines[0].split(',').map(h => h.trim());
+      const headers = lines[0].split(',').map((h) => h.trim());
 
-      const parsed = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim());
+      const parsed = lines.slice(1).map((line) => {
+        const values = line.split(',').map((v) => v.trim());
         const obj: any = {};
         headers.forEach((h, i) => {
           obj[h] = values[i];
@@ -302,8 +302,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   };
 
   const downloadTemplate = () => {
-    const headers = 'email,role,password,permissions,classId,classIds,linkedStudentIds,tenantId,displayName';
-    const row = 'student.import1@educonnect.test,student,Test@1234,"viewOwnRecords,viewAssignments",A1,"A1,A2",,tenant-a,Imported Student 1';
+    const headers =
+      'email,role,password,permissions,classId,classIds,linkedStudentIds,tenantId,displayName';
+    const row =
+      'student.import1@educonnect.test,student,Test@1234,"viewOwnRecords,viewAssignments",A1,"A1,A2",,tenant-a,Imported Student 1';
     const blob = new Blob([`${headers}\n${row}`], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -317,12 +319,18 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
     setSaving(true);
     try {
-      const usersToImport = importPreview.map(u => ({
+      const usersToImport = importPreview.map((u) => ({
         ...u,
         permissions: u.permissions ? u.permissions.split(',').map((s: string) => s.trim()) : [],
-        classIds: u.classIds ? u.classIds.split(',').map((s: string) => s.trim()) : (u.classId ? [u.classId] : []),
-        linkedStudentIds: u.linkedStudentIds ? u.linkedStudentIds.split(',').map((s: string) => s.trim()) : [],
-        tenantId: u.tenantId || targetTenantId
+        classIds: u.classIds
+          ? u.classIds.split(',').map((s: string) => s.trim())
+          : u.classId
+            ? [u.classId]
+            : [],
+        linkedStudentIds: u.linkedStudentIds
+          ? u.linkedStudentIds.split(',').map((s: string) => s.trim())
+          : [],
+        tenantId: u.tenantId || targetTenantId,
       }));
 
       const result = await apiClient.request<{ results: Array<{ success: boolean }> }>(
@@ -333,7 +341,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         }
       );
 
-      const successCount = result.results.filter(r => r.success).length;
+      const successCount = result.results.filter((r) => r.success).length;
       toast({
         tone: successCount === usersToImport.length ? 'success' : 'warning',
         title: 'Import complete',
@@ -625,8 +633,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                       onChange={(event) => setForm({ ...form, tenantId: event.target.value })}
                       className={inputClass}
                     >
-                      {tenants.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
                       ))}
                     </select>
                   </Field>
@@ -762,8 +772,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                       onChange={(e) => setTargetTenantId(e.target.value)}
                       className="bg-transparent font-bold text-slate-700 outline-none w-full"
                     >
-                      {tenants.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -787,10 +799,18 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                     <table className="w-full text-left text-sm border-collapse">
                       <thead className="bg-slate-50 border-b border-slate-100">
                         <tr>
-                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">Email</th>
-                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">Name</th>
-                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">Role</th>
-                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">School</th>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">
+                            Email
+                          </th>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">
+                            Name
+                          </th>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">
+                            Role
+                          </th>
+                          <th className="p-3 font-black text-slate-400 uppercase text-[10px]">
+                            School
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -803,7 +823,9 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                                 {row.role}
                               </span>
                             </td>
-                            <td className="p-3 text-slate-400 text-xs">{row.tenantId || targetTenantId}</td>
+                            <td className="p-3 text-slate-400 text-xs">
+                              {row.tenantId || targetTenantId}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -817,7 +839,8 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                   <div className="flex p-4 bg-amber-50 border border-amber-100 rounded-2xl gap-3">
                     <AlertCircle className="text-amber-600 shrink-0" size={20} />
                     <p className="text-xs font-medium text-amber-700">
-                      Ensure passwords meet complexity requirements. Existing users with the same email will be updated if the backend logic allows.
+                      Ensure passwords meet complexity requirements. Existing users with the same
+                      email will be updated if the backend logic allows.
                     </p>
                   </div>
                   <button

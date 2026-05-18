@@ -46,7 +46,8 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         displayName: (decodedToken as any).name,
         role,
         roles: roles.length > 0 ? roles : [role],
-        isAdmin: !!decodedToken.isAdmin || role === 'admin' || roles.includes('admin') || isSuperAdmin,
+        isAdmin:
+          !!decodedToken.isAdmin || role === 'admin' || roles.includes('admin') || isSuperAdmin,
         isSuperAdmin,
         managedTenantIds: (decodedToken.managedTenantIds as string[]) || [],
         schoolId: (decodedToken.schoolId as string) || null,

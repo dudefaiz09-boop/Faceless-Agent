@@ -30,7 +30,10 @@ export const tenantMiddleware = (req: Request, res: Response, next: NextFunction
     resolvedTenantId = headerTenantId;
   } else if (!isSuperAdmin && headerTenantId && headerTenantId !== userTenantId) {
     // Normal users cannot override their assigned tenant
-    logger.warn({ uid: req.user?.uid, requested: headerTenantId, actual: userTenantId }, 'Tenant override attempt denied');
+    logger.warn(
+      { uid: req.user?.uid, requested: headerTenantId, actual: userTenantId },
+      'Tenant override attempt denied'
+    );
     resolvedTenantId = userTenantId;
   }
 

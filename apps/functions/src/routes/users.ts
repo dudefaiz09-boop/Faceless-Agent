@@ -39,7 +39,7 @@ router.post('/bulk-import', checkAdmin, async (req, res, next) => {
         // Support per-user tenantId from CSV or fallback to request tenantId
         const payload = {
           ...user,
-          tenantId: user.tenantId || req.tenantId
+          tenantId: user.tenantId || req.tenantId,
         };
         const profile = await createManagedUser(payload, actorFromRequest(req));
         results.push({ success: true, uid: profile.uid, email: profile.email });
@@ -71,7 +71,7 @@ router.post('/import-csv', checkAdmin, async (req, res, next) => {
       try {
         const payload = {
           ...user,
-          tenantId: user.tenantId || req.tenantId
+          tenantId: user.tenantId || req.tenantId,
         };
         const profile = await createManagedUser(payload, actorFromRequest(req));
         results.push({ success: true, uid: profile.uid, email: profile.email });

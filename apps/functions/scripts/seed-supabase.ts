@@ -39,7 +39,12 @@ const tenants = [
     id: 'tenant-b',
     name: 'School B',
     slug: 'school-b',
-    metadata: { city: 'Mumbai', board: 'ICSE', academicYear: '2026-2027', timezone: 'Asia/Kolkata' },
+    metadata: {
+      city: 'Mumbai',
+      board: 'ICSE',
+      academicYear: '2026-2027',
+      timezone: 'Asia/Kolkata',
+    },
   },
   {
     id: 'tenant-c',
@@ -231,7 +236,15 @@ const seedUsers: SeedUser[] = [
     tenantId: 'tenant-a',
     staffId: 'prn-a-001',
     displayName: 'Principal Nair',
-    permissions: { ...teacherPermissions, manageStudents: true, manageTeachers: true, manageFees: true, viewFinancials: true, manageLibrary: true, manageUsers: true },
+    permissions: {
+      ...teacherPermissions,
+      manageStudents: true,
+      manageTeachers: true,
+      manageFees: true,
+      viewFinancials: true,
+      manageLibrary: true,
+      manageUsers: true,
+    },
   },
   {
     email: 'parent.a@educonnect.test',
@@ -291,7 +304,15 @@ const seedUsers: SeedUser[] = [
     tenantId: 'tenant-b',
     staffId: 'prn-b-001',
     displayName: 'Principal Kapoor',
-    permissions: { ...teacherPermissions, manageStudents: true, manageTeachers: true, manageFees: true, viewFinancials: true, manageLibrary: true, manageUsers: true },
+    permissions: {
+      ...teacherPermissions,
+      manageStudents: true,
+      manageTeachers: true,
+      manageFees: true,
+      viewFinancials: true,
+      manageLibrary: true,
+      manageUsers: true,
+    },
   },
   {
     email: 'parent.b@educonnect.test',
@@ -351,7 +372,15 @@ const seedUsers: SeedUser[] = [
     tenantId: 'tenant-c',
     staffId: 'prn-c-001',
     displayName: 'Principal Fernandes',
-    permissions: { ...teacherPermissions, manageStudents: true, manageTeachers: true, manageFees: true, viewFinancials: true, manageLibrary: true, manageUsers: true },
+    permissions: {
+      ...teacherPermissions,
+      manageStudents: true,
+      manageTeachers: true,
+      manageFees: true,
+      viewFinancials: true,
+      manageLibrary: true,
+      manageUsers: true,
+    },
   },
   {
     email: 'parent.c@educonnect.test',
@@ -495,15 +524,18 @@ async function seedUser(
   // Link to multiple tenants if super admin or specified
   const tenantIds = seedUser.managedTenantIds || [seedUser.tenantId];
   for (const tid of tenantIds) {
-    await supabase.from('user_tenants').upsert({
-      user_id: user.id,
-      email: seedUser.email,
-      tenant_id: tid,
-      role: seedUser.role,
-      is_default: tid === seedUser.tenantId,
-      is_active: true,
-      updated_at: now,
-    }, { onConflict: 'email,tenant_id' });
+    await supabase.from('user_tenants').upsert(
+      {
+        user_id: user.id,
+        email: seedUser.email,
+        tenant_id: tid,
+        role: seedUser.role,
+        is_default: tid === seedUser.tenantId,
+        is_active: true,
+        updated_at: now,
+      },
+      { onConflict: 'email,tenant_id' }
+    );
   }
 
   // Legacy document store
@@ -535,14 +567,17 @@ async function seedAttendance(supabase: SupabaseClient, idsByEmail: Map<string, 
   const statuses = ['present', 'present', 'present', 'present', 'absent', 'late', 'present'];
 
   const studentEmails = [
-    'student.a@educonnect.test', 'student.b@educonnect.test',
-    'student.c@educonnect.test', 'student.d@educonnect.test',
-    'student.e@educonnect.test', 'student.f@educonnect.test'
+    'student.a@educonnect.test',
+    'student.b@educonnect.test',
+    'student.c@educonnect.test',
+    'student.d@educonnect.test',
+    'student.e@educonnect.test',
+    'student.f@educonnect.test',
   ];
 
   for (const email of studentEmails) {
     const userId = idsByEmail.get(email);
-    const user = seedUsers.find(u => u.email === email);
+    const user = seedUsers.find((u) => u.email === email);
     if (!userId || !user) continue;
 
     for (let i = 0; i < days; i++) {
@@ -559,7 +594,9 @@ async function seedAttendance(supabase: SupabaseClient, idsByEmail: Map<string, 
         status: status,
       };
 
-      await supabase.from('attendance').upsert(record, { onConflict: 'student_id,class_id,attendance_date' });
+      await supabase
+        .from('attendance')
+        .upsert(record, { onConflict: 'student_id,class_id,attendance_date' });
 
       // Legacy document
       await upsertDocument(supabase, 'attendance', `${userId}-${dateStr}`, user.tenantId, record);
@@ -569,10 +606,38 @@ async function seedAttendance(supabase: SupabaseClient, idsByEmail: Map<string, 
 
 async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string, string>) {
   const assignmentData = [
-    { id: 'assign-a-001', tenantId: 'tenant-a', title: 'Algebra Practice Worksheet', subject: 'Mathematics', classes: ['A1', 'A2'], teacher: 'teacher.a@educonnect.test' },
-    { id: 'assign-a-002', tenantId: 'tenant-a', title: 'English Reading Reflection', subject: 'English', classes: ['A2'], teacher: 'teacher.b@educonnect.test' },
-    { id: 'assign-b-001', tenantId: 'tenant-b', title: 'Computer Science Basics Quiz', subject: 'Computer Science', classes: ['B1', 'B2'], teacher: 'teacher.c@educonnect.test' },
-    { id: 'assign-c-001', tenantId: 'tenant-c', title: 'Science Lab Report', subject: 'Science', classes: ['C1', 'C2'], teacher: 'teacher.d@educonnect.test' },
+    {
+      id: 'assign-a-001',
+      tenantId: 'tenant-a',
+      title: 'Algebra Practice Worksheet',
+      subject: 'Mathematics',
+      classes: ['A1', 'A2'],
+      teacher: 'teacher.a@educonnect.test',
+    },
+    {
+      id: 'assign-a-002',
+      tenantId: 'tenant-a',
+      title: 'English Reading Reflection',
+      subject: 'English',
+      classes: ['A2'],
+      teacher: 'teacher.b@educonnect.test',
+    },
+    {
+      id: 'assign-b-001',
+      tenantId: 'tenant-b',
+      title: 'Computer Science Basics Quiz',
+      subject: 'Computer Science',
+      classes: ['B1', 'B2'],
+      teacher: 'teacher.c@educonnect.test',
+    },
+    {
+      id: 'assign-c-001',
+      tenantId: 'tenant-c',
+      title: 'Science Lab Report',
+      subject: 'Science',
+      classes: ['C1', 'C2'],
+      teacher: 'teacher.d@educonnect.test',
+    },
   ];
 
   for (const a of assignmentData) {
@@ -595,7 +660,13 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
     await upsertDocument(supabase, 'assignments', a.id, a.tenantId, record);
 
     // Seed some submissions
-    const students = seedUsers.filter(u => u.tenantId === a.tenantId && u.role === 'student' && (u.classId && a.classes.includes(u.classId)));
+    const students = seedUsers.filter(
+      (u) =>
+        u.tenantId === a.tenantId &&
+        u.role === 'student' &&
+        u.classId &&
+        a.classes.includes(u.classId)
+    );
     for (const student of students) {
       const studentId = idsByEmail.get(student.email);
       if (!studentId) continue;
@@ -608,7 +679,9 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
         feedback: student.email.includes('a') ? 'Excellent work!' : null,
         submitted_at: now,
       };
-      await supabase.from('submissions').upsert(submission, { onConflict: 'assignment_id,student_id' });
+      await supabase
+        .from('submissions')
+        .upsert(submission, { onConflict: 'assignment_id,student_id' });
       await upsertDocument(supabase, 'submissions', `${a.id}-${studentId}`, a.tenantId, submission);
     }
   }
@@ -620,7 +693,7 @@ async function seedFees(supabase: SupabaseClient, idsByEmail: Map<string, string
     { label: 'Library Fee', amount: 1500 },
   ];
 
-  const students = seedUsers.filter(u => u.role === 'student');
+  const students = seedUsers.filter((u) => u.role === 'student');
   for (const student of students) {
     const studentId = idsByEmail.get(student.email);
     if (!studentId) continue;

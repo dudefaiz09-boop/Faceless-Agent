@@ -246,7 +246,12 @@ export function buildManagedUserProfile(
     linkedStudentIds,
     status: resolveStatus(payload.status, existing),
     schoolId: payload.tenantId || actor.schoolId || existing.schoolId || 'default-school',
-    tenantId: payload.tenantId || actor.schoolId || existing.tenantId || existing.schoolId || 'default-school',
+    tenantId:
+      payload.tenantId ||
+      actor.schoolId ||
+      existing.tenantId ||
+      existing.schoolId ||
+      'default-school',
     updatedAt: now,
     updatedBy: actor.uid,
     createdAt: existing.createdAt || now,
@@ -317,14 +322,17 @@ export async function updateManagedUser(
   if (before.schoolId !== after.schoolId) {
     const supabase = (auth as any).getSupabaseAdmin ? (auth as any).getSupabaseAdmin() : null;
     if (supabase) {
-      await supabase.from('user_tenants').upsert({
-        user_id: uid,
-        email: after.email,
-        tenant_id: after.schoolId,
-        role: after.role,
-        is_default: true,
-        is_active: after.status === 'active'
-      }, { onConflict: 'email,tenant_id' });
+      await supabase.from('user_tenants').upsert(
+        {
+          user_id: uid,
+          email: after.email,
+          tenant_id: after.schoolId,
+          role: after.role,
+          is_default: true,
+          is_active: after.status === 'active',
+        },
+        { onConflict: 'email,tenant_id' }
+      );
     }
   }
 
@@ -364,14 +372,17 @@ export async function createManagedUser(payload: ManagedUserPayload, actor: Acto
   // Link user to tenant in user_tenants table
   const supabase = (auth as any).getSupabaseAdmin ? (auth as any).getSupabaseAdmin() : null;
   if (supabase) {
-    await supabase.from('user_tenants').upsert({
-      user_id: userRecord.uid,
-      email: profile.email,
-      tenant_id: profile.schoolId,
-      role: profile.role,
-      is_default: true,
-      is_active: profile.status === 'active'
-    }, { onConflict: 'email,tenant_id' });
+    await supabase.from('user_tenants').upsert(
+      {
+        user_id: userRecord.uid,
+        email: profile.email,
+        tenant_id: profile.schoolId,
+        role: profile.role,
+        is_default: true,
+        is_active: profile.status === 'active',
+      },
+      { onConflict: 'email,tenant_id' }
+    );
   }
 
   await writeAuditLog({
