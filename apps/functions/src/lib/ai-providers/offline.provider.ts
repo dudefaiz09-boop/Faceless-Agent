@@ -1,4 +1,4 @@
-import { AiProvider, AiGenerationConfig } from './base.provider.js';
+import { AiProvider } from './base.provider.js';
 
 export class OfflineAiProvider implements AiProvider {
   name = 'offline';
