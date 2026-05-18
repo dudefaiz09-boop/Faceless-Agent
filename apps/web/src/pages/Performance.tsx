@@ -329,7 +329,7 @@ export const PerformancePage = () => {
                   Academic Progress
                 </h3>
               </div>
-              <div className="h-[300px]">
+              <div className="h-[300px] min-h-[300px] w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -517,7 +517,7 @@ export const PerformancePage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm h-[400px]">
+                <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm h-[400px] min-h-[400px] w-full min-w-0">
                   <h4 className="font-bold text-slate-900 mb-8 flex items-center gap-2">
                     <Target size={20} className="text-indigo-600" />
                     Subject Wise Averages

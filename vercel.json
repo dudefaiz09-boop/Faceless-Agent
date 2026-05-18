@@ -1,22 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "corepack pnpm install --frozen-lockfile",
-  "buildCommand": "corepack pnpm --filter @educonnect/functions build",
-  "outputDirectory": "public",
+  "buildCommand": "corepack pnpm --filter @educonnect/functions build && corepack pnpm --filter @educonnect/web build",
+  "outputDirectory": "apps/web/dist",
   "functions": {
     "api/index.ts": {
       "includeFiles": "apps/functions/dist/**",
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
   "rewrites": [
-    {
-      "source": "/api",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index"
-    }
+    { "source": "/api", "destination": "/api/index" },
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
