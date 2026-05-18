@@ -18,7 +18,6 @@ type SeedUser = {
   subjects?: string[];
 };
 
-const dryRun = process.argv.includes('--dry-run');
 const schoolId = process.env.SEED_SCHOOL_ID || 'default-school';
 const now = new Date().toISOString();
 
