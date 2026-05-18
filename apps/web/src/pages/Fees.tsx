@@ -558,7 +558,7 @@ export const FeesPage = () => {
             ) : (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm h-[300px]">
+                  <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm h-[300px] min-h-[300px] w-full min-w-0">
                     <h4 className="font-bold text-slate-900 mb-6">Payment Distribution</h4>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={reportStats}>

@@ -33,7 +33,7 @@ export function AnalyticsChart({
         <h2 className="text-lg font-black text-slate-950">{title}</h2>
         <p className="text-sm font-medium text-slate-500">{subtitle}</p>
       </div>
-      <div className="h-72">
+      <div className="h-72 min-h-[18rem] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <Chart data={data} margin={{ left: -20, right: 8, top: 10, bottom: 0 }}>
             <defs>

@@ -55,10 +55,24 @@ app.use(
     origin(origin, callback) {
       if (!origin || isAllowedOrigin(origin)) {
         callback(null, true);
-        return;
+      } else {
+        callback(null, false);
       }
+    },
+  })
+);
 
-      callback(new Error(`CORS blocked origin: ${origin}`));
+// Explicitly handle preflight requests
+app.options(
+  '*',
+  cors({
+    credentials: true,
+    origin(origin, callback) {
+      if (!origin || isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
     },
   })
 );

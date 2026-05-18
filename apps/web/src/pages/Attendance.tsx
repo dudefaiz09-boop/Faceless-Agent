@@ -584,7 +584,7 @@ export const AttendancePage = () => {
                   </div>
                 </div>
 
-                <div className="h-[400px] w-full">
+                <div className="h-[400px] min-h-[400px] w-full min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={reportData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
