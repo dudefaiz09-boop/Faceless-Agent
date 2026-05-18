@@ -20,6 +20,9 @@ export interface AppContext {
 
 export const contextStorage = new AsyncLocalStorage<AppContext>();
 
+// Backward-compatible alias for older middleware imports.
+export const tenantContextStorage = contextStorage;
+
 export function getContext(): AppContext {
   const context = contextStorage.getStore();
   if (!context) {

@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { db } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 import { AttendanceAnalytics } from '@educonnect/shared-analytics';
-import { createNotification } from '../lib/notifications.js';
-import { logger } from '@educonnect/logger';
+import { appEvents } from '../lib/events.js';
 
 const router: Router = Router();
 
@@ -42,14 +41,6 @@ function requireAttendanceViewer(
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   if (canViewAttendance(req.user)) return next();
   return res.status(403).json({ error: 'Forbidden', message: 'Attendance access required' });
-}
-
-async function safeAttendanceNotification(input: Parameters<typeof createNotification>[0]) {
-  try {
-    await createNotification(input);
-  } catch (error) {
-    logger.warn({ err: error, title: input.title }, 'Attendance notification could not be created');
-  }
 }
 
 router.get('/report/:classId', requireAttendanceViewer, async (req, res, next) => {
@@ -179,24 +170,15 @@ router.post('/mark', checkPermission('markAttendance'), async (req, res, next) =
       updatedAt: new Date().toISOString(),
     });
 
-    await Promise.all(
-      normalizedRecords
-        .filter((record: AttendanceEntry) => record.status === 'absent' || record.status === 'late')
-        .map((record: AttendanceEntry) =>
-          safeAttendanceNotification({
-            title:
-              record.status === 'absent' ? 'Attendance marked absent' : 'Attendance marked late',
-            message: `${record.studentName || 'Student'} was marked ${record.status} for ${classId} on ${date}.`,
-            type: 'attendance',
-            href: '/attendance',
-            targetUserIds: [record.studentId],
-            schoolId: req.user?.schoolId || null,
-            tenantId: req.tenantId,
-            actorId: req.user?.uid,
-            metadata: { classId, date, status: record.status },
-          })
-        )
-    );
+    // Defer processing of notifications to the background
+    appEvents.emit('attendanceMarked', {
+      tenantId: req.tenantId,
+      schoolId: req.user.schoolId,
+      actorId: req.user.uid,
+      classId,
+      date,
+      records: normalizedRecords,
+    });
 
     res.json({ success: true, count: normalizedRecords.length });
   } catch (error) {

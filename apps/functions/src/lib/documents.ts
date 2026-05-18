@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getSupabaseAdmin, type DocumentData } from './supabase.js';
+import { getTenantId } from './context.js';
 
 // Compatibility layer for the migration. Existing routes keep their
 // document-store shaped calls while the storage underneath runs on Supabase.
@@ -203,10 +204,13 @@ class SupabaseCollectionReference {
 
   async get() {
     const supabaseAdmin = getSupabaseAdmin();
+    const tenantId = getTenantId();
+
     const { data, error } = await supabaseAdmin
       .from('documents')
       .select('id,data')
-      .eq('collection', this.collectionName);
+      .eq('collection', this.collectionName)
+      .eq('data->>tenantId', tenantId);
 
     if (error) throw error;
 

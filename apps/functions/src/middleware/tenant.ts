@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@educonnect/logger';
+import { tenantContextStorage } from '../lib/context.js';
 
 declare global {
   namespace Express {
@@ -42,5 +43,9 @@ export const tenantMiddleware = (req: Request, res: Response, next: NextFunction
 
   // Attach to request context for downstream services
   req.tenantId = resolvedTenantId;
-  next();
+
+  // Initialize Enterprise Tenant Context Store
+  tenantContextStorage.run({ tenantId: resolvedTenantId }, () => {
+    next();
+  });
 };

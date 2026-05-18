@@ -13,6 +13,9 @@ import { contextStorage } from './lib/context.js';
 import { globalErrorHandler } from './middleware/error.js';
 import { getAiRuntimeStatus, isAiEnabled } from './lib/ai.js';
 
+// Initialize background consumers
+import './features/notifications/attendance.consumer.js';
+
 // Features (Refactored)
 import studentRoutes from './features/students/student.routes.js';
 import aiRoutes from './features/ai/ai.routes.js';
