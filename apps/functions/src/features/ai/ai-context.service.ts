@@ -1,27 +1,22 @@
 import { Request } from 'express';
+<<<<<<< HEAD
 import { db } from '../../lib/documents.js';
 import { AiContextProvider } from './providers/base.provider.js';
 import { FeesProvider } from './providers/fees.provider.js';
 import { AttendanceProvider } from './providers/attendance.provider.js';
+=======
+import { logger } from '@educonnect/logger';
+import { getContext, UserContext } from '../../lib/context.js';
+import { getSupabaseAdmin } from '../../lib/supabase.js';
+import { AiModuleProvider } from './providers/base.provider.js';
+import { AttendanceProvider } from './providers/attendance.provider.js';
+import { FeesProvider } from './providers/fees.provider.js';
+>>>>>>> origin/main
 import { AssignmentsProvider } from './providers/assignments.provider.js';
 import { PerformanceProvider } from './providers/performance.provider.js';
 import { LibraryProvider } from './providers/library.provider.js';
 
 export type AiModule = 'fees' | 'attendance' | 'assignments' | 'performance' | 'library';
-
-export interface AiUserContext {
-  uid: string;
-  email?: string;
-  displayName?: string;
-  role: string;
-  roles: string[];
-  schoolId: string;
-  tenantId: string;
-  classId?: string | null;
-  classIds: string[];
-  linkedStudentIds: string[];
-  permissions: Record<string, boolean>;
-}
 
 const AI_MODULE_PERMISSIONS: Record<AiModule, string[]> = {
   fees: ['admin', 'principal', 'accountant', 'parent', 'student'],
@@ -31,52 +26,75 @@ const AI_MODULE_PERMISSIONS: Record<AiModule, string[]> = {
   library: ['admin', 'librarian', 'teacher', 'student'],
 };
 
+<<<<<<< HEAD
 const PROVIDERS: Record<AiModule, AiContextProvider> = {
   fees: new FeesProvider(),
   attendance: new AttendanceProvider(),
+=======
+const PROVIDERS: Record<AiModule, AiModuleProvider> = {
+  attendance: new AttendanceProvider(),
+  fees: new FeesProvider(),
+>>>>>>> origin/main
   assignments: new AssignmentsProvider(),
   performance: new PerformanceProvider(),
   library: new LibraryProvider(),
 };
 
 export class AiContextService {
-  static async resolveAiUserContext(req: Request): Promise<AiUserContext> {
-    const user = req.user;
-    const tenantId = req.tenantId || (req.headers['x-school-id'] as string) || 'default-school';
+  /**
+   * Resolve user context using AsyncLocalStorage.
+   * Falls back to request properties if context is not available.
+   */
+  static async resolveAiUserContext(req?: Request): Promise<UserContext> {
+    let user: UserContext | undefined = req?.user as UserContext | undefined;
+
+    try {
+      const context = getContext();
+      if (context.user) {
+        user = context.user;
+      }
+    } catch {
+      // Fallback
+    }
+
+    const tenantId = req?.tenantId || (req?.headers['x-school-id'] as string) || 'default-school';
 
     if (!user) {
-      console.error('[AI-Context] No user found on request');
       throw new Error('AI request failed because school context was not sent.');
     }
 
+<<<<<<< HEAD
     const context: AiUserContext = {
+=======
+    const context: UserContext = {
+>>>>>>> origin/main
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
       role: user.role || user.roles?.[0] || 'student',
       roles: user.roles || [],
       schoolId: user.schoolId || tenantId,
-      tenantId: tenantId,
       classId: user.classId,
       classIds: user.classIds || [],
       linkedStudentIds: user.linkedStudentIds || [],
       permissions: user.permissions || {},
     };
 
+<<<<<<< HEAD
     if (!context.role || context.schoolId === 'default-school' || !context.classId) {
+=======
+    // Identity Resolution: Fetch full profile from Supabase if critical fields are missing
+    if (!context.role || context.schoolId === 'default-school' || context.classIds.length === 0) {
+>>>>>>> origin/main
       try {
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        if (userDoc.exists) {
-          const data = userDoc.data()!;
-          context.role = data.role || context.role;
-          context.roles = data.roles || context.roles;
-          context.schoolId = data.schoolId || context.schoolId;
-          context.classId = data.classId || context.classId;
-          context.classIds = data.classIds || (data.classId ? [data.classId] : context.classIds);
-          context.linkedStudentIds = data.linkedStudentIds || context.linkedStudentIds;
-          context.permissions = data.permissions || context.permissions;
-        }
+        const supabase = getSupabaseAdmin();
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.uid)
+          .single();
 
+<<<<<<< HEAD
         if (context.role === 'teacher' && (!context.classIds || context.classIds.length === 0)) {
           const teacherSnap = await db
             .collection('teachers')
@@ -99,9 +117,18 @@ export class AiContextService {
             const sData = studentSnap.docs[0].data();
             context.classId = sData.classId || context.classId;
           }
+=======
+        if (profile && !error) {
+          context.role = profile.role || context.role;
+          context.roles = profile.roles || context.roles;
+          context.schoolId = profile.school_id || context.schoolId;
+          context.classIds = profile.class_ids || context.classIds;
+          context.linkedStudentIds = profile.linked_student_ids || context.linkedStudentIds;
+          context.permissions = profile.permissions || context.permissions;
+>>>>>>> origin/main
         }
       } catch (err) {
-        console.error('[AI-Context] Failed to fetch extended user profile:', err);
+        logger.error({ uid: user.uid, err }, '[AI-Context] Profile resolution failed');
       }
     }
 
@@ -137,12 +164,17 @@ export class AiContextService {
     return [...new Set(modules)];
   }
 
-  static async getModuleContext(context: AiUserContext, requestedModules?: AiModule[]) {
+  static async getModuleContext(context: UserContext, requestedModules?: AiModule[]) {
     const modules = requestedModules || [];
+<<<<<<< HEAD
     const { role } = context;
+=======
+    const tenantId = context.schoolId;
+>>>>>>> origin/main
 
-    const canAccess = (m: AiModule) => AI_MODULE_PERMISSIONS[m].includes(role);
+    const canAccess = (m: AiModule) => AI_MODULE_PERMISSIONS[m].includes(context.role);
 
+<<<<<<< HEAD
     const providerPromises = modules
       .filter(canAccess)
       .map(m => PROVIDERS[m]?.getContext(context));
@@ -152,9 +184,32 @@ export class AiContextService {
     const contextParts = results
       .map(res => (res.status === 'fulfilled' ? res.value : null))
       .filter(Boolean);
+=======
+    const activeModules = modules.filter(canAccess);
+
+    if (activeModules.length === 0) {
+      return 'No specific school records were requested or found.';
+    }
+>>>>>>> origin/main
+
+    const contextPromises = activeModules.map(async (m) => {
+      try {
+        const provider = PROVIDERS[m];
+        if (provider) {
+          return await provider.getModuleContext(context, tenantId);
+        }
+        return null;
+      } catch (error) {
+        logger.error({ module: m, error }, `[AI-Context] Provider ${m} failed`);
+        return `[${m}] Data temporarily unavailable.`;
+      }
+    });
+
+    const results = await Promise.all(contextPromises);
+    const contextParts = results.filter(Boolean) as string[];
 
     return contextParts.length > 0
       ? `Real-time School Context:\n${contextParts.join('\n\n')}`
-      : 'No specific school records were requested or found.';
+      : 'No specific school records were found for your query.';
   }
 }
