@@ -1,7 +1,7 @@
-import { env } from './config.js';
-import { AiProvider, AiGenerationConfig } from './ai-providers/base.provider.js';
-import { OpenRouterAiProvider } from './ai-providers/openrouter.provider.js';
+import { AiGenerationConfig } from './ai-providers/base.provider.js';
 import { OfflineAiProvider } from './ai-providers/offline.provider.js';
+
+const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
 /**
  * Prioritized list of approved free OpenRouter models for fallback.
@@ -17,19 +17,35 @@ export const FREE_OPENROUTER_MODELS = new Set([...FREE_MODEL_PRIORITY, 'openrout
 
 const DEFAULT_FREE_MODEL = FREE_MODEL_PRIORITY[0];
 
-const providers: AiProvider[] = [new OpenRouterAiProvider(), new OfflineAiProvider()];
+function getOpenRouterApiKey(): string {
+  return process.env.OPENROUTER_API_KEY || '';
+}
+
+function getHttpReferer(): string {
+  return process.env.PUBLIC_APP_URL || 'http://localhost:5173';
+}
+
+function sanitizeFreeModel(model?: string): string {
+  if (!model) return DEFAULT_FREE_MODEL;
+  return FREE_OPENROUTER_MODELS.has(model) ? model : DEFAULT_FREE_MODEL;
+}
 
 export function isAiEnabled() {
-  return providers.some((p) => p.name !== 'offline' && p.isEnabled());
+  return Boolean(getOpenRouterApiKey());
+}
+
+export function getOpenRouterModel() {
+  return sanitizeFreeModel(process.env.OPENROUTER_MODEL);
 }
 
 export function getAiRuntimeStatus() {
-  const openRouter = providers.find((p) => p.name === 'openrouter') as OpenRouterAiProvider;
-  const hasOpenRouterKey = openRouter?.isEnabled() || false;
+  const hasOpenRouterKey = Boolean(getOpenRouterApiKey());
+  const model = getOpenRouterModel();
 
   return {
     enabled: hasOpenRouterKey,
     provider: 'openrouter',
+    model,
     mode: hasOpenRouterKey ? 'live' : 'offline-fallback',
     hasOpenRouterKey,
     freeModelEnforced: true,
@@ -39,36 +55,88 @@ export function getAiRuntimeStatus() {
   };
 }
 
-export function getOpenRouterModel() {
-  return process.env.OPENROUTER_MODEL || env.OPENROUTER_MODEL || DEFAULT_FREE_MODEL;
-}
-
-/**
- * Strategy-based AI Content Generation
- */
-export async function generateSafeContent(
+async function callOpenRouterFreeModel(
+  model: string,
   systemInstruction: string,
   userPrompt: string,
   config: AiGenerationConfig = {}
 ): Promise<string> {
+  const apiKey = getOpenRouterApiKey();
+  if (!apiKey) {
+    throw new Error('OpenRouter API key missing');
+  }
+
+  const response = await fetch(openRouterUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': getHttpReferer(),
+      'X-Title': 'EduConnect AI',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemInstruction },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: config.maxOutputTokens || 900,
+      temperature: config.temperature ?? 0.35,
+      top_p: config.topP ?? 0.9,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter error: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return payload?.choices?.[0]?.message?.content || '';
+}
+
+/**
+ * Safe AI content generation.
+ * Enforces free OpenRouter models and falls back across the free priority list.
+ */
+export async function generateSafeContent(
+  systemInstruction: string,
+  userPrompt: string,
+  config: AiGenerationConfig = {},
+  maxAttempts = FREE_MODEL_PRIORITY.length
+): Promise<string> {
   const normalizedPrompt = userPrompt.toLowerCase();
   const premiumKeywords = ['gpt-4', 'gpt4', 'claude-3', 'claude 3', 'gemini pro', 'premium model'];
-  if (premiumKeywords.some((k) => normalizedPrompt.includes(k))) {
+
+  if (premiumKeywords.some((keyword) => normalizedPrompt.includes(keyword))) {
     return 'Only free models are enabled on this platform. Please use your own API key for premium access.';
   }
 
-  // Find the first enabled live provider
-  const liveProvider = providers.find((p) => p.name !== 'offline' && p.isEnabled());
+  const apiKey = getOpenRouterApiKey();
+  if (!apiKey) {
+    const offlineProvider = new OfflineAiProvider();
+    return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
+  }
 
-  if (liveProvider) {
+  const requestedModel = getOpenRouterModel();
+  const orderedModels = [
+    requestedModel,
+    ...FREE_MODEL_PRIORITY.filter((model) => model !== requestedModel),
+  ].slice(0, Math.max(1, maxAttempts));
+
+  for (const model of orderedModels) {
     try {
-      return await liveProvider.generateContent(systemInstruction, userPrompt, config);
+      const response = await callOpenRouterFreeModel(model, systemInstruction, userPrompt, {
+        ...config,
+        model,
+      });
+
+      if (response.trim()) {
+        return response;
+      }
     } catch (error) {
-      console.error(`[AI] Provider ${liveProvider.name} failed:`, error);
-      // Fallback to offline
+      console.error(`[AI] Free model ${model} failed:`, error);
     }
   }
 
-  const offlineProvider = providers.find((p) => p.name === 'offline')!;
-  return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
+  return 'The AI service is temporarily overloaded. Please try again shortly.';
 }

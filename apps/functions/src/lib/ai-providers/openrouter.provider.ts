@@ -38,7 +38,7 @@ export class OpenRouterAiProvider implements AiProvider {
     const apiKey = this.getApiKey();
     if (!apiKey) throw new Error('OpenRouter API key missing');
 
-    const model = this.getModel();
+    const model = config.model || this.getModel();
 
     const response = await fetch(openRouterUrl, {
       method: 'POST',
