@@ -33,7 +33,7 @@ export class AiContextService {
    * Falls back to request properties if context is not available.
    */
   static async resolveAiUserContext(req?: Request): Promise<UserContext> {
-    let user: any = req?.user;
+    let user: UserContext | undefined = req?.user as UserContext | undefined;
 
     try {
       const context = getContext();
