@@ -9,6 +9,7 @@ import { logger } from '@educonnect/logger';
 // Middleware
 import { authMiddleware } from './middleware/auth.js';
 import { tenantMiddleware } from './middleware/tenant.js';
+import { contextStorage } from './lib/context.js';
 import { globalErrorHandler } from './middleware/error.js';
 import { getAiRuntimeStatus, isAiEnabled } from './lib/ai.js';
 
@@ -210,6 +211,17 @@ app.use('/api/performance/upload', sensitiveLimiter);
 // 3. Authentication & Tenancy
 app.use(authMiddleware);
 app.use(tenantMiddleware);
+
+// Update context with authenticated user and resolved tenant
+app.use((req, res, next) => {
+  contextStorage.run(
+    {
+      tenantId: req.tenantId || (req.headers['x-school-id'] as string) || 'default-school',
+      user: req.user as any,
+    },
+    next
+  );
+});
 
 // 4. Feature Routes
 app.use('/api/students', studentRoutes);
