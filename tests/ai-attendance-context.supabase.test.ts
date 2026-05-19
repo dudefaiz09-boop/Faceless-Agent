@@ -16,8 +16,7 @@ jest.unstable_mockModule('../apps/functions/src/lib/supabase.js', () => ({
 }));
 
 // Now we can import the modules that use the mock
-const { AiContextService } =
-  await import('../apps/functions/src/features/ai/ai-context.service.js');
+const { AiContextService } = await import('../apps/functions/src/features/ai/ai-context.service.js');
 const { getSupabaseAdmin } = await import('../apps/functions/src/lib/supabase.js');
 
 describe('AiContextService Attendance Logic (Supabase)', () => {
