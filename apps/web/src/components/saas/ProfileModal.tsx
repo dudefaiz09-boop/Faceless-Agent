@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
 import { FileUpload } from '../FileUpload';
 import { Modal } from '../ui/Modal';
-import { Loader2, User, Mail, ShieldAlert } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 interface ProfileModalProps {

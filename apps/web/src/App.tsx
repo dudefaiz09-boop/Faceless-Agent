@@ -21,7 +21,6 @@ import {
   LogOut,
   Menu,
   GraduationCap,
-  Bot,
   Baby,
   Shield,
 } from 'lucide-react';

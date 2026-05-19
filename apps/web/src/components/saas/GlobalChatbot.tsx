@@ -14,7 +14,6 @@ import {
   Database,
   CheckCircle2,
   X,
-  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
@@ -143,9 +142,16 @@ export const GlobalChatbot = () => {
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      void loadAiStatus();
-    }
+    if (!isOpen) return;
+    // Load status asynchronously — not synchronously within the effect body
+    const controller = new AbortController();
+    const run = async () => {
+      if (!controller.signal.aborted) {
+        await loadAiStatus();
+      }
+    };
+    void run();
+    return () => controller.abort();
   }, [isOpen, loadAiStatus]);
 
   useEffect(() => {
@@ -353,7 +359,7 @@ export const GlobalChatbot = () => {
                     Need help? Start a prompt
                   </h3>
                   <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">
-                    "{suggested}"
+                    &ldquo;{suggested}&rdquo;
                   </p>
                   <button
                     onClick={() => setQuery(suggested)}
