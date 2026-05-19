@@ -39,19 +39,31 @@ async function runBuild() {
   console.log('🚀 Building EduConnect Functions (Optimized)...');
 
   try {
-    // Build main index
+    // Build the Express app only (for Vercel/Serverless)
+    await esbuild.build({
+      ...commonConfig,
+      entryPoints: [path.join(__dirname, 'src/app.ts')],
+      outfile: path.join(__dirname, 'dist/app.js'),
+    });
+
+    // Build main index (starts local server)
     await esbuild.build({
       ...commonConfig,
       entryPoints: [path.join(__dirname, 'src/index.ts')],
       outfile: path.join(__dirname, 'dist/index.js'),
     });
 
-    // Build standalone
+    // Build standalone (alternate entrypoint)
     await esbuild.build({
       ...commonConfig,
       entryPoints: [path.join(__dirname, 'src/standalone.ts')],
       outfile: path.join(__dirname, 'dist/standalone.js'),
     });
+
+    await writeFile(
+      path.join(__dirname, 'dist/app.d.ts'),
+      "import type { Express } from 'express';\ndeclare const app: Express;\nexport default app;\n"
+    );
 
     await writeFile(
       path.join(__dirname, 'dist/index.d.ts'),

@@ -35,10 +35,14 @@ Test these endpoints directly in a browser or via CURL:
 
 - [ ] `GET /api/health`: Should return 200 JSON `{ "status": "ok", ... }`.
 - [ ] `GET /api/ready`: Should return 200 or 503 JSON, never a Vercel 500 crash.
-- [ ] `GET /api/notifications`: Should return 401 JSON `{ "error": "Unauthorized", ... }`.
+- [ ] `GET /api/notifications`: Should return 401 JSON `{ "error": "Unauthorized", ... }`, not a Vercel crash page.
 - [ ] `GET /api/announcements`: Should return 401 JSON.
 - [ ] `GET /api/attendance`: Should return 401 JSON.
 - [ ] `GET /api/version`: Should return 200 JSON with deployment metadata.
+
+### Serverless Configuration (Vercel)
+
+- [ ] Verify `api/index.ts` imports from `../apps/functions/dist/app.js`, NOT `dist/index.js`. This prevents `app.listen()` from being called in the serverless environment, which causes 500 errors.
 
 ### Manual CORS Verification
 
