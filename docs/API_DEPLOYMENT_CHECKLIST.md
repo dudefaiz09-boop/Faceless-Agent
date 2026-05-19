@@ -42,7 +42,7 @@ Test these endpoints directly in a browser or via CURL:
 
 ### Serverless Configuration (Vercel)
 
-- [ ] Verify `api/index.ts` imports from `../apps/functions/dist/app.js`, NOT `dist/index.js`. This prevents `app.listen()` from being called in the serverless environment, which causes 500 errors.
+- [ ] Verify `api/index.ts` imports from `../apps/functions/src/app.ts` (Source entrypoint). This ensures the deployment is self-contained and avoids crashes due to missing or stale `dist` output. It also prevents `app.listen()` from being called in the serverless environment.
 
 ### Manual CORS Verification
 

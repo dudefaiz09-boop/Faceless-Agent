@@ -1,5 +1,5 @@
 import { AiProvider, AiGenerationConfig } from './base.provider.js';
-import { env } from '../config.js';
+import { getConfig } from '../config.js';
 
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
 const FREE_MODEL_PRIORITY = [
@@ -13,15 +13,15 @@ export class OpenRouterAiProvider implements AiProvider {
   name = 'openrouter';
 
   private getApiKey() {
-    return process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY || '';
+    return process.env.OPENROUTER_API_KEY || getConfig().OPENROUTER_API_KEY || '';
   }
 
   private getModel() {
-    return process.env.OPENROUTER_MODEL || env.OPENROUTER_MODEL || FREE_MODEL_PRIORITY[0];
+    return process.env.OPENROUTER_MODEL || getConfig().OPENROUTER_MODEL || FREE_MODEL_PRIORITY[0];
   }
 
   private getHttpReferer(): string {
-    const publicUrl = env.PUBLIC_APP_URL || process.env.PUBLIC_APP_URL;
+    const publicUrl = getConfig().PUBLIC_APP_URL || process.env.PUBLIC_APP_URL;
     if (publicUrl) return publicUrl;
     return 'http://localhost:5173';
   }

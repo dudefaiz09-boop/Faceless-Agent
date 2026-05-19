@@ -26,26 +26,41 @@ const envSchema = z.object({
   CURRENCY: z.string().default('INR'),
 });
 
+type Config = z.infer<typeof envSchema>;
+
 /**
  * Validates and returns the environment configuration.
- * Fails fast if required variables are missing.
+ * Does NOT throw during module import to prevent deployment crashes.
  */
-function validateEnv() {
+function validateEnv(): Config {
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
-    console.error(
-      '❌ Invalid environment variables:',
+    // We log but don't throw to allow diagnostic routes like /api/version to work.
+    console.warn(
+      '⚠️ Environment validation failed. Some features may be unavailable:',
       JSON.stringify(parsed.error.format(), null, 2)
     );
-
-    // In production, we must crash if secrets are missing
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL: Environment validation failed. Stopping process.');
-    }
   }
 
-  return parsed.data || process.env;
+  // Return parsed data or a partial object from process.env if parsing failed
+  return (parsed.success ? parsed.data : (process.env as any)) as Config;
 }
 
-export const env = validateEnv() as z.infer<typeof envSchema>;
+// Cached config to avoid re-parsing
+let cachedConfig: Config | null = null;
+
+/**
+ * Returns the validated environment configuration.
+ * Safe to call at any time.
+ */
+export function getConfig(): Config {
+  if (!cachedConfig) {
+    cachedConfig = validateEnv();
+  }
+  return cachedConfig;
+}
+
+// Deprecated: Use getConfig() instead.
+// Kept as a getter for backward compatibility during transition.
+export const env = validateEnv();
