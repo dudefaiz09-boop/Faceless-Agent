@@ -1,3 +1,4 @@
+import { jest, describe, it, expect, beforeEach, afterAll } from '@jest/globals';
 import {
   getOpenRouterModel,
   FREE_OPENROUTER_MODELS,

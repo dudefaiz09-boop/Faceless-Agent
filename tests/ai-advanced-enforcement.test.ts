@@ -1,7 +1,8 @@
+import { jest, describe, it, expect, beforeEach, afterAll } from '@jest/globals';
 import { generateSafeContent, FREE_MODEL_PRIORITY } from '../apps/functions/src/lib/ai.js';
 import { AiService } from '../apps/functions/src/features/ai/ai.service.js';
 
-const mockFetch = jest.fn();
+const mockFetch = jest.fn() as any;
 global.fetch = mockFetch;
 
 describe('Advanced AI Safety & Fallback', () => {

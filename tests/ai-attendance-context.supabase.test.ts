@@ -1,9 +1,24 @@
-import { AiContextService } from '../apps/functions/src/features/ai/ai-context.service.js';
-import { getSupabaseAdmin } from '../apps/functions/src/lib/supabase.js';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
-jest.mock('../apps/functions/src/lib/supabase.js', () => ({
-  getSupabaseAdmin: jest.fn(),
+// Define mock functions first so they can be reused
+const mockSupabase = {
+  from: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
+  eq: jest.fn().mockReturnThis(),
+  in: jest.fn().mockReturnThis(),
+  order: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
+};
+
+// Mock getSupabaseAdmin to return our mock object
+jest.unstable_mockModule('../apps/functions/src/lib/supabase.js', () => ({
+  getSupabaseAdmin: jest.fn(() => mockSupabase),
 }));
+
+// Now we can import the modules that use the mock
+const { AiContextService } =
+  await import('../apps/functions/src/features/ai/ai-context.service.js');
+const { getSupabaseAdmin } = await import('../apps/functions/src/lib/supabase.js');
 
 describe('AiContextService Attendance Logic (Supabase)', () => {
   const mockContext: any = {
@@ -17,18 +32,8 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
     permissions: {},
   };
 
-  const mockSupabase: any = {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mockSupabase);
   });
 
   it('infers attendance module from "was I present yesterday"', () => {
@@ -37,7 +42,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
   });
 
   it('fetches student attendance context using Supabase', async () => {
-    mockSupabase.limit.mockResolvedValue({
+    (mockSupabase.limit as any).mockResolvedValue({
       data: [
         {
           attendance_date: '2024-05-20',
@@ -57,7 +62,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
   });
 
   it('returns appropriate message when no attendance record is found', async () => {
-    mockSupabase.limit.mockResolvedValue({ data: [], error: null });
+    (mockSupabase.limit as any).mockResolvedValue({ data: [], error: null });
 
     const context = await AiContextService.getModuleContext(mockContext, ['attendance']);
 
@@ -66,7 +71,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
 
   it('allows admins to see attendance overview', async () => {
     const adminContext = { ...mockContext, role: 'admin' };
-    mockSupabase.limit.mockResolvedValue({
+    (mockSupabase.limit as any).mockResolvedValue({
       data: [
         {
           attendance_date: '2024-05-20',
@@ -89,7 +94,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
       role: 'parent',
       linkedStudentIds: ['student1', 'student2'],
     };
-    mockSupabase.limit.mockResolvedValue({
+    (mockSupabase.limit as any).mockResolvedValue({
       data: [
         { student_id: 'student1', attendance_date: '2024-05-21', status: 'present' },
         { student_id: 'student2', attendance_date: '2024-05-21', status: 'absent' },
