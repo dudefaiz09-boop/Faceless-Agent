@@ -26,7 +26,8 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, _next:
   const message = err.message || 'Internal Server Error';
 
   // Log the error with correlation ID if available
-  const correlationId = req.headers['x-correlation-id'] || 'N/A';
+  const correlationId =
+    (req.headers['x-correlation-id'] as string) || Math.random().toString(36).substring(2, 15);
 
   logger.error(
     {
@@ -44,10 +45,14 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, _next:
   // Security: Don't leak stack traces in production
   const response = {
     status: 'error',
+    error: err.name || 'InternalError',
     message,
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
     correlationId,
   };
+
+  // Add correlation ID to response headers
+  res.setHeader('x-correlation-id', correlationId);
 
   res.status(status).json(response);
 };

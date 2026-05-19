@@ -66,4 +66,14 @@
     -webkit-text-fill-color: #f8fafc;
     box-shadow: 0 0 0 1000px #0f172a inset;
   }
+
+  .dark option {
+    background-color: #1e293b;
+    color: #f8fafc;
+  }
+
+  .dark input[type='date']::-webkit-calendar-picker-indicator,
+  .dark input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
 }

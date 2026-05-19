@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getSupabaseAdmin, type DocumentData } from './supabase.js';
-import { getTenantId } from './context.js';
+import { tryGetTenantId } from './context.js';
+import { AppError } from '../middleware/error.js';
 
 // Compatibility layer for the migration. Existing routes keep their
 // document-store shaped calls while the storage underneath runs on Supabase.
@@ -97,6 +98,14 @@ function byOrder(order: QueryOrder) {
   };
 }
 
+function ensureTenantId(): string {
+  const tenantId = tryGetTenantId();
+  if (!tenantId) {
+    throw new AppError('Tenant context is not initialized for document query.', 500);
+  }
+  return tenantId;
+}
+
 class SupabaseDocumentReference {
   constructor(
     public readonly collectionName: string,
@@ -104,6 +113,7 @@ class SupabaseDocumentReference {
   ) {}
 
   async get() {
+    const tenantId = ensureTenantId();
     const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from('documents')
@@ -113,17 +123,32 @@ class SupabaseDocumentReference {
       .maybeSingle<DocumentRow>();
 
     if (error) throw error;
+
+    // Safety check: ensure the document belongs to the current tenant if it has a tenantId
+    if (data?.data && data.data.tenantId && data.data.tenantId !== tenantId) {
+      return new SupabaseDocumentSnapshot(this.id, null);
+    }
+
     return new SupabaseDocumentSnapshot(this.id, data?.data || null);
   }
 
   async set(value: DocumentData) {
+    const tenantId = ensureTenantId();
     const supabaseAdmin = getSupabaseAdmin();
     const now = new Date().toISOString();
+
+    // Inject tenant info if missing
+    const dataToSave = {
+      ...value,
+      tenantId: value.tenantId || tenantId,
+      schoolId: value.schoolId || value.tenantId || tenantId,
+    };
+
     const { error } = await supabaseAdmin.from('documents').upsert(
       {
         collection: this.collectionName,
         id: this.id,
-        data: value,
+        data: dataToSave,
         created_at: now,
         updated_at: now,
       },
@@ -134,18 +159,29 @@ class SupabaseDocumentReference {
   }
 
   async update(value: DocumentData) {
+    const tenantId = ensureTenantId();
     const supabaseAdmin = getSupabaseAdmin();
     const snapshot = await this.get();
     if (!snapshot.exists) {
       throw new Error(`Document ${this.collectionName}/${this.id} does not exist`);
     }
 
+    const existingData = snapshot.data() || {};
+
+    // Reject cross-tenant updates
+    if (existingData.tenantId && existingData.tenantId !== tenantId) {
+      throw new AppError('Unauthorized: Cross-tenant update rejected.', 403);
+    }
+
     const { error } = await supabaseAdmin
       .from('documents')
       .update({
         data: {
-          ...(snapshot.data() || {}),
+          ...existingData,
           ...value,
+          // Preserve tenantId
+          tenantId: existingData.tenantId || tenantId,
+          schoolId: existingData.schoolId || existingData.tenantId || tenantId,
         },
         updated_at: new Date().toISOString(),
       })
@@ -156,7 +192,17 @@ class SupabaseDocumentReference {
   }
 
   async delete() {
+    const tenantId = ensureTenantId();
     const supabaseAdmin = getSupabaseAdmin();
+    const snapshot = await this.get();
+
+    if (snapshot.exists) {
+      const existingData = snapshot.data() || {};
+      if (existingData.tenantId && existingData.tenantId !== tenantId) {
+        throw new AppError('Unauthorized: Cross-tenant delete rejected.', 403);
+      }
+    }
+
     const { error } = await supabaseAdmin
       .from('documents')
       .delete()
@@ -204,7 +250,7 @@ class SupabaseCollectionReference {
 
   async get() {
     const supabaseAdmin = getSupabaseAdmin();
-    const tenantId = getTenantId();
+    const tenantId = ensureTenantId();
 
     const { data, error } = await supabaseAdmin
       .from('documents')

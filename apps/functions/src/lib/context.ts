@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { AppError } from '../middleware/error.js';
 
 export interface UserContext {
   uid: string;
@@ -26,17 +27,25 @@ export const tenantContextStorage = contextStorage;
 export function getContext(): AppContext {
   const context = contextStorage.getStore();
   if (!context) {
-    throw new Error('AppContext not found in current execution context');
+    throw new AppError('Tenant application context is not initialized for this request.', 500);
   }
   return context;
+}
+
+export function tryGetContext(): AppContext | undefined {
+  return contextStorage.getStore();
 }
 
 export function getTenantId(): string {
   return getContext().tenantId;
 }
 
+export function tryGetTenantId(): string | undefined {
+  return contextStorage.getStore()?.tenantId;
+}
+
 export function getUser(): UserContext | undefined {
-  return getContext().user;
+  return contextStorage.getStore()?.user;
 }
 
 export function runWithContext<T>(context: AppContext, fn: () => T): T {

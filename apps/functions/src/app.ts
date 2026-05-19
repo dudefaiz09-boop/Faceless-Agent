@@ -7,9 +7,8 @@ import { pinoHttp } from 'pino-http';
 import { logger } from '@educonnect/logger';
 
 // Middleware
-import { authMiddleware } from './middleware/auth.js';
+import { authMiddleware, requireAuth } from './middleware/auth.js';
 import { tenantMiddleware } from './middleware/tenant.js';
-import { contextStorage } from './lib/context.js';
 import { globalErrorHandler } from './middleware/error.js';
 import { getAiRuntimeStatus, isAiEnabled } from './lib/ai.js';
 
@@ -139,7 +138,7 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Create a separate router for public endpoints
+// 3. Public Router
 const publicRouter = express.Router();
 publicRouter.get('/', (req, res) => {
   res.json({
@@ -161,13 +160,28 @@ publicRouter.get('/ready', async (req, res) => {
   try {
     // Check required environment variables
     const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
-    const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
+    const envStatus: Record<string, boolean> = {};
+    const missingVars = [];
+
+    for (const v of requiredEnvVars) {
+      const exists = !!process.env[v];
+      envStatus[v] = exists;
+      if (!exists) missingVars.push(v);
+    }
 
     if (missingVars.length > 0) {
       return res.status(503).json({
         status: 'not_ready',
         message: 'Missing required environment variables',
-        missing: missingVars,
+        env: {
+          ...envStatus,
+          hasSupabaseUrl: !!process.env.SUPABASE_URL,
+          hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+          hasCorsOrigins: !!process.env.CORS_ORIGINS,
+          nodeEnv: process.env.NODE_ENV || 'development',
+          vercelUrl: process.env.VERCEL_URL || null,
+          runtime: 'nodejs',
+        },
         timestamp: new Date().toISOString(),
       });
     }
@@ -182,17 +196,26 @@ publicRouter.get('/ready', async (req, res) => {
 
     res.json({
       status: 'ready',
-      environment: process.env.NODE_ENV || 'development',
+      env: {
+        hasSupabaseUrl: true,
+        hasServiceRoleKey: true,
+        hasCorsOrigins: !!process.env.CORS_ORIGINS,
+        nodeEnv: process.env.NODE_ENV || 'development',
+        vercelUrl: process.env.VERCEL_URL || null,
+        runtime: 'nodejs',
+      },
       features: {
         ai: isAiEnabled(),
         uploads: !!process.env.SUPABASE_UPLOADS_BUCKET,
       },
       timestamp: new Date().toISOString(),
     });
-  } catch {
+  } catch (err: any) {
+    logger.error({ err }, 'Ready check failed');
     res.status(503).json({
       status: 'not_ready',
       message: 'Service connectivity check failed',
+      error: process.env.NODE_ENV !== 'production' ? err.message : 'Connectivity error',
       timestamp: new Date().toISOString(),
     });
   }
@@ -200,7 +223,7 @@ publicRouter.get('/ready', async (req, res) => {
 
 app.use('/api', publicRouter);
 
-// 2b. Rate Limiting - Stricter for sensitive operations
+// 4. Rate Limiting - Stricter for sensitive operations (placed BEFORE protectedRouter)
 const sensitiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30, // 30 requests per window for sensitive ops
@@ -211,47 +234,32 @@ const sensitiveLimiter = rateLimit({
 app.use('/api/fees/upload', sensitiveLimiter);
 app.use('/api/performance/upload', sensitiveLimiter);
 
-// 3. Authentication & Tenancy
-app.use(authMiddleware);
+// 5. Protected Router
+const protectedRouter = express.Router();
 
-// Bypass tenant check for tests that expect 401
-const isTestEnv = process.env.NODE_ENV === 'test';
-app.use((req, res, next) => {
-  if (isTestEnv && !req.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-});
+// Apply authentication and tenancy middlewares to all protected routes
+protectedRouter.use(authMiddleware);
+protectedRouter.use(requireAuth);
+protectedRouter.use(tenantMiddleware);
 
-app.use(tenantMiddleware);
+// Feature Routes
+protectedRouter.use('/students', studentRoutes);
+protectedRouter.use('/ai', aiRoutes);
 
-// Update context with authenticated user and resolved tenant
-app.use((req, res, next) => {
-  contextStorage.run(
-    {
-      tenantId: req.tenantId || (req.headers['x-school-id'] as string),
-      user: req.user as any,
-    },
-    next
-  );
-});
+// Legacy Routes
+protectedRouter.use('/announcements', announcementsRouter);
+protectedRouter.use('/attendance', attendanceRouter);
+protectedRouter.use('/assignments', assignmentsRouter);
+protectedRouter.use('/library', libraryRouter);
+protectedRouter.use('/fees', feesRouter);
+protectedRouter.use('/performance', performanceRouter);
+protectedRouter.use('/teachers', teachersRouter);
+protectedRouter.use('/chat', chatRouter);
+protectedRouter.use('/roles', rolesRouter);
+protectedRouter.use('/users', usersRouter);
+protectedRouter.use('/notifications', notificationsRouter);
 
-// 4. Feature Routes
-app.use('/api/students', studentRoutes);
-app.use('/api/ai', aiRoutes);
-
-// 5. Legacy Routes
-app.use('/api/announcements', announcementsRouter);
-app.use('/api/attendance', attendanceRouter);
-app.use('/api/assignments', assignmentsRouter);
-app.use('/api/library', libraryRouter);
-app.use('/api/fees', feesRouter);
-app.use('/api/performance', performanceRouter);
-app.use('/api/teachers', teachersRouter);
-app.use('/api/chat', chatRouter);
-app.use('/api/roles', rolesRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/notifications', notificationsRouter);
+app.use('/api', protectedRouter);
 
 // 6. Global Error Handling (MUST be last)
 app.use(globalErrorHandler);
