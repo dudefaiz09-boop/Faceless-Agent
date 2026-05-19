@@ -17,6 +17,45 @@ function actorFromRequest(req: any) {
   };
 }
 
+router.put('/profile', async (req: any, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const { displayName, photoURL } = req.body;
+    const supabaseAdmin = auth.getSupabaseAdmin();
+
+    const updateData: Record<string, any> = {};
+    if (displayName) updateData.display_name = displayName;
+    if (photoURL) updateData.avatar_url = photoURL;
+
+    await supabaseAdmin.auth.admin.updateUserById(uid, {
+      user_metadata: updateData,
+    });
+
+    const userRef = db.collection('users').doc(uid);
+    const snapshot = await userRef.get();
+    if (snapshot.exists) {
+      const before = snapshot.data() || {};
+      const after = {
+        ...before,
+        ...(displayName ? { displayName } : {}),
+        ...(photoURL ? { photoURL } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+      await userRef.update(after);
+
+      await supabaseAdmin.from('profiles').upsert({
+        id: uid,
+        display_name: after.displayName,
+        updated_at: after.updatedAt,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/create', checkAdmin, async (req, res, next) => {
   try {
     const profile = await createManagedUser(
