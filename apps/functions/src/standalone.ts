@@ -1,10 +1,8 @@
 import 'dotenv/config';
-import { env } from './lib/config.js'; // Trigger early validation
+import { getConfig } from './lib/config.js';
 import app from './app.js';
 
-// The 'env' import above validates OpenRouter and other runtime settings.
-// If it fails, the process will crash safely with a clear error message.
-
+const env = getConfig();
 const PORT = env.PORT || 3000;
 
 async function startServer() {

@@ -21,31 +21,24 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().optional(),
 
-  // Application configuration
+  // Application configuration.
   PUBLIC_APP_URL: z.string().optional(),
   CURRENCY: z.string().default('INR'),
 });
 
+export type RuntimeConfig = z.infer<typeof envSchema>;
+
 /**
  * Validates and returns the environment configuration.
- * Fails fast if required variables are missing.
+ * This is intentionally lazy so importing the Express app cannot crash public diagnostics.
  */
-function validateEnv() {
+export function getConfig(): RuntimeConfig {
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
-    console.error(
-      '❌ Invalid environment variables:',
-      JSON.stringify(parsed.error.format(), null, 2)
-    );
-
-    // In production, we must crash if secrets are missing
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL: Environment validation failed. Stopping process.');
-    }
+    const formatted = JSON.stringify(parsed.error.format(), null, 2);
+    throw new Error(`Environment validation failed: ${formatted}`);
   }
 
-  return parsed.data || process.env;
+  return parsed.data;
 }
-
-export const env = validateEnv() as z.infer<typeof envSchema>;

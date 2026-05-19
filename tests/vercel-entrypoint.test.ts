@@ -5,11 +5,13 @@ import { describe, it, expect } from '@jest/globals';
 import app from '../apps/functions/src/app.js';
 
 describe('Vercel Entrypoint Verification', () => {
-  it('api/index.ts imports the serverless app bundle, not the listener bundle', () => {
+  it('api/index.ts imports the source Express app, not dist or listener bundles', () => {
     const entrypoint = readFileSync(join(process.cwd(), 'api/index.ts'), 'utf8');
 
-    expect(entrypoint).toContain('../apps/functions/dist/app.js');
+    expect(entrypoint).toContain('../apps/functions/src/app');
+    expect(entrypoint).not.toContain('../apps/functions/src/index');
     expect(entrypoint).not.toContain('../apps/functions/dist/index.js');
+    expect(entrypoint).not.toContain('../apps/functions/dist/app.js');
   });
 
   it('source app exports an Express app function', () => {
@@ -25,7 +27,72 @@ describe('Vercel Entrypoint Verification', () => {
   it('should respond to /api/version via the source app', async () => {
     const res = await request(app).get('/api/version');
     expect(res.status).toBe(200);
+    expect(res.type).toContain('json');
+    expect(res.body).toHaveProperty('status', 'ok');
     expect(res.body).toHaveProperty('app', 'educonnect-api');
+  });
+
+  it('GET /api/version returns JSON without Supabase env vars', async () => {
+    const originalUrl = process.env.SUPABASE_URL;
+    const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    try {
+      const res = await request(app).get('/api/version');
+      expect(res.status).toBe(200);
+      expect(res.type).toContain('json');
+      expect(res.body).toHaveProperty('app', 'educonnect-api');
+    } finally {
+      if (originalUrl) process.env.SUPABASE_URL = originalUrl;
+      if (originalServiceRoleKey) process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+    }
+  });
+
+  it('GET /api/health returns JSON without Supabase env vars', async () => {
+    const originalUrl = process.env.SUPABASE_URL;
+    const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    try {
+      const res = await request(app).get('/api/health');
+      expect(res.status).toBe(200);
+      expect(res.type).toContain('json');
+      expect(res.body).toHaveProperty('status', 'healthy');
+    } finally {
+      if (originalUrl) process.env.SUPABASE_URL = originalUrl;
+      if (originalServiceRoleKey) process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+    }
+  });
+
+  it('GET /api/ready returns JSON 503 without Supabase env vars', async () => {
+    const originalUrl = process.env.SUPABASE_URL;
+    const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const originalCorsOrigins = process.env.CORS_ORIGINS;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.CORS_ORIGINS;
+
+    try {
+      const res = await request(app).get('/api/ready');
+      expect(res.status).toBe(503);
+      expect(res.type).toContain('json');
+      expect(res.body).toHaveProperty('status', 'not_ready');
+      expect(res.body.checks).toMatchObject({
+        hasSupabaseUrl: false,
+        hasServiceRoleKey: false,
+        hasCorsOrigins: false,
+        supabaseDocumentsReachable: false,
+      });
+      expect(res.body.missing).toEqual(
+        expect.arrayContaining(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CORS_ORIGINS'])
+      );
+    } finally {
+      if (originalUrl) process.env.SUPABASE_URL = originalUrl;
+      if (originalServiceRoleKey) process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+      if (originalCorsOrigins) process.env.CORS_ORIGINS = originalCorsOrigins;
+    }
   });
 
   it('OPTIONS /api/notifications should return 204 with CORS headers', async () => {
@@ -43,6 +110,12 @@ describe('Vercel Entrypoint Verification', () => {
 
   it('GET /api/notifications without auth should return 401', async () => {
     const res = await request(app).get('/api/notifications');
+    expect(res.status).toBe(401);
+    expect(res.body).toHaveProperty('error', 'Unauthorized');
+  });
+
+  it('GET /api/announcements without auth should return 401', async () => {
+    const res = await request(app).get('/api/announcements');
     expect(res.status).toBe(401);
     expect(res.body).toHaveProperty('error', 'Unauthorized');
   });
