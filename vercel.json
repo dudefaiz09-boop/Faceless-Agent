@@ -16,6 +16,34 @@
   ],
   "headers": [
     {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "https://educonnect-web-iota.vercel.app" },
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,PATCH,DELETE,OPTIONS" },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Authorization,Content-Type,x-school-id,x-correlation-id"
+        },
+        { "key": "Access-Control-Expose-Headers", "value": "x-correlation-id" },
+        { "key": "Vary", "value": "Origin" }
+      ]
+    },
+    {
+      "source": "/api",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "https://educonnect-web-iota.vercel.app" },
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,PATCH,DELETE,OPTIONS" },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Authorization,Content-Type,x-school-id,x-correlation-id"
+        },
+        { "key": "Access-Control-Expose-Headers", "value": "x-correlation-id" },
+        { "key": "Vary", "value": "Origin" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

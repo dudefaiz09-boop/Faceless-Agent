@@ -8,10 +8,14 @@ Ensure the following variables are set in the backend project:
 
 - [ ] `SUPABASE_URL`: Your Supabase project URL.
 - [ ] `SUPABASE_SERVICE_ROLE_KEY`: Service role key for admin access.
-- [ ] `CORS_ORIGINS`: Comma-separated list of allowed origins.
+- [ ] `CORS_ORIGINS`: Comma-separated list of allowed origins (e.g., `https://educonnect-web-iota.vercel.app`).
 - [ ] `NODE_ENV`: Should be `production`.
 - [ ] `OPENROUTER_API_KEY`: (Optional) For AI features.
 - [ ] `OPENROUTER_MODEL`: (Optional) e.g., `google/gemma-3-4b-it:free`.
+
+### Vercel Web Deployment Variables
+
+- [ ] `VITE_API_BASE_URL`: The full URL of your deployed API (e.g., `https://educonnect-api-sigma.vercel.app/api`).
 
 ## 2. Shared API Middleware Order
 
@@ -34,6 +38,14 @@ Test these endpoints directly in a browser or via CURL:
 - [ ] `GET /api/notifications`: Should return 401 JSON `{ "error": "Unauthorized", ... }`.
 - [ ] `GET /api/announcements`: Should return 401 JSON.
 - [ ] `GET /api/attendance`: Should return 401 JSON.
+
+### Manual CORS Verification
+
+Open DevTools Network tab and check `OPTIONS /api/notifications`:
+
+- [ ] Status 204.
+- [ ] `Access-Control-Allow-Origin` matches the web domain.
+- [ ] `Access-Control-Allow-Credentials` is `true`.
 
 ## 4. Frontend Verification (Web)
 

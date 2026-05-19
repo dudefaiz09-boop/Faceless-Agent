@@ -50,35 +50,51 @@ function isAllowedOrigin(origin: string) {
   return false;
 }
 
-// 1. Security & Observability
-app.use(pinoHttp({ logger: logger as any }));
-app.use(
-  cors({
-    credentials: true,
-    origin(origin, callback) {
-      if (!origin || isAllowedOrigin(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
-  })
-);
+const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
+const allowedHeaders = 'Authorization,Content-Type,x-school-id,x-correlation-id';
 
-// Explicitly handle preflight requests
-app.options(
-  '*',
-  cors({
-    credentials: true,
-    origin(origin, callback) {
-      if (!origin || isAllowedOrigin(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
-  })
-);
+function applyCorsHeaders(req: any, res: any) {
+  const origin = req.headers.origin;
+  if (!origin || isAllowedOrigin(origin)) {
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', allowedMethods);
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      String(req.headers['access-control-request-headers'] || allowedHeaders)
+    );
+    res.setHeader('Access-Control-Expose-Headers', 'x-correlation-id');
+  }
+}
+
+// 1. Security & Observability
+app.use((req, res, next) => {
+  applyCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  return next();
+});
+
+app.use(pinoHttp({ logger: logger as any }));
+
+const corsOptions = {
+  credentials: true,
+  origin(origin: any, callback: any) {
+    if (!origin || isAllowedOrigin(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'x-school-id', 'x-correlation-id'],
+  exposedHeaders: ['x-correlation-id'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -135,6 +151,7 @@ const limiter = rateLimit({
   message: { error: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
 });
 app.use('/api/', limiter);
 
@@ -231,6 +248,7 @@ const sensitiveLimiter = rateLimit({
   message: { error: 'Too many upload requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
 });
 
 protectedRouter.use('/fees/upload', sensitiveLimiter);
