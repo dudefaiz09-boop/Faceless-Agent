@@ -14,6 +14,13 @@ describe('Vercel Entrypoint Verification', () => {
     expect(entrypoint).not.toContain('../apps/functions/dist/app.js');
   });
 
+  it('apps/functions/api/index.ts imports the compiled app bundle, not the listener bundle', () => {
+    const entrypoint = readFileSync(join(process.cwd(), 'apps/functions/api/index.ts'), 'utf8');
+
+    expect(entrypoint).toContain('../dist/app.js');
+    expect(entrypoint).not.toContain('../dist/index.js');
+  });
+
   it('source app exports an Express app function', () => {
     expect(typeof app).toBe('function');
   });

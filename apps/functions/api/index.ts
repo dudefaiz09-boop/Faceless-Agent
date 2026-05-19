@@ -1,5 +1,5 @@
 // Vercel API entrypoint when the Vercel project root is apps/functions.
-// The build command compiles the Express app into dist before packaging.
-import app from '../dist/index.js';
+// Import the compiled Express app only; never import dist/index.js because it starts app.listen().
+import app from '../dist/app.js';
 
 export default app;

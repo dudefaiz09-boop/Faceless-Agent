@@ -10,6 +10,10 @@ This checklist keeps the EduConnect API stable on Vercel and separates startup/i
 - Runtime entrypoint: `api/index.ts`
 - Serverless import: `api/index.ts` must import `../apps/functions/src/app.ts`, not any `dist/**` file.
 
+If the API project Root Directory is `apps/functions`, Vercel uses `apps/functions/vercel.json`
+and `apps/functions/api/index.ts` instead. In that mode, the entrypoint must import
+`../dist/app.js`, never `../dist/index.js`, because `dist/index.js` starts `app.listen()`.
+
 ## API Environment
 
 Set these variables on the API Vercel project:

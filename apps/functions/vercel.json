@@ -6,7 +6,7 @@
   "functions": {
     "api/index.ts": {
       "includeFiles": "dist/**",
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
   "rewrites": [
