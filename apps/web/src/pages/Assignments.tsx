@@ -32,6 +32,17 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
 
+type AssignmentDisplay = Assignment & {
+  subject?: string;
+  subjectId?: string;
+  subject_id?: string;
+  status?: string;
+  submissionCount?: number;
+  submissionsCount?: number;
+  targetClasses?: string[];
+  classIds?: string[];
+};
+
 export const AssignmentsPage = () => {
   const { user, isStudent, canManageAssignments, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
@@ -53,13 +64,17 @@ export const AssignmentsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await assignmentsService.listAssignments(selectedClass);
+      const result = await assignmentsService.getAssignments(selectedClass);
       const data = Array.isArray(result) ? result : [];
       setAssignmentsData(data);
       setLastSyncTime(Date.now());
     } catch (err) {
       setAssignmentsData([]);
-      setError(err instanceof Error ? err.message : 'Unable to load assignments.');
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Unable to load assignments for this class.'
+      );
     } finally {
       setLoading(false);
     }
@@ -351,7 +366,11 @@ export const AssignmentsPage = () => {
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-red-500 shadow-sm">
                 <AlertCircle size={32} />
               </div>
-              <p className="text-red-700 font-medium">{error}</p>
+              <p className="text-red-700 font-medium dark:text-red-200">{error}</p>
+              <p className="max-w-md text-sm text-red-500 dark:text-red-300">
+                The assignment list is still safe to retry. Empty classes will show an empty state
+                instead of crashing.
+              </p>
               <button
                 onClick={() => void loadAssignments()}
                 className="flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-red-700 transition-all"
@@ -371,6 +390,14 @@ export const AssignmentsPage = () => {
               {filteredAssignments.map((assignment) => {
                 if (!assignment || !assignment.id) return null;
                 const mySub = mySubmissions[assignment.id];
+                const display = assignment as AssignmentDisplay;
+                const classes =
+                  display.targetClasses ||
+                  display.classIds ||
+                  (assignment.classId ? [assignment.classId] : []);
+                const subject =
+                  display.subject || display.subjectId || display.subject_id || 'General';
+                const submissionCount = display.submissionCount ?? display.submissionsCount ?? 0;
                 return (
                   <motion.div
                     key={assignment.id}
@@ -402,12 +429,18 @@ export const AssignmentsPage = () => {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">
+                        <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">
                           <span className="flex items-center gap-1">
                             <CalendarIcon size={12} /> Due {assignment.dueDate || 'TBD'}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Users size={12} /> {assignment.classId || 'All'}
+                            <Users size={12} /> {classes.length ? classes.join(', ') : 'All'}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                            {subject}
+                          </span>
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-600 dark:bg-blue-950/50 dark:text-blue-200">
+                            {submissionCount} submissions
                           </span>
                         </div>
                       </div>

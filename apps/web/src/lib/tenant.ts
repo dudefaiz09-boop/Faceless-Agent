@@ -1,7 +1,12 @@
 export const SELECTED_TENANT_STORAGE_KEY = 'educonnect_selected_tenant_id';
 export const LEGACY_TENANT_STORAGE_KEY = 'educonnect_school_id';
 
-export const DEMO_TENANT_IDS = ['tenant-a', 'tenant-b', 'tenant-c'] as const;
+export const DEMO_TENANTS = [
+  { id: 'tenant-a', name: 'School A', slug: 'school-a' },
+  { id: 'tenant-b', name: 'School B', slug: 'school-b' },
+] as const;
+
+export const DEMO_TENANT_IDS = ['tenant-a', 'tenant-b'] as const;
 
 function isBrowser() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -64,6 +69,5 @@ export function resolveActiveTenantId(options: {
 
 export function getDefaultClassId(tenantId?: string | null) {
   if (tenantId === 'tenant-b') return 'B1';
-  if (tenantId === 'tenant-c') return 'C1';
   return 'A1';
 }

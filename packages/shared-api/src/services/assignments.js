@@ -6,6 +6,9 @@ export class AssignmentsService {
   async getAssignments(classId) {
     return this.client.get(`/assignments${classId ? `?classId=${classId}` : ''}`);
   }
+  async listAssignments(classId) {
+    return this.getAssignments(classId);
+  }
   async createAssignment(data) {
     return this.client.post('/assignments/create', data);
   }

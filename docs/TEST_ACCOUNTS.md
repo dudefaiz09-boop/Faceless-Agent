@@ -1,36 +1,32 @@
 # Test Accounts for EduConnect Demo
 
-## Global Admin (All Tenants)
+All demo accounts use the local/demo-only password `Test@123456`.
+
+## Global Admin
 
 - **Email:** admin@educonnect.test
-- **Password:** Admin@1234
 - **Role:** Super Admin
-- **Tenants:** School A, School B, School C
+- **Tenants:** School A, School B
 
 ## Tenant A (School A)
 
-- **Student:** student.a@educonnect.test / Test@1234
-- **Student:** student.b@educonnect.test / Test@1234
-- **Teacher:** teacher.a@educonnect.test / Teach@1234
-- **Teacher:** teacher.b@educonnect.test / Teach@1234
-- **Principal:** principal@educonnect.test / Principal@1234
-- **Parent:** parent.a@educonnect.test / Parent@1234 (Linked to student.a and student.b)
-- **Librarian:** librarian@educonnect.test / Library@1234
+- **Admin:** admin.a@educonnect.test
+- **Student:** student.a@educonnect.test
+- **Student:** student.b@educonnect.test
+- **Teacher:** teacher.a@educonnect.test
+- **Teacher:** teacher.b@educonnect.test
+- **Principal:** principal@educonnect.test
+- **Parent:** parent.a@educonnect.test (linked to student.a and student.b)
+- **Librarian:** librarian@educonnect.test
+- **Accountant:** accountant.a@educonnect.test
 
 ## Tenant B (School B)
 
-- **Student:** student.c@educonnect.test / Test@1234
-- **Student:** student.d@educonnect.test / Test@1234
-- **Teacher:** teacher.c@educonnect.test / Teach@1234
-- **Principal:** principal.b@educonnect.test / Principal@1234
-- **Parent:** parent.b@educonnect.test / Parent@1234 (Linked to student.c and student.d)
-- **Librarian:** librarian.b@educonnect.test / Library@1234
-
-## Tenant C (School C)
-
-- **Student:** student.e@educonnect.test / Test@1234
-- **Student:** student.f@educonnect.test / Test@1234
-- **Teacher:** teacher.d@educonnect.test / Teach@1234
-- **Principal:** principal.c@educonnect.test / Principal@1234
-- **Parent:** parent.c@educonnect.test / Parent@1234 (Linked to student.e and student.f)
-- **Accountant:** accountant.c@educonnect.test / Accounts@1234
+- **Admin:** admin.b@educonnect.test
+- **Student:** student.c@educonnect.test
+- **Student:** student.d@educonnect.test
+- **Teacher:** teacher.c@educonnect.test
+- **Principal:** principal.b@educonnect.test
+- **Parent:** parent.b@educonnect.test (linked to student.c and student.d)
+- **Librarian:** librarian.b@educonnect.test
+- **Accountant:** accountant.b@educonnect.test
