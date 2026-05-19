@@ -159,63 +159,56 @@ publicRouter.post('/ai/query', AiController.publicQueryChatbot);
 publicRouter.get('/ready', async (req, res) => {
   try {
     // Check required environment variables
-    const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
-    const envStatus: Record<string, boolean> = {};
-    const missingVars = [];
+    const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CORS_ORIGINS'];
+    const missing: string[] = [];
 
-    for (const v of requiredEnvVars) {
-      const exists = !!process.env[v];
-      envStatus[v] = exists;
-      if (!exists) missingVars.push(v);
+    const checks = {
+      hasSupabaseUrl: !!process.env.SUPABASE_URL,
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasCorsOrigins: !!process.env.CORS_ORIGINS,
+      hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
+      hasOpenRouterModel: !!process.env.OPENROUTER_MODEL,
+      supabaseDocumentsReachable: false
+    };
+
+    requiredEnvVars.forEach(v => {
+      if (!process.env[v]) missing.push(v);
+    });
+
+    // Check Supabase connectivity
+    try {
+      const supabaseAdmin = getSupabaseAdmin();
+      const { error } = await supabaseAdmin.from('documents').select('id', { head: true, count: 'exact' }).limit(1);
+      if (!error) {
+        checks.supabaseDocumentsReachable = true;
+      }
+    } catch (err) {
+      logger.error({ err }, 'Supabase connectivity check failed inside /ready');
     }
 
-    if (missingVars.length > 0) {
-      return res.status(503).json({
-        status: 'not_ready',
-        message: 'Missing required environment variables',
-        env: {
-          ...envStatus,
-          hasSupabaseUrl: !!process.env.SUPABASE_URL,
-          hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-          hasCorsOrigins: !!process.env.CORS_ORIGINS,
-          nodeEnv: process.env.NODE_ENV || 'development',
-          vercelUrl: process.env.VERCEL_URL || null,
-          runtime: 'nodejs',
-        },
-        timestamp: new Date().toISOString(),
-      });
-    }
+    const isReady = missing.length === 0 && checks.supabaseDocumentsReachable;
 
-    // Check Supabase connectivity (best-effort, no secrets exposed)
-    const supabaseAdmin = getSupabaseAdmin();
-    const { error } = await supabaseAdmin.from('documents').select('id', { head: true }).limit(1);
-
-    if (error) {
-      throw error;
-    }
-
-    res.json({
-      status: 'ready',
-      env: {
-        hasSupabaseUrl: true,
-        hasServiceRoleKey: true,
-        hasCorsOrigins: !!process.env.CORS_ORIGINS,
-        nodeEnv: process.env.NODE_ENV || 'development',
-        vercelUrl: process.env.VERCEL_URL || null,
-        runtime: 'nodejs',
-      },
+    const response = {
+      status: isReady ? 'ready' : 'not_ready',
+      environment: process.env.NODE_ENV || 'development',
+      nodeEnv: process.env.NODE_ENV || 'development',
+      vercelUrl: process.env.VERCEL_URL || null,
+      runtime: 'nodejs',
+      checks,
+      missing,
       features: {
         ai: isAiEnabled(),
         uploads: !!process.env.SUPABASE_UPLOADS_BUCKET,
       },
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    return res.status(isReady ? 200 : 503).json(response);
   } catch (err: any) {
-    logger.error({ err }, 'Ready check failed');
+    logger.error({ err }, 'Ready check failed with unexpected error');
     res.status(503).json({
       status: 'not_ready',
       message: 'Service connectivity check failed',
-      error: process.env.NODE_ENV !== 'production' ? err.message : 'Connectivity error',
       timestamp: new Date().toISOString(),
     });
   }
@@ -223,7 +216,15 @@ publicRouter.get('/ready', async (req, res) => {
 
 app.use('/api', publicRouter);
 
-// 4. Rate Limiting - Stricter for sensitive operations (placed BEFORE protectedRouter)
+// 4. Protected Router
+const protectedRouter = express.Router();
+
+// Apply authentication and tenancy middlewares to all protected routes
+protectedRouter.use(authMiddleware);
+protectedRouter.use(requireAuth);
+protectedRouter.use(tenantMiddleware);
+
+// 4b. Rate Limiting - Stricter for sensitive operations (inside protected router)
 const sensitiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30, // 30 requests per window for sensitive ops
@@ -231,16 +232,9 @@ const sensitiveLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api/fees/upload', sensitiveLimiter);
-app.use('/api/performance/upload', sensitiveLimiter);
 
-// 5. Protected Router
-const protectedRouter = express.Router();
-
-// Apply authentication and tenancy middlewares to all protected routes
-protectedRouter.use(authMiddleware);
-protectedRouter.use(requireAuth);
-protectedRouter.use(tenantMiddleware);
+protectedRouter.use('/fees/upload', sensitiveLimiter);
+protectedRouter.use('/performance/upload', sensitiveLimiter);
 
 // Feature Routes
 protectedRouter.use('/students', studentRoutes);
@@ -261,7 +255,7 @@ protectedRouter.use('/notifications', notificationsRouter);
 
 app.use('/api', protectedRouter);
 
-// 6. Global Error Handling (MUST be last)
+// 5. Global Error Handling (MUST be last)
 app.use(globalErrorHandler);
 
 // Startup logs for environment diagnostics
