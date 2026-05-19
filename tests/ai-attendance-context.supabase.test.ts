@@ -1,24 +1,18 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { AiContextService } from '../apps/functions/src/features/ai/ai-context.service.js';
 
-// Define mock functions first so they can be reused
 const mockSupabase = {
   from: jest.fn().mockReturnThis(),
   select: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
   in: jest.fn().mockReturnThis(),
   order: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockReturnThis(),
+  limit: jest.fn(),
 };
 
-// Mock getSupabaseAdmin to return our mock object
-jest.unstable_mockModule('../apps/functions/src/lib/supabase.js', () => ({
+jest.mock('../apps/functions/src/lib/supabase.js', () => ({
   getSupabaseAdmin: jest.fn(() => mockSupabase),
 }));
-
-// Now we can import the modules that use the mock
-const { AiContextService } =
-  await import('../apps/functions/src/features/ai/ai-context.service.js');
-const { getSupabaseAdmin } = await import('../apps/functions/src/lib/supabase.js');
 
 describe('AiContextService Attendance Logic (Supabase)', () => {
   const mockContext: any = {
@@ -34,6 +28,13 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockSupabase.from.mockReturnThis();
+    mockSupabase.select.mockReturnThis();
+    mockSupabase.eq.mockReturnThis();
+    mockSupabase.in.mockReturnThis();
+    mockSupabase.order.mockReturnThis();
+    mockSupabase.limit.mockReset();
   });
 
   it('infers attendance module from "was I present yesterday"', () => {
@@ -42,7 +43,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
   });
 
   it('fetches student attendance context using Supabase', async () => {
-    (mockSupabase.limit as any).mockResolvedValue({
+    mockSupabase.limit.mockResolvedValue({
       data: [
         {
           attendance_date: '2024-05-20',
@@ -62,7 +63,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
   });
 
   it('returns appropriate message when no attendance record is found', async () => {
-    (mockSupabase.limit as any).mockResolvedValue({ data: [], error: null });
+    mockSupabase.limit.mockResolvedValue({ data: [], error: null });
 
     const context = await AiContextService.getModuleContext(mockContext, ['attendance']);
 
@@ -71,7 +72,8 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
 
   it('allows admins to see attendance overview', async () => {
     const adminContext = { ...mockContext, role: 'admin' };
-    (mockSupabase.limit as any).mockResolvedValue({
+
+    mockSupabase.limit.mockResolvedValue({
       data: [
         {
           attendance_date: '2024-05-20',
@@ -94,7 +96,8 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
       role: 'parent',
       linkedStudentIds: ['student1', 'student2'],
     };
-    (mockSupabase.limit as any).mockResolvedValue({
+
+    mockSupabase.limit.mockResolvedValue({
       data: [
         { student_id: 'student1', attendance_date: '2024-05-21', status: 'present' },
         { student_id: 'student2', attendance_date: '2024-05-21', status: 'absent' },
@@ -104,10 +107,10 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
 
     const context = await AiContextService.getModuleContext(parentContext, ['attendance']);
 
-    // New aggregated parent context format
     expect(context).toContain('Real-time Parent Context (Children Records)');
     expect(context).toContain('[Student: student1]');
     expect(context).toContain('[Student: student2]');
     expect(context).toContain('2024-05-21: present');
+    expect(context).toContain('2024-05-21: absent');
   });
 });
