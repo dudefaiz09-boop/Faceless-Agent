@@ -3,12 +3,11 @@ import { db } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 import { createNotification } from '../lib/notifications.js';
 import { logger } from '@educonnect/logger';
-import { getConfig } from '../lib/config.js';
 
 const router: Router = Router();
 
 // Get currency symbol from config
-const CURRENCY = getConfig().CURRENCY || 'INR';
+const CURRENCY = process.env.CURRENCY || 'INR';
 const CURRENCY_SYMBOL = CURRENCY === 'INR' ? '₹' : '$';
 
 type FeeRecord = {

@@ -21,46 +21,24 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().optional(),
 
-  // Application configuration
+  // Application configuration.
   PUBLIC_APP_URL: z.string().optional(),
   CURRENCY: z.string().default('INR'),
 });
 
-type Config = z.infer<typeof envSchema>;
+export type RuntimeConfig = z.infer<typeof envSchema>;
 
 /**
  * Validates and returns the environment configuration.
- * Does NOT throw during module import to prevent deployment crashes.
+ * This is intentionally lazy so importing the Express app cannot crash public diagnostics.
  */
-function validateEnv(): Config {
+export function getConfig(): RuntimeConfig {
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
-    // We log but don't throw to allow diagnostic routes like /api/version to work.
-    console.warn(
-      '⚠️ Environment validation failed. Some features may be unavailable:',
-      JSON.stringify(parsed.error.format(), null, 2)
-    );
+    const formatted = JSON.stringify(parsed.error.format(), null, 2);
+    throw new Error(`Environment validation failed: ${formatted}`);
   }
 
-  // Return parsed data or a partial object from process.env if parsing failed
-  return (parsed.success ? parsed.data : (process.env as any)) as Config;
+  return parsed.data;
 }
-
-// Cached config to avoid re-parsing
-let cachedConfig: Config | null = null;
-
-/**
- * Returns the validated environment configuration.
- * Safe to call at any time.
- */
-export function getConfig(): Config {
-  if (!cachedConfig) {
-    cachedConfig = validateEnv();
-  }
-  return cachedConfig;
-}
-
-// Deprecated: Use getConfig() instead.
-// Kept as a getter for backward compatibility during transition.
-export const env = validateEnv();

@@ -10,7 +10,7 @@ import { logger } from '@educonnect/logger';
 import { authMiddleware, requireAuth } from './middleware/auth.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { globalErrorHandler } from './middleware/error.js';
-import { getAiRuntimeStatus, isAiEnabled } from './lib/ai.js';
+import { getAiRuntimeStatus } from './lib/ai.js';
 
 // Initialize background consumers
 import './features/notifications/attendance.consumer.js';
@@ -198,63 +198,44 @@ publicRouter.get('/ai/status', AiController.getStatus);
 publicRouter.post('/ai/query', AiController.publicQueryChatbot);
 
 publicRouter.get('/ready', async (req, res) => {
-  try {
-    // Check required environment variables
-    const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CORS_ORIGINS'];
-    const missing: string[] = [];
+  const missing = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CORS_ORIGINS'].filter(
+    (name) => !process.env[name]
+  );
 
-    const checks = {
-      hasSupabaseUrl: !!process.env.SUPABASE_URL,
-      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      hasCorsOrigins: !!process.env.CORS_ORIGINS,
-      hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
-      hasOpenRouterModel: !!process.env.OPENROUTER_MODEL,
-      supabaseDocumentsReachable: false
-    };
+  const checks = {
+    hasSupabaseUrl: !!process.env.SUPABASE_URL,
+    hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    hasCorsOrigins: !!process.env.CORS_ORIGINS,
+    hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
+    hasOpenRouterModel: !!process.env.OPENROUTER_MODEL,
+    supabaseDocumentsReachable: false,
+  };
 
-    requiredEnvVars.forEach(v => {
-      if (!process.env[v]) missing.push(v);
-    });
-
-    // Check Supabase connectivity
+  if (checks.hasSupabaseUrl && checks.hasServiceRoleKey) {
     try {
       const supabaseAdmin = getSupabaseAdmin();
-      const { error } = await supabaseAdmin.from('documents').select('id', { head: true, count: 'exact' }).limit(1);
-      if (!error) {
-        checks.supabaseDocumentsReachable = true;
-      }
+      const { error } = await supabaseAdmin
+        .from('documents')
+        .select('id', { head: true, count: 'exact' })
+        .limit(1);
+      checks.supabaseDocumentsReachable = !error;
     } catch (err) {
-      logger.error({ err }, 'Supabase connectivity check failed inside /ready');
+      logger.warn({ err }, 'Supabase connectivity check failed inside /ready');
     }
-
-    const isReady = missing.length === 0 && checks.supabaseDocumentsReachable;
-
-    const response = {
-      status: isReady ? 'ready' : 'not_ready',
-      environment: process.env.NODE_ENV || 'development',
-      nodeEnv: process.env.NODE_ENV || 'development',
-      vercelUrl: process.env.VERCEL_URL || null,
-      gitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
-      corsOrigins: process.env.CORS_ORIGINS || null,
-      runtime: 'nodejs',
-      checks,
-      missing,
-      features: {
-        ai: isAiEnabled(),
-        uploads: !!process.env.SUPABASE_UPLOADS_BUCKET,
-      },
-      timestamp: new Date().toISOString(),
-    };
-
-    return res.status(isReady ? 200 : 503).json(response);
-  } catch (err: any) {
-    logger.error({ err }, 'Ready check failed with unexpected error');
-    res.status(503).json({
-      status: 'not_ready',
-      message: 'Service connectivity check failed',
-      timestamp: new Date().toISOString(),
-    });
   }
+
+  const isReady = missing.length === 0 && checks.supabaseDocumentsReachable;
+
+  return res.status(isReady ? 200 : 503).json({
+    status: isReady ? 'ready' : 'not_ready',
+    environment: process.env.NODE_ENV || 'development',
+    nodeEnv: process.env.NODE_ENV || null,
+    vercelUrl: process.env.VERCEL_URL || null,
+    runtime: process.env.VERCEL_URL ? 'vercel' : 'local',
+    checks,
+    missing,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use('/api', publicRouter);

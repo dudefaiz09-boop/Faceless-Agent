@@ -1,69 +1,111 @@
 # API Deployment & Stability Checklist
 
-This checklist ensures that the EduConnect API remains stable and correctly handles authentication, multi-tenancy, and error states.
+This checklist keeps the EduConnect API stable on Vercel and separates startup/import failures from browser CORS symptoms.
 
-## 1. Backend Environment Variables (Vercel)
+## API Vercel Project Settings
 
-Ensure the following variables are set in the backend project:
+- Framework Preset: Other
+- Root Directory: repo root / empty
+- Git Branch: main
+- Runtime entrypoint: `api/index.ts`
+- Serverless import: `api/index.ts` must import `../apps/functions/src/app`, not any `dist/**` file.
 
-- [ ] `SUPABASE_URL`: Your Supabase project URL.
-- [ ] `SUPABASE_SERVICE_ROLE_KEY`: Service role key for admin access.
-- [ ] `CORS_ORIGINS`: Comma-separated list of allowed origins (e.g., `https://educonnect-web-iota.vercel.app`).
-- [ ] `NODE_ENV`: Should be `production`.
-- [ ] `OPENROUTER_API_KEY`: (Optional) For AI features.
-- [ ] `OPENROUTER_MODEL`: (Optional) e.g., `google/gemma-3-4b-it:free`.
+## API Environment
 
-### Vercel Web Deployment Variables
+Set these variables on the API Vercel project:
 
-- [ ] `VITE_API_BASE_URL`: The full URL of your deployed API (e.g., `https://educonnect-api-sigma.vercel.app/api`).
+- `SUPABASE_URL=<project URL>`
+- `SUPABASE_SERVICE_ROLE_KEY=<service role key>`
+- `CORS_ORIGINS=https://educonnect-web-iota.vercel.app`
+- `NODE_ENV=production`
+- `OPENROUTER_API_KEY` optional
+- `OPENROUTER_MODEL` optional/free only
 
-## 2. Shared API Middleware Order
+Do not expose `SUPABASE_SERVICE_ROLE_KEY` to the web project.
 
-Verify in `apps/functions/src/app.ts` that:
+## Web Environment
 
-- [ ] Global security/observability middleware (Logger, CORS, Helmet) are first.
-- [ ] `publicRouter` is mounted before any auth.
-- [ ] `protectedRouter` applies middleware in this EXACT order:
-  1. `authMiddleware` (token parser)
-  2. `requireAuth` (401 if no user)
-  3. `tenantMiddleware` (resolves tenant and initializes context)
-- [ ] `globalErrorHandler` is the LAST middleware.
+Set this variable on the web Vercel project:
 
-## 3. Manual Stability Verification
+- `VITE_API_BASE_URL=https://educonnect-api-sigma.vercel.app/api`
 
-Test these endpoints directly in a browser or via CURL:
+## Serverless Startup Rules
 
-- [ ] `GET /api/health`: Should return 200 JSON `{ "status": "ok", ... }`.
-- [ ] `GET /api/ready`: Should return 200 or 503 JSON, never a Vercel 500 crash.
-- [ ] `GET /api/notifications`: Should return 401 JSON `{ "error": "Unauthorized", ... }`, not a Vercel crash page.
-- [ ] `GET /api/announcements`: Should return 401 JSON.
-- [ ] `GET /api/attendance`: Should return 401 JSON.
-- [ ] `GET /api/version`: Should return 200 JSON with deployment metadata.
+- `api/index.ts` imports the Express app source directly.
+- `api/index.ts` must never import `apps/functions/src/index.ts`; that file starts `app.listen()` for local server usage.
+- Vercel runtime must not depend on `apps/functions/dist/app.js` or `apps/functions/dist/index.js`.
+- Public diagnostic routes must not require Supabase, OpenRouter, auth, tenant context, or the document layer during import.
 
-### Serverless Configuration (Vercel)
+If `/api/version` crashes, do not debug CORS first. Fix API startup/import/deployment first.
 
-- [ ] Verify `api/index.ts` imports from `../apps/functions/src/app.ts` (Source entrypoint). This ensures the deployment is self-contained and avoids crashes due to missing or stale `dist` output. It also prevents `app.listen()` from being called in the serverless environment.
+## Middleware Order
 
-### Manual CORS Verification
+Verify in `apps/functions/src/app.ts`:
 
-Open DevTools Network tab and check `OPTIONS /api/notifications`:
+- Global CORS/preflight handling runs before auth, tenant middleware, protected routers, and rate limiters.
+- `OPTIONS` requests return `204`.
+- `publicRouter` is mounted before any protected router.
+- `protectedRouter` applies middleware in this order:
+  1. `authMiddleware`
+  2. `requireAuth`
+  3. `tenantMiddleware`
+- `globalErrorHandler` is the final middleware.
 
-- [ ] Status 204.
-- [ ] `Access-Control-Allow-Origin` matches the web domain.
-- [ ] `Access-Control-Allow-Credentials` is `true`.
+## Post-Deploy Checks
 
-## 4. Frontend Verification (Web)
+1. `https://educonnect-api-sigma.vercel.app/api/version`
+   Expected: JSON 200.
 
-- [ ] Login as `admin@educonnect.test`.
-- [ ] Check Network tab: All requests to `/api/*` (except public ones) must include:
-  - `Authorization: Bearer <token>`
-  - `x-school-id: <tenant-id>`
-- [ ] Switch schools: Verify `x-school-id` updates in subsequent requests.
-- [ ] Dark Mode: Open a form and verify typed text and date pickers are readable.
+2. `https://educonnect-api-sigma.vercel.app/api/health`
+   Expected: JSON 200.
 
-## 5. Build & Test Pass
+3. `https://educonnect-api-sigma.vercel.app/api/ready`
+   Expected: JSON 200 if envs and Supabase connectivity are good, JSON 503 if envs are missing or Supabase is unreachable. Never a Vercel crash page.
 
-- [ ] `pnpm format:check`
-- [ ] `pnpm lint`
-- [ ] `pnpm test` (specifically `tests/api-stability.test.ts`)
-- [ ] `pnpm turbo build --filter @educonnect/functions --filter @educonnect/web`
+4. `https://educonnect-api-sigma.vercel.app/api/notifications`
+   Expected without login: JSON 401. Never a Vercel crash page.
+
+## PowerShell CORS Check
+
+```powershell
+curl.exe -i -X OPTIONS "https://educonnect-api-sigma.vercel.app/api/notifications" `
+  -H "Origin: https://educonnect-web-iota.vercel.app" `
+  -H "Access-Control-Request-Method: GET" `
+  -H "Access-Control-Request-Headers: authorization,x-school-id,content-type"
+```
+
+Expected:
+
+```txt
+HTTP 204
+access-control-allow-origin: https://educonnect-web-iota.vercel.app
+access-control-allow-credentials: true
+```
+
+## Protected Route Expectations
+
+Without `Authorization`, these routes must return JSON 401:
+
+- `GET /api/notifications`
+- `GET /api/announcements`
+- `GET /api/attendance`
+- `GET /api/assignments`
+- `GET /api/library`
+- `GET /api/fees`
+- `GET /api/performance`
+- `GET /api/teachers`
+- `GET /api/chat`
+- `GET /api/users`
+- `GET /api/students`
+
+With auth but missing tenant context, protected routes should return JSON 400 `Tenant Context Required`.
+
+With an invalid tenant override, protected routes should return JSON 403 `Tenant Access Denied`.
+
+## Build & Test Pass
+
+- `pnpm format:check`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm turbo build --filter @educonnect/functions`
+- `pnpm turbo build --filter @educonnect/web`
