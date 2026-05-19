@@ -38,6 +38,7 @@ Test these endpoints directly in a browser or via CURL:
 - [ ] `GET /api/notifications`: Should return 401 JSON `{ "error": "Unauthorized", ... }`.
 - [ ] `GET /api/announcements`: Should return 401 JSON.
 - [ ] `GET /api/attendance`: Should return 401 JSON.
+- [ ] `GET /api/version`: Should return 200 JSON with deployment metadata.
 
 ### Manual CORS Verification
 

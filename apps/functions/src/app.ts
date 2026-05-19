@@ -51,20 +51,26 @@ function isAllowedOrigin(origin: string) {
 }
 
 const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
-const allowedHeaders = 'Authorization,Content-Type,x-school-id,x-correlation-id';
+const defaultAllowedHeaders = 'Authorization,Content-Type,x-school-id,x-correlation-id';
 
-function applyCorsHeaders(req: any, res: any) {
+function getAllowedOrigin(origin?: string) {
+  if (!origin) return null;
+  if (isAllowedOrigin(origin)) return origin;
+  return null;
+}
+
+function applyCorsHeaders(req: express.Request, res: express.Response) {
   const origin = req.headers.origin;
-  if (!origin || isAllowedOrigin(origin)) {
-    if (origin) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Vary', 'Origin');
-    }
+  const allowedOrigin = getAllowedOrigin(origin as string);
+
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', allowedMethods);
     res.setHeader(
       'Access-Control-Allow-Headers',
-      String(req.headers['access-control-request-headers'] || allowedHeaders)
+      String(req.headers['access-control-request-headers'] || defaultAllowedHeaders)
     );
     res.setHeader('Access-Control-Expose-Headers', 'x-correlation-id');
   }
@@ -169,6 +175,18 @@ publicRouter.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
+publicRouter.get('/version', (req, res) => {
+  res.json({
+    status: 'ok',
+    app: 'educonnect-api',
+    gitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+    vercelUrl: process.env.VERCEL_URL || null,
+    nodeEnv: process.env.NODE_ENV || null,
+    corsOrigins: process.env.CORS_ORIGINS || null,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Safe public AI endpoints. These never expose the OpenRouter key.
 publicRouter.get('/ai/status', AiController.getStatus);
 publicRouter.post('/ai/query', AiController.publicQueryChatbot);
@@ -210,6 +228,8 @@ publicRouter.get('/ready', async (req, res) => {
       environment: process.env.NODE_ENV || 'development',
       nodeEnv: process.env.NODE_ENV || 'development',
       vercelUrl: process.env.VERCEL_URL || null,
+      gitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+      corsOrigins: process.env.CORS_ORIGINS || null,
       runtime: 'nodejs',
       checks,
       missing,

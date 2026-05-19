@@ -41,6 +41,16 @@ describe('CORS Integration Tests', () => {
     });
   });
 
+  describe('GET /api/version', () => {
+    it('should return 200 and include version info', async () => {
+      const res = await request(app).get('/api/version');
+
+      expect(res.status).toBe(200);
+      expect(res.body.app).toBe('educonnect-api');
+      expect(res.body).toHaveProperty('timestamp');
+    });
+  });
+
   describe('CORS Security', () => {
     it('should not allow unauthorized origins', async () => {
       const unauthorizedOrigin = 'https://malicious-site.com';
