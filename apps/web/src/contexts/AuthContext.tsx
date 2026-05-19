@@ -86,6 +86,7 @@ interface AuthContextType {
 }
 
 type UserProfileData = {
+  status?: string;
   role?: string;
   roles?: string[];
   permissions?: Record<string, boolean>;
@@ -207,6 +208,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const profile = await getProfile(session.user.id);
+      if (profile.status === 'inactive') {
+        toast({
+          tone: 'error',
+          title: 'Access Denied',
+          description: 'This account has been deactivated.',
+        });
+        void supabase.auth.signOut();
+        return;
+      }
       const appMetadata = session.user.app_metadata || {};
       const nextIsSuperAdmin =
         !!profile.is_super_admin || !!profile.isSuperAdmin || !!appMetadata.isSuperAdmin;

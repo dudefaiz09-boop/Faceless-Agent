@@ -13,6 +13,7 @@ import {
   Layers,
   GraduationCap,
   Trash2,
+  Edit2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDebounce } from '../lib/hooks';
@@ -78,6 +79,7 @@ export const LibraryPage = () => {
   const debouncedSearch = useDebounce(search, 300);
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<LibraryResource | null>(null);
 
   // Upload Form
   const [uploadType, setUploadType] = useState<'file' | 'link'>('file');
@@ -160,17 +162,27 @@ export const LibraryPage = () => {
 
     setLoading(true);
     try {
-      await apiClient.request('/api/library/upload', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...uploadData,
-          tags: uploadData.tags
-            .split(',')
-            .map((t) => t.trim())
-            .filter((t) => t !== ''),
-        }),
-      });
+      const payload = {
+        ...uploadData,
+        tags: typeof uploadData.tags === 'string'
+          ? uploadData.tags.split(',').map((t) => t.trim()).filter(Boolean)
+          : uploadData.tags,
+      };
+
+      if (editingResource) {
+        await apiClient.request(`/api/library/resources/${editingResource.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiClient.request('/api/library/upload', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
+
       setIsUploadModalOpen(false);
+      setEditingResource(null);
       loadResources();
       setUploadData({
         title: '',
@@ -188,13 +200,13 @@ export const LibraryPage = () => {
       setUploadType('file');
       toast({
         tone: 'success',
-        title: 'Resource added',
+        title: editingResource ? 'Resource updated' : 'Resource added',
         description: `${uploadData.title} is now available in the catalog.`,
       });
     } catch (error) {
       toast({
         tone: 'error',
-        title: 'Upload failed',
+        title: editingResource ? 'Update failed' : 'Upload failed',
         description:
           error instanceof Error
             ? error.message
@@ -203,6 +215,25 @@ export const LibraryPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startEdit = (resource: LibraryResource) => {
+    setEditingResource(resource);
+    setUploadData({
+      title: resource.title || '',
+      description: resource.description || '',
+      subject: resource.subject || '',
+      grade: resource.grade || '',
+      type: resource.type || 'pdf',
+      fileUrl: resource.fileUrl || '',
+      externalUrl: resource.externalUrl || '',
+      attachmentName: resource.attachmentName || '',
+      tags: (resource.tags || []).join(', '),
+      visibility: resource.visibility || 'all',
+      targetClassIds: resource.targetClassIds || [],
+    });
+    setUploadType(resource.externalUrl ? 'link' : 'file');
+    setIsUploadModalOpen(true);
   };
 
   const borrowBook = async (resourceId: string) => {
@@ -473,6 +504,15 @@ export const LibraryPage = () => {
                         )}
                         {canManageLibrary && (
                           <button
+                            onClick={() => startEdit(res)}
+                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Edit resource"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                        )}
+                        {canManageLibrary && (
+                          <button
                             onClick={() => deleteResource(res)}
                             className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                             title="Delete resource"
@@ -571,9 +611,11 @@ export const LibraryPage = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden p-8 space-y-6"
+              className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden p-8 space-y-6 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
-              <h3 className="text-2xl font-bold text-slate-900">Add Library Resource</h3>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                {editingResource ? 'Edit Library Resource' : 'Add Library Resource'}
+              </h3>
               <form onSubmit={handleUpload} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
@@ -643,7 +685,10 @@ export const LibraryPage = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsUploadModalOpen(false)}
+                    onClick={() => {
+                      setIsUploadModalOpen(false);
+                      setEditingResource(null);
+                    }}
                     className="px-6 bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
                   >
                     Cancel

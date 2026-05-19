@@ -12,21 +12,21 @@ interface Tenant {
 }
 
 export const TenantSwitcher = () => {
-  const { isSuperAdmin, managedTenantIds, schoolId } = useAuth();
+  const { isAdmin, managedTenantIds, schoolId } = useAuth();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (isSuperAdmin && managedTenantIds.length > 0) {
+    if (isAdmin && managedTenantIds.length > 0) {
       listDocuments<Tenant>('schools') // Legacy name for tenants in documents collection
         .then((data) => {
           setTenants(data.filter((t) => managedTenantIds.includes(t.id)));
         })
         .catch((err) => console.error('Failed to load tenants:', err));
     }
-  }, [isSuperAdmin, managedTenantIds]);
+  }, [isAdmin, managedTenantIds]);
 
-  if (!isSuperAdmin || tenants.length <= 1) return null;
+  if (!isAdmin || tenants.length <= 1) return null;
 
   const currentTenant = tenants.find((t) => t.id === schoolId) || {
     id: schoolId || '',

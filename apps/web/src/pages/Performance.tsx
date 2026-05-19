@@ -663,11 +663,11 @@ export const PerformancePage = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden p-12 space-y-8"
+              className="relative w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden p-12 space-y-8 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <div className="flex items-center justify-between">
                 <div className="space-y-2">
-                  <h3 className="text-3xl font-black text-slate-900">Batch Score Import</h3>
+                  <h3 className="text-3xl font-black text-slate-900 dark:text-white">Batch Score Import</h3>
                   <p className="text-slate-500 font-medium">
                     Uploading data for{' '}
                     <span className="text-indigo-600 font-bold">Class {selectedClass}</span>.

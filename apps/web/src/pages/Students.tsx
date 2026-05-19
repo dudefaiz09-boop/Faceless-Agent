@@ -395,11 +395,11 @@ export const StudentsPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12"
+              className="relative w-full max-w-xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h3 className="text-3xl font-black text-slate-900">
+                  <h3 className="text-3xl font-black text-slate-900 dark:text-white">
                     {selectedStudent ? 'Edit Profile' : 'New Student'}
                   </h3>
                   <p className="text-slate-500 font-medium mt-1">
@@ -525,10 +525,10 @@ export const StudentsPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12"
+              className="relative w-full max-w-2xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <div className="space-y-2 mb-10">
-                <h3 className="text-3xl font-black text-slate-900">Bulk Student Import</h3>
+                <h3 className="text-3xl font-black text-slate-900 dark:text-white">Bulk Student Import</h3>
                 <p className="text-slate-500 font-medium">
                   Paste CSV records to create multiple accounts at once.
                 </p>
@@ -592,15 +592,15 @@ export const StudentsPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-white rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+              className="relative w-full max-w-4xl bg-white rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
-              <div className="p-10 border-b border-slate-50 flex justify-between items-center">
+              <div className="p-10 border-b border-slate-50 flex justify-between items-center dark:border-slate-800">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center dark:bg-slate-800">
                     <History size={28} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-slate-900">Activity Logs</h3>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white">Activity Logs</h3>
                     <p className="text-slate-500 font-medium">
                       Tracking system changes and student lifecycle.
                     </p>
@@ -618,7 +618,7 @@ export const StudentsPage = () => {
                 {auditLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-6 rounded-3xl bg-slate-50 border border-slate-100 flex gap-6 items-start"
+                    className="p-6 rounded-3xl bg-slate-50 border border-slate-100 flex gap-6 items-start dark:bg-slate-950 dark:border-slate-800"
                   >
                     <div
                       className={cn(
@@ -647,8 +647,8 @@ export const StudentsPage = () => {
                           {formatAuditTimestamp(log.timestamp)}
                         </span>
                       </div>
-                      <p className="text-slate-900 font-bold">{log.details}</p>
-                      <p className="text-xs text-slate-500 mt-2 font-medium">
+                      <p className="text-slate-900 font-bold dark:text-slate-100">{log.details}</p>
+                      <p className="text-xs text-slate-500 mt-2 font-medium dark:text-slate-400">
                         Performed by UID: {log.performedBy}
                       </p>
                     </div>

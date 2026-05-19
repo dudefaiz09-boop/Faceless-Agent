@@ -120,16 +120,25 @@ export function collectionPath(...segments: Array<string | undefined | null>) {
   return segments.filter(Boolean).join('/');
 }
 
+import { getStoredTenantId } from './tenant';
+
 export async function listDocuments<T>(
   collectionName: string,
   options: DocumentListOptions = {}
 ): Promise<Array<DocumentRecord<T>>> {
   if (!collectionName || options.enabled === false) return [];
 
-  const { data, error } = await supabase
+  let dbQuery = supabase
     .from('documents')
     .select('collection,id,data')
     .eq('collection', collectionName);
+
+  const activeTenantId = getStoredTenantId();
+  if (activeTenantId && collectionName !== 'schools') {
+    dbQuery = dbQuery.or(`data->>tenantId.eq.${activeTenantId},data->>schoolId.eq.${activeTenantId}`);
+  }
+
+  const { data, error } = await dbQuery;
 
   if (error) throw error;
   return materializeRows<T>((data || []) as DocumentRow[], options);

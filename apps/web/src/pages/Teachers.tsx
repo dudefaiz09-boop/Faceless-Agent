@@ -440,11 +440,11 @@ export const TeachersPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12"
+              className="relative w-full max-w-xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <div className="flex justify-between items-start mb-10">
                 <div>
-                  <h3 className="text-3xl font-black text-slate-900">
+                  <h3 className="text-3xl font-black text-slate-900 dark:text-white">
                     {selectedTeacher ? 'Update Faculty' : 'Register Teacher'}
                   </h3>
                   <p className="text-slate-500 font-medium mt-1">
@@ -570,10 +570,10 @@ export const TeachersPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12"
+              className="relative w-full max-w-2xl bg-white rounded-[48px] shadow-2xl overflow-hidden p-12 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <div className="space-y-2 mb-10">
-                <h3 className="text-3xl font-black text-slate-900">Bulk Faculty Import</h3>
+                <h3 className="text-3xl font-black text-slate-900 dark:text-white">Bulk Faculty Import</h3>
                 <p className="text-slate-500 font-medium">
                   Import large batches of staff using standardized CSV data.
                 </p>
@@ -638,7 +638,7 @@ export const TeachersPage = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl bg-white rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+              className="relative w-full max-w-4xl bg-white rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <div className="p-10 border-b border-slate-50 flex justify-between items-center bg-slate-900 text-white">
                 <div className="flex items-center gap-4">
@@ -664,7 +664,7 @@ export const TeachersPage = () => {
                 {auditLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-6 rounded-3xl bg-white border border-slate-100 flex gap-6 items-start shadow-sm"
+                    className="p-6 rounded-3xl bg-white border border-slate-100 flex gap-6 items-start shadow-sm dark:bg-slate-950 dark:border-slate-800"
                   >
                     <div
                       className={cn(
@@ -693,10 +693,10 @@ export const TeachersPage = () => {
                           {formatAuditTimestamp(log.timestamp)}
                         </span>
                       </div>
-                      <p className="text-slate-900 font-bold text-lg leading-snug">{log.details}</p>
-                      <p className="text-xs text-slate-500 mt-2 font-medium flex items-center gap-2">
+                      <p className="text-slate-900 font-bold text-lg leading-snug dark:text-slate-100">{log.details}</p>
+                      <p className="text-xs text-slate-500 mt-2 font-medium flex items-center gap-2 dark:text-slate-400">
                         <UserIcon size={12} /> Executor UID:{' '}
-                        <span className="text-slate-900 font-bold">{log.performedBy}</span>
+                        <span className="text-slate-900 font-bold dark:text-slate-200">{log.performedBy}</span>
                       </p>
                     </div>
                   </div>

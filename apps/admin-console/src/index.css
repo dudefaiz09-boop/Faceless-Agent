@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: #0b0f19;
+  }
+
+  body {
+    min-width: 320px;
+    background: #0b0f19;
+    color: #f8fafc;
+  }
+
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    color: #f8fafc !important;
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+    caret-color: #60a5fa;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #94a3b8;
+    opacity: 1;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+  }
+
+  input:-webkit-autofill,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: #f8fafc;
+    box-shadow: 0 0 0 1000px #0f172a inset;
+  }
+
+  option {
+    background-color: #1e293b;
+    color: #f8fafc;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+}

@@ -520,6 +520,24 @@ export const AssignmentsPage = () => {
                   <p className="text-slate-600 text-sm leading-relaxed dark:text-slate-400">
                     {selectedAssignment.description || 'No description provided.'}
                   </p>
+                  {selectedAssignment.attachments && selectedAssignment.attachments.length > 0 && (
+                    <div className="pt-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                        Worksheet / Reference File
+                      </span>
+                      {selectedAssignment.attachments.map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 text-xs text-blue-600 font-bold hover:underline"
+                        >
+                          <ExternalLink size={12} /> Download Reference File {selectedAssignment.attachments.length > 1 ? i + 1 : ''}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {isStudent ? (
@@ -795,7 +813,7 @@ export const AssignmentsPage = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-8 space-y-6 dark:bg-slate-900"
+              className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-8 space-y-6 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                 Create Assignment

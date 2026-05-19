@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Calendar,
+  ExternalLink,
   Filter,
   Megaphone,
   Pin,
@@ -13,6 +14,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { FileUpload } from '../components/FileUpload';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
@@ -90,6 +92,7 @@ export const AnnouncementsPage = () => {
     isScheduled: false,
     scheduledFor: '',
   });
+  const [attachmentUrl, setAttachmentUrl] = useState('');
 
   const announcements = useMemo(() => {
     return records
@@ -151,6 +154,7 @@ export const AnnouncementsPage = () => {
             form.isScheduled && form.scheduledFor
               ? new Date(form.scheduledFor).toISOString()
               : null,
+          attachments: attachmentUrl ? [attachmentUrl] : [],
         }),
       });
       setIsModalOpen(false);
@@ -165,6 +169,7 @@ export const AnnouncementsPage = () => {
         isScheduled: false,
         scheduledFor: '',
       });
+      setAttachmentUrl('');
       // Refetch to ensure sync
       await reload();
       setLastSyncTime(new Date());
@@ -364,6 +369,22 @@ export const AnnouncementsPage = () => {
                       </span>
                     ))}
                   </div>
+
+                  {announcement.attachments && announcement.attachments.length > 0 && (
+                    <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
+                      {announcement.attachments.map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-bold hover:underline"
+                        >
+                          <ExternalLink size={12} /> Attachment {i + 1}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </motion.article>
             ))}
@@ -386,11 +407,11 @@ export const AnnouncementsPage = () => {
               initial={{ opacity: 0, y: 18, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[34px] bg-white p-6 shadow-2xl md:p-8"
+              className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[34px] bg-white p-6 shadow-2xl md:p-8 dark:bg-slate-900 dark:border dark:border-slate-800 dark:text-slate-50"
             >
               <div className="mb-6 flex items-center justify-between">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-950">Create Announcement</h2>
+                  <h2 className="text-3xl font-black text-slate-950 dark:text-white">Create Announcement</h2>
                   <p className="text-sm font-medium text-slate-500">
                     Target the right audience with a polished update.
                   </p>
@@ -460,6 +481,15 @@ export const AnnouncementsPage = () => {
                     <option value="urgent">Urgent</option>
                   </select>
                 </label>
+                <div className="md:col-span-2">
+                  {user?.uid && (
+                    <FileUpload
+                      label="Attach File"
+                      path={`announcements/${user.uid}`}
+                      onUploadComplete={(url) => setAttachmentUrl(url)}
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="mt-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-2">
