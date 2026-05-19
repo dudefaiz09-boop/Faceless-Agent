@@ -1,8 +1,17 @@
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { AiContextService } from '../apps/functions/src/features/ai/ai-context.service.js';
-import { getSupabaseAdmin } from '../apps/functions/src/lib/supabase.js';
+
+const mockSupabase = {
+  from: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
+  eq: jest.fn().mockReturnThis(),
+  in: jest.fn().mockReturnThis(),
+  order: jest.fn().mockReturnThis(),
+  limit: jest.fn(),
+};
 
 jest.mock('../apps/functions/src/lib/supabase.js', () => ({
-  getSupabaseAdmin: jest.fn(),
+  getSupabaseAdmin: jest.fn(() => mockSupabase),
 }));
 
 describe('AiContextService Attendance Logic (Supabase)', () => {
@@ -17,18 +26,15 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
     permissions: {},
   };
 
-  const mockSupabase: any = {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mockSupabase);
+
+    mockSupabase.from.mockReturnThis();
+    mockSupabase.select.mockReturnThis();
+    mockSupabase.eq.mockReturnThis();
+    mockSupabase.in.mockReturnThis();
+    mockSupabase.order.mockReturnThis();
+    mockSupabase.limit.mockReset();
   });
 
   it('infers attendance module from "was I present yesterday"', () => {
@@ -66,6 +72,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
 
   it('allows admins to see attendance overview', async () => {
     const adminContext = { ...mockContext, role: 'admin' };
+
     mockSupabase.limit.mockResolvedValue({
       data: [
         {
@@ -89,6 +96,7 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
       role: 'parent',
       linkedStudentIds: ['student1', 'student2'],
     };
+
     mockSupabase.limit.mockResolvedValue({
       data: [
         { student_id: 'student1', attendance_date: '2024-05-21', status: 'present' },
@@ -99,10 +107,10 @@ describe('AiContextService Attendance Logic (Supabase)', () => {
 
     const context = await AiContextService.getModuleContext(parentContext, ['attendance']);
 
-    // New aggregated parent context format
     expect(context).toContain('Real-time Parent Context (Children Records)');
     expect(context).toContain('[Student: student1]');
     expect(context).toContain('[Student: student2]');
     expect(context).toContain('2024-05-21: present');
+    expect(context).toContain('2024-05-21: absent');
   });
 });
