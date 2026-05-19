@@ -71,6 +71,16 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   next();
 };
 
+export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Authentication required',
+    });
+  }
+  return next();
+};
+
 export const checkPermission =
   (perm: string) => (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
