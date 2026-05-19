@@ -152,7 +152,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const [saving, setSaving] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const debouncedSearch = useDebounce(search, 300);
-  const { data: allUsers, loading } = useDocuments<UserProfile>('users');
+  const { data: allUsers, loading, reload } = useDocuments<UserProfile>('users');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
@@ -299,6 +299,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         });
       }
       setIsUserModalOpen(false);
+      await reload();
       toast({
         tone: 'success',
         title: isAdmin ? 'User saved' : 'Request sent',
@@ -322,6 +323,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
     try {
       await apiClient.request(`/api/users/${uid}/deactivate`, { method: 'PATCH' });
+      await reload();
       toast({
         tone: 'success',
         title: 'User deactivated',
@@ -407,6 +409,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
       });
       setIsBulkModalOpen(false);
       setImportPreview([]);
+      await reload();
     } catch (error) {
       toast({ tone: 'error', title: 'Import failed', description: (error as Error).message });
     } finally {

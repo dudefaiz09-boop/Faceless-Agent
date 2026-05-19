@@ -17,36 +17,43 @@ export interface ValidationResult<T> {
 
 /**
  * Validate Fees CSV Format
- * Expected format: studentId, amountDue, yyyy-mm-dd
+ * Expected format: studentId,amountDue,dueDate,status,amountPaid
  */
 export function validateFeesCSV(csvText: string): ValidationResult<{
   studentId: string;
   amountDue: number;
   dueDate: string;
+  status?: 'pending' | 'paid' | 'partial';
+  amountPaid?: number;
 }> {
-  const lines = csvText.split('\n').filter((l) => l.trim() !== '');
+  const lines = csvText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((l) => l !== '');
   const errors: CSVValidationError[] = [];
   const records = [];
+  const dataLines = lines[0]?.toLowerCase().startsWith('studentid,') ? lines.slice(1) : lines;
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < dataLines.length; i++) {
     const line = i + 1; // 1-indexed for user messages
-    const trimmed = lines[i].trim();
+    const trimmed = dataLines[i].trim();
 
     if (!trimmed) continue;
 
     const parts = trimmed.split(',').map((s) => s.trim());
 
     // Check field count
-    if (parts.length !== 3) {
+    if (![3, 5].includes(parts.length)) {
       errors.push({
         line,
-        message: `Expected 3 fields (studentId, amountDue, dueDate), got ${parts.length}`,
+        message: `Expected 3 or 5 fields (studentId, amountDue, dueDate, status, amountPaid), got ${parts.length}`,
         value: trimmed,
       });
       continue;
     }
 
-    const [studentId, amountDueStr, dueDate] = parts;
+    const hasPaymentColumns = parts.length === 5;
+    const [studentId, amountDueStr, dueDate, status = 'pending', amountPaidStr = '0'] = parts;
 
     // Validate studentId
     if (!studentId || studentId.length === 0) {
@@ -91,11 +98,43 @@ export function validateFeesCSV(csvText: string): ValidationResult<{
       continue;
     }
 
-    records.push({
+    const record: {
+      studentId: string;
+      amountDue: number;
+      dueDate: string;
+      status?: 'pending' | 'paid' | 'partial';
+      amountPaid?: number;
+    } = {
       studentId,
       amountDue,
       dueDate,
-    });
+    };
+
+    if (hasPaymentColumns) {
+      const amountPaid = parseFloat(amountPaidStr || '0');
+      if (isNaN(amountPaid) || amountPaid < 0) {
+        errors.push({
+          line,
+          message: `Invalid amount paid: "${amountPaidStr}" (must be zero or a positive number)`,
+          value: trimmed,
+        });
+        continue;
+      }
+
+      if (!['pending', 'paid', 'partial'].includes(status.toLowerCase())) {
+        errors.push({
+          line,
+          message: `Invalid status: "${status}" (expected pending, paid, or partial)`,
+          value: trimmed,
+        });
+        continue;
+      }
+
+      record.status = status.toLowerCase() as 'pending' | 'paid' | 'partial';
+      record.amountPaid = amountPaid;
+    }
+
+    records.push(record);
   }
 
   return {
@@ -116,24 +155,28 @@ export function validatePerformanceCSV(csvText: string): ValidationResult<{
   score: number;
   grade: string;
 }> {
-  const lines = csvText.split('\n').filter((l) => l.trim() !== '');
+  const lines = csvText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((l) => l !== '');
   const errors: CSVValidationError[] = [];
   const records = [];
   const validGrades = ['A', 'B', 'C', 'D', 'F', 'A+', 'A-', 'B+', 'B-', 'C+', 'C-'];
+  const dataLines = lines[0]?.toLowerCase().startsWith('studentid,') ? lines.slice(1) : lines;
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < dataLines.length; i++) {
     const line = i + 1; // 1-indexed for user messages
-    const trimmed = lines[i].trim();
+    const trimmed = dataLines[i].trim();
 
     if (!trimmed) continue;
 
     const parts = trimmed.split(',').map((s) => s.trim());
 
     // Check field count
-    if (parts.length !== 5) {
+    if (![5, 6].includes(parts.length)) {
       errors.push({
         line,
-        message: `Expected 5 fields (studentId, subject, term, score, grade), got ${parts.length}`,
+        message: `Expected 5 or 6 fields (studentId, subject, term, score, grade, class), got ${parts.length}`,
         value: trimmed,
       });
       continue;

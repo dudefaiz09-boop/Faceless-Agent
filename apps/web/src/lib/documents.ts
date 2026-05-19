@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -140,37 +140,37 @@ export function useDocuments<T>(collectionName: string, options: DocumentListOpt
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(options.enabled !== false);
   const optionsKey = useMemo(() => JSON.stringify(options), [options]);
+  const load = useCallback(async () => {
+    const parsedOptions = JSON.parse(optionsKey) as DocumentListOptions;
+    if (!collectionName || parsedOptions.enabled === false) {
+      setData([]);
+      setLoading(false);
+      return [];
+    }
+
+    try {
+      setLoading(true);
+      const records = await listDocuments<T>(collectionName, parsedOptions);
+      setData(records);
+      setError(null);
+      return records;
+    } catch (loadError) {
+      const nextError = loadError instanceof Error ? loadError : new Error(String(loadError));
+      setError(nextError);
+      console.error(`[Supabase] Failed to load ${collectionName}:`, nextError);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [collectionName, optionsKey]);
 
   useEffect(() => {
     let mounted = true;
     const parsedOptions = JSON.parse(optionsKey) as DocumentListOptions;
 
-    async function load() {
-      if (!collectionName || parsedOptions.enabled === false) {
-        setData([]);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const records = await listDocuments<T>(collectionName, parsedOptions);
-        if (mounted) {
-          setData(records);
-          setError(null);
-        }
-      } catch (loadError) {
-        if (mounted) {
-          const nextError = loadError instanceof Error ? loadError : new Error(String(loadError));
-          setError(nextError);
-          console.error(`[Supabase] Failed to load ${collectionName}:`, nextError);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    void load();
+    void (async () => {
+      if (mounted) await load();
+    })();
 
     if (parsedOptions.realtime === false || !collectionName || parsedOptions.enabled === false) {
       return () => {
@@ -196,7 +196,7 @@ export function useDocuments<T>(collectionName: string, options: DocumentListOpt
       mounted = false;
       void supabase.removeChannel(channel);
     };
-  }, [collectionName, optionsKey]);
+  }, [collectionName, load, optionsKey]);
 
-  return { data, error, loading, reload: () => listDocuments<T>(collectionName, options) };
+  return { data, error, loading, reload: load };
 }

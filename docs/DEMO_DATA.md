@@ -2,10 +2,10 @@
 
 ## Tenants
 
-| ID       | Name     | Slug     | City   | Board |
-| -------- | -------- | -------- | ------ | ----- |
-| tenant-a | School A | school-a | Pune   | CBSE  |
-| tenant-b | School B | school-b | Mumbai | ICSE  |
+| ID       | Name                            | Slug                            | City   | Board |
+| -------- | ------------------------------- | ------------------------------- | ------ | ----- |
+| tenant-a | EduConnect Demo Academy         | educonnect-demo-academy         | Pune   | CBSE  |
+| tenant-b | EduConnect International School | educonnect-international-school | Mumbai | ICSE  |
 
 Run the Supabase demo seed with:
 
@@ -14,8 +14,9 @@ pnpm seed:supabase
 ```
 
 The seed script first removes only known demo records for `tenant-a`, `tenant-b`, stale
-`tenant-c`, and `@educonnect.test` auth users. It does not delete unknown tenants or real
-user domains. All seeded accounts use the local/demo-only password `Test@123456`.
+`tenant-c`, `@educonnect.test` auth users, and explicitly listed stale test identities such as
+`test@test.com`, `Student Demo`, `Student A`, `Student B`, and `TEST`. It does not delete unknown
+tenants or real user domains. All seeded accounts use the local/demo-only password `Test@123456`.
 
 ## Seeded Modules
 
@@ -52,20 +53,20 @@ user domains. All seeded accounts use the local/demo-only password `Test@123456`
 
 ## Test Accounts
 
-| Tenant   | Role        | Email                        |
-| -------- | ----------- | ---------------------------- |
-| tenant-a | Admin       | admin.a@educonnect.test      |
-| tenant-a | Principal   | principal@educonnect.test    |
-| tenant-a | Teacher     | teacher.a@educonnect.test    |
-| tenant-a | Student     | student.a@educonnect.test    |
-| tenant-a | Parent      | parent.a@educonnect.test     |
-| tenant-a | Librarian   | librarian@educonnect.test    |
-| tenant-a | Accountant  | accountant.a@educonnect.test |
-| tenant-b | Admin       | admin.b@educonnect.test      |
-| tenant-b | Principal   | principal.b@educonnect.test  |
-| tenant-b | Teacher     | teacher.c@educonnect.test    |
-| tenant-b | Student     | student.c@educonnect.test    |
-| tenant-b | Parent      | parent.b@educonnect.test     |
-| tenant-b | Librarian   | librarian.b@educonnect.test  |
-| tenant-b | Accountant  | accountant.b@educonnect.test |
-| global   | Super admin | admin@educonnect.test        |
+| Tenant   | Role        | Email                              |
+| -------- | ----------- | ---------------------------------- |
+| tenant-a | Admin       | admin.demo1@educonnect.test        |
+| tenant-a | Principal   | principal.demo1@educonnect.test    |
+| tenant-a | Teacher     | teacher.math.demo1@educonnect.test |
+| tenant-a | Student     | student.a.demo1@educonnect.test    |
+| tenant-a | Parent      | parent.a.demo1@educonnect.test     |
+| tenant-a | Librarian   | librarian.demo1@educonnect.test    |
+| tenant-a | Accountant  | accountant.demo1@educonnect.test   |
+| tenant-b | Admin       | admin.demo2@educonnect.test        |
+| tenant-b | Principal   | principal.demo2@educonnect.test    |
+| tenant-b | Teacher     | teacher.math.demo2@educonnect.test |
+| tenant-b | Student     | student.a.demo2@educonnect.test    |
+| tenant-b | Parent      | parent.a.demo2@educonnect.test     |
+| tenant-b | Librarian   | librarian.demo2@educonnect.test    |
+| tenant-b | Accountant  | accountant.demo2@educonnect.test   |
+| global   | Super admin | admin@educonnect.test              |

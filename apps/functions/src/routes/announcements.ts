@@ -3,6 +3,7 @@ import { db } from '../lib/documents.js';
 import { checkPermission } from '../middleware/auth.js';
 import { AnnouncementSchema } from '@educonnect/shared';
 import { createNotification } from '../lib/notifications.js';
+import { logger } from '@educonnect/logger';
 
 const router: Router = Router();
 
@@ -43,6 +44,9 @@ router.post('/', checkPermission('manageAnnouncements'), async (req, res, next) 
     if (!validation.success) {
       return res.status(400).json({
         error: 'Validation Failed',
+        message:
+          validation.error.issues[0]?.message ||
+          'Please check the announcement title, content, and audience.',
         details: validation.error.format(),
       });
     }
@@ -76,18 +80,26 @@ router.post('/', checkPermission('manageAnnouncements'), async (req, res, next) 
     };
 
     const docRef = await db.collection('announcements').add(announcement);
-    await createNotification({
-      title: `New announcement: ${title}`,
-      message: content.slice(0, 180),
-      type: 'announcement',
-      href: '/announcements',
-      targetRoles: announcement.targetRoles,
-      targetClasses: announcement.targetClasses,
-      schoolId: req.tenantId,
-      tenantId: req.tenantId,
-      actorId: req.user.uid,
-      metadata: { announcementId: docRef.id, priority: announcement.priority },
-    });
+    try {
+      await createNotification({
+        title: `New announcement: ${title}`,
+        message: content.slice(0, 180),
+        type: 'announcement',
+        href: '/announcements',
+        targetRoles: announcement.targetRoles,
+        targetClasses: announcement.targetClasses,
+        schoolId: req.tenantId,
+        tenantId: req.tenantId,
+        actorId: req.user.uid,
+        metadata: { announcementId: docRef.id, priority: announcement.priority },
+      });
+    } catch (notificationError) {
+      // Announcement creation is the source of truth; a notification failure must not roll it back.
+      logger.warn(
+        { err: notificationError, title },
+        'Announcement notification could not be created'
+      );
+    }
     res.json({ id: docRef.id, ...announcement });
   } catch (error) {
     next(error);

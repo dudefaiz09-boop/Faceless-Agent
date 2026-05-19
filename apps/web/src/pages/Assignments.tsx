@@ -23,7 +23,7 @@ import {
   AssignmentSubmission as Submission,
 } from '@educonnect/shared-education';
 import { assignmentsService } from '../lib/api-client';
-import { getDefaultClassId } from '../lib/tenant';
+import { getActiveTenantId, getDefaultClassId, getDemoClassesForTenant } from '../lib/tenant';
 import { FileUpload } from '../components/FileUpload';
 import { EmptyState } from '../components/saas/EmptyState';
 import { SearchBar } from '../components/saas/SearchBar';
@@ -47,6 +47,8 @@ export const AssignmentsPage = () => {
   const { user, isStudent, canManageAssignments, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
   const uid = user?.uid;
+  const activeTenantId = getActiveTenantId(schoolId);
+  const classOptions = useMemo(() => getDemoClassesForTenant(activeTenantId), [activeTenantId]);
 
   const [selectedClass, setSelectedClass] = useState(userClassId || getDefaultClassId(schoolId));
   const [search, setSearch] = useState('');
@@ -65,7 +67,9 @@ export const AssignmentsPage = () => {
     setError(null);
     try {
       const result = await assignmentsService.getAssignments(selectedClass);
-      const data = Array.isArray(result) ? result : [];
+      const data = Array.isArray(result)
+        ? result.filter((assignment) => (assignment as AssignmentDisplay).status !== 'archived')
+        : [];
       setAssignmentsData(data);
       setLastSyncTime(Date.now());
     } catch (err) {
@@ -96,9 +100,30 @@ export const AssignmentsPage = () => {
     title: '',
     description: '',
     dueDate: format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd'),
-    classId: userClassId || '10A',
+    classId: userClassId || getDefaultClassId(schoolId),
+    subject: 'General',
     pointsPossible: 100,
   }));
+  const [assignmentAttachmentUrl, setAssignmentAttachmentUrl] = useState('');
+
+  useEffect(() => {
+    if (!classOptions.some((option) => option.id === selectedClass)) {
+      queueMicrotask(() =>
+        setSelectedClass(userClassId || classOptions[0]?.id || getDefaultClassId(activeTenantId))
+      );
+    }
+  }, [activeTenantId, classOptions, selectedClass, userClassId]);
+
+  useEffect(() => {
+    queueMicrotask(() =>
+      setNewAssignment((current) => ({
+        ...current,
+        classId: classOptions.some((option) => option.id === current.classId)
+          ? current.classId
+          : selectedClass,
+      }))
+    );
+  }, [classOptions, selectedClass]);
 
   // Submission/Grading View State
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
@@ -179,23 +204,30 @@ export const AssignmentsPage = () => {
         tenantId: schoolId || undefined,
         status: ASSIGNMENT_STATUS.PUBLISHED,
         targetClasses: [newAssignment.classId],
-        attachments: [],
+        subject: newAssignment.subject,
+        attachments: assignmentAttachmentUrl ? [assignmentAttachmentUrl] : [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
       setIsModalOpen(false);
       setNewAssignment({ ...newAssignment, title: '', description: '' });
+      setAssignmentAttachmentUrl('');
       toast({
         tone: 'success',
         title: 'Assignment created',
         description: `${newAssignment.title} was published for ${newAssignment.classId}.`,
       });
       void loadAssignments();
-    } catch {
+    } catch (error) {
+      const apiError = error as Error & { data?: { message?: string; error?: string } };
       toast({
         tone: 'error',
         title: 'Assignment creation failed',
-        description: 'Check required fields and try again.',
+        description:
+          apiError.data?.message ||
+          apiError.data?.error ||
+          apiError.message ||
+          'Check required fields and try again.',
       });
     }
   };
@@ -297,9 +329,11 @@ export const AssignmentsPage = () => {
               onChange={(e) => setSelectedClass(e.target.value)}
               className="bg-white border border-slate-200 px-4 py-3 rounded-2xl font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-100 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
             >
-              <option value="10A">Class 10A</option>
-              <option value="10B">Class 10B</option>
-              <option value="9A">Class 9A</option>
+              {classOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           )}
           {canManageAssignments && (
@@ -761,9 +795,11 @@ export const AssignmentsPage = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden p-8 space-y-6"
+              className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl p-8 space-y-6 dark:bg-slate-900"
             >
-              <h3 className="text-2xl font-bold text-slate-900">Create Assignment</h3>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                Create Assignment
+              </h3>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -772,7 +808,7 @@ export const AssignmentsPage = () => {
                   <input
                     value={newAssignment.title}
                     onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
                 </div>
                 <div className="space-y-2">
@@ -785,7 +821,19 @@ export const AssignmentsPage = () => {
                     onChange={(e) =>
                       setNewAssignment({ ...newAssignment, description: e.target.value })
                     }
-                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Subject
+                  </label>
+                  <input
+                    value={newAssignment.subject}
+                    onChange={(e) =>
+                      setNewAssignment({ ...newAssignment, subject: e.target.value })
+                    }
+                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -799,7 +847,7 @@ export const AssignmentsPage = () => {
                       onChange={(e) =>
                         setNewAssignment({ ...newAssignment, dueDate: e.target.value })
                       }
-                      className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl outline-none"
+                      className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
                   </div>
                   <div className="space-y-2">
@@ -811,14 +859,22 @@ export const AssignmentsPage = () => {
                       onChange={(e) =>
                         setNewAssignment({ ...newAssignment, classId: e.target.value })
                       }
-                      className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl outline-none"
+                      className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     >
-                      <option value="10A">10A</option>
-                      <option value="10B">10B</option>
-                      <option value="9A">9A</option>
+                      {classOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
+                <FileUpload
+                  label="Attach worksheet or reference file"
+                  path={`assignments/${newAssignment.classId}`}
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                  onUploadComplete={setAssignmentAttachmentUrl}
+                />
               </div>
               <div className="flex gap-3">
                 <button
