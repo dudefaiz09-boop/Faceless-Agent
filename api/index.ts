@@ -1,7 +1,6 @@
-// Vercel API entrypoint. The Vercel build command compiles the Express app into
-// apps/functions/dist/app.js before this function is packaged.
-// We import from dist/app.js specifically to avoid triggering app.listen()
-// which is present in dist/index.js.
-import app from '../apps/functions/dist/app.js';
+// Vercel serverless entrypoint.
+// Import the Express app source directly.
+// Do not import apps/functions/src/index.ts because it starts a listener with app.listen().
+import app from '../apps/functions/src/app';
 
 export default app;

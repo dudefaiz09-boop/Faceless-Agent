@@ -1,31 +1,55 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import request from 'supertest';
-import { describe, it, expect } from '@jest/globals';
-import app from '../apps/functions/src/app.js';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import app from '../apps/functions/src/app.ts';
 
 describe('Vercel Entrypoint Verification', () => {
-  it('api/index.ts imports the serverless app bundle, not the listener bundle', () => {
+  it('api/index.ts imports the Express app source directly', () => {
     const entrypoint = readFileSync(join(process.cwd(), 'api/index.ts'), 'utf8');
 
-    expect(entrypoint).toContain('../apps/functions/dist/app.js');
+    expect(entrypoint).toContain('../apps/functions/src/app');
+    expect(entrypoint).not.toContain('../apps/functions/dist/app.js');
     expect(entrypoint).not.toContain('../apps/functions/dist/index.js');
+    expect(entrypoint).not.toContain('../apps/functions/src/index.ts');
   });
 
   it('source app exports an Express app function', () => {
     expect(typeof app).toBe('function');
   });
 
-  it('should respond to /api/health via the source app', async () => {
-    const res = await request(app).get('/api/health');
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('status', 'healthy');
-  });
+  describe('Public Diagnostic Routes Resilience', () => {
+    const originalEnv = { ...process.env };
 
-  it('should respond to /api/version via the source app', async () => {
-    const res = await request(app).get('/api/version');
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('app', 'educonnect-api');
+    beforeEach(() => {
+      // simulate missing critical env vars
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    });
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    it('should respond to /api/health even when Supabase env is missing', async () => {
+      const res = await request(app).get('/api/health');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('status', 'healthy');
+    });
+
+    it('should respond to /api/version even when Supabase env is missing', async () => {
+      const res = await request(app).get('/api/version');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('app', 'educonnect-api');
+      expect(res.body.nodeEnv).toBeDefined();
+    });
+
+    it('should respond to /api/ready with 503 when Supabase env is missing, not crash', async () => {
+      const res = await request(app).get('/api/ready');
+      expect(res.status).toBe(503);
+      expect(res.body.status).toBe('not_ready');
+      expect(res.body.missing).toContain('SUPABASE_URL');
+    });
   });
 
   it('OPTIONS /api/notifications should return 204 with CORS headers', async () => {

@@ -171,11 +171,17 @@ publicRouter.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
 publicRouter.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+  // Simple health check that doesn't depend on any environment variables.
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 publicRouter.get('/version', (req, res) => {
+  // Version info using environment variables that are usually present or safe to be null.
   res.json({
     status: 'ok',
     app: 'educonnect-api',
