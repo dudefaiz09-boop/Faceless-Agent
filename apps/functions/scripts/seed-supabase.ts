@@ -31,6 +31,8 @@ const demoPassword = 'Test@123456';
 const activeDemoTenantIds = ['tenant-a', 'tenant-b'] as const;
 const cleanupDemoTenantIds = [...activeDemoTenantIds, 'tenant-c'];
 const demoEmailDomain = '@educonnect.test';
+const staleDemoEmails = ['test@test.com'];
+const staleDemoNames = ['TEST', 'Student Demo', 'Student A', 'Student B'];
 
 // This script only cleans and regenerates known demo tenants/users. Never point these
 // IDs or the @educonnect.test domain at real production schools.
@@ -43,14 +45,14 @@ function deterministicUuid(input: string) {
 const tenants = [
   {
     id: 'tenant-a',
-    name: 'School A',
-    slug: 'school-a',
+    name: 'EduConnect Demo Academy',
+    slug: 'educonnect-demo-academy',
     metadata: { city: 'Pune', board: 'CBSE', academicYear: '2026-2027', timezone: 'Asia/Kolkata' },
   },
   {
     id: 'tenant-b',
-    name: 'School B',
-    slug: 'school-b',
+    name: 'EduConnect International School',
+    slug: 'educonnect-international-school',
     metadata: {
       city: 'Mumbai',
       board: 'ICSE',
@@ -180,16 +182,16 @@ const modulesByRole: Record<string, string[]> = {
 const seedUsers: SeedUser[] = [
   // Tenant A
   {
-    email: 'admin.a@educonnect.test',
+    email: 'admin.demo1@educonnect.test',
     password: demoPassword,
     role: 'admin',
     tenantId: 'tenant-a',
     staffId: 'adm-a-001',
-    displayName: 'School A Admin',
+    displayName: 'Demo Academy Admin',
     permissions: manageEverything,
   },
   {
-    email: 'student.a@educonnect.test',
+    email: 'student.a.demo1@educonnect.test',
     password: demoPassword,
     role: 'student',
     tenantId: 'tenant-a',
@@ -199,7 +201,7 @@ const seedUsers: SeedUser[] = [
     permissions: studentPermissions,
   },
   {
-    email: 'student.b@educonnect.test',
+    email: 'student.b.demo1@educonnect.test',
     password: demoPassword,
     role: 'student',
     tenantId: 'tenant-a',
@@ -209,7 +211,7 @@ const seedUsers: SeedUser[] = [
     permissions: studentPermissions,
   },
   {
-    email: 'teacher.a@educonnect.test',
+    email: 'teacher.math.demo1@educonnect.test',
     password: demoPassword,
     role: 'teacher',
     tenantId: 'tenant-a',
@@ -220,7 +222,7 @@ const seedUsers: SeedUser[] = [
     permissions: teacherPermissions,
   },
   {
-    email: 'teacher.b@educonnect.test',
+    email: 'teacher.english.demo1@educonnect.test',
     password: demoPassword,
     role: 'teacher',
     tenantId: 'tenant-a',
@@ -231,7 +233,7 @@ const seedUsers: SeedUser[] = [
     permissions: teacherPermissions,
   },
   {
-    email: 'librarian@educonnect.test',
+    email: 'librarian.demo1@educonnect.test',
     password: demoPassword,
     role: 'librarian',
     tenantId: 'tenant-a',
@@ -240,16 +242,16 @@ const seedUsers: SeedUser[] = [
     permissions: { manageLibrary: true, viewStudents: true, viewAssignments: true },
   },
   {
-    email: 'accountant.a@educonnect.test',
+    email: 'accountant.demo1@educonnect.test',
     password: demoPassword,
     role: 'accountant',
     tenantId: 'tenant-a',
     staffId: 'acc-a-001',
-    displayName: 'School A Accountant',
+    displayName: 'Demo Academy Accountant',
     permissions: { manageFees: true, viewStudents: true, viewReports: true, viewFinancials: true },
   },
   {
-    email: 'principal@educonnect.test',
+    email: 'principal.demo1@educonnect.test',
     password: demoPassword,
     role: 'principal',
     tenantId: 'tenant-a',
@@ -266,27 +268,27 @@ const seedUsers: SeedUser[] = [
     },
   },
   {
-    email: 'parent.a@educonnect.test',
+    email: 'parent.a.demo1@educonnect.test',
     password: demoPassword,
     role: 'parent',
     tenantId: 'tenant-a',
     displayName: 'Parent A',
-    linkedStudentIds: ['student.a@educonnect.test', 'student.b@educonnect.test'], // Will resolve to IDs
+    linkedStudentIds: ['student.a.demo1@educonnect.test', 'student.b.demo1@educonnect.test'], // Will resolve to IDs
     permissions: studentPermissions,
   },
 
   // Tenant B
   {
-    email: 'admin.b@educonnect.test',
+    email: 'admin.demo2@educonnect.test',
     password: demoPassword,
     role: 'admin',
     tenantId: 'tenant-b',
     staffId: 'adm-b-001',
-    displayName: 'School B Admin',
+    displayName: 'International School Admin',
     permissions: manageEverything,
   },
   {
-    email: 'student.c@educonnect.test',
+    email: 'student.a.demo2@educonnect.test',
     password: demoPassword,
     role: 'student',
     tenantId: 'tenant-b',
@@ -296,7 +298,7 @@ const seedUsers: SeedUser[] = [
     permissions: studentPermissions,
   },
   {
-    email: 'student.d@educonnect.test',
+    email: 'student.b.demo2@educonnect.test',
     password: demoPassword,
     role: 'student',
     tenantId: 'tenant-b',
@@ -306,7 +308,7 @@ const seedUsers: SeedUser[] = [
     permissions: studentPermissions,
   },
   {
-    email: 'teacher.c@educonnect.test',
+    email: 'teacher.math.demo2@educonnect.test',
     password: demoPassword,
     role: 'teacher',
     tenantId: 'tenant-b',
@@ -317,7 +319,7 @@ const seedUsers: SeedUser[] = [
     permissions: teacherPermissions,
   },
   {
-    email: 'librarian.b@educonnect.test',
+    email: 'librarian.demo2@educonnect.test',
     password: demoPassword,
     role: 'librarian',
     tenantId: 'tenant-b',
@@ -326,16 +328,16 @@ const seedUsers: SeedUser[] = [
     permissions: { manageLibrary: true, viewStudents: true, viewAssignments: true },
   },
   {
-    email: 'accountant.b@educonnect.test',
+    email: 'accountant.demo2@educonnect.test',
     password: demoPassword,
     role: 'accountant',
     tenantId: 'tenant-b',
     staffId: 'acc-b-001',
-    displayName: 'School B Accountant',
+    displayName: 'International School Accountant',
     permissions: { manageFees: true, viewStudents: true, viewReports: true, viewFinancials: true },
   },
   {
-    email: 'principal.b@educonnect.test',
+    email: 'principal.demo2@educonnect.test',
     password: demoPassword,
     role: 'principal',
     tenantId: 'tenant-b',
@@ -352,12 +354,12 @@ const seedUsers: SeedUser[] = [
     },
   },
   {
-    email: 'parent.b@educonnect.test',
+    email: 'parent.a.demo2@educonnect.test',
     password: demoPassword,
     role: 'parent',
     tenantId: 'tenant-b',
     displayName: 'Parent B',
-    linkedStudentIds: ['student.c@educonnect.test', 'student.d@educonnect.test'],
+    linkedStudentIds: ['student.a.demo2@educonnect.test', 'student.b.demo2@educonnect.test'],
     permissions: studentPermissions,
   },
 
@@ -415,7 +417,8 @@ async function cleanupKnownDemoData(supabase: SupabaseClient) {
   if (authListError) throw authListError;
 
   for (const user of authUsers.users) {
-    if (user.email?.toLowerCase().endsWith(demoEmailDomain)) {
+    const email = user.email?.toLowerCase() || '';
+    if (email.endsWith(demoEmailDomain) || staleDemoEmails.includes(email)) {
       const { error } = await supabase.auth.admin.deleteUser(user.id);
       if (error) console.warn(`Could not delete demo auth user ${user.email}: ${error.message}`);
     }
@@ -424,8 +427,14 @@ async function cleanupKnownDemoData(supabase: SupabaseClient) {
   await ignoreCleanupErrors('profiles', () =>
     supabase.from('profiles').delete().like('email', `%${demoEmailDomain}`)
   );
+  await ignoreCleanupErrors('stale profiles', () =>
+    supabase.from('profiles').delete().in('email', staleDemoEmails)
+  );
   await ignoreCleanupErrors('user_tenants', () =>
     supabase.from('user_tenants').delete().like('email', `%${demoEmailDomain}`)
+  );
+  await ignoreCleanupErrors('stale user_tenants', () =>
+    supabase.from('user_tenants').delete().in('email', staleDemoEmails)
   );
 
   const tenantScopedTables = ['attendance', 'assignments', 'fees', 'performance'];
@@ -445,6 +454,17 @@ async function cleanupKnownDemoData(supabase: SupabaseClient) {
     );
     await ignoreCleanupErrors(`documents schoolId ${tenantId}`, () =>
       supabase.from('documents').delete().contains('data', { schoolId: tenantId })
+    );
+  }
+
+  for (const email of staleDemoEmails) {
+    await ignoreCleanupErrors(`documents stale email ${email}`, () =>
+      supabase.from('documents').delete().contains('data', { email })
+    );
+  }
+  for (const displayName of staleDemoNames) {
+    await ignoreCleanupErrors(`documents stale displayName ${displayName}`, () =>
+      supabase.from('documents').delete().contains('data', { displayName })
     );
   }
 
@@ -602,10 +622,10 @@ async function seedAttendance(supabase: SupabaseClient, idsByEmail: Map<string, 
   >();
 
   const studentEmails = [
-    'student.a@educonnect.test',
-    'student.b@educonnect.test',
-    'student.c@educonnect.test',
-    'student.d@educonnect.test',
+    'student.a.demo1@educonnect.test',
+    'student.b.demo1@educonnect.test',
+    'student.a.demo2@educonnect.test',
+    'student.b.demo2@educonnect.test',
   ];
 
   for (const email of studentEmails) {
@@ -666,7 +686,7 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
       title: 'Algebra Practice Worksheet',
       subject: 'Mathematics',
       classes: ['A1', 'A2'],
-      teacher: 'teacher.a@educonnect.test',
+      teacher: 'teacher.math.demo1@educonnect.test',
     },
     {
       id: 'assign-a-002',
@@ -674,7 +694,7 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
       title: 'English Reading Reflection',
       subject: 'English',
       classes: ['A2'],
-      teacher: 'teacher.b@educonnect.test',
+      teacher: 'teacher.english.demo1@educonnect.test',
     },
     {
       id: 'assign-b-001',
@@ -682,7 +702,7 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
       title: 'Computer Science Basics Quiz',
       subject: 'Computer Science',
       classes: ['B1', 'B2'],
-      teacher: 'teacher.c@educonnect.test',
+      teacher: 'teacher.math.demo2@educonnect.test',
     },
   ];
 
@@ -901,7 +921,7 @@ async function seedLibrary(supabase: SupabaseClient, idsByEmail: Map<string, str
       subject: 'Mathematics',
       grade: '10',
       classIds: ['A1', 'A2'],
-      uploadedBy: 'librarian@educonnect.test',
+      uploadedBy: 'librarian.demo1@educonnect.test',
     },
     {
       id: 'library-tenant-a-science-lab',
@@ -910,7 +930,7 @@ async function seedLibrary(supabase: SupabaseClient, idsByEmail: Map<string, str
       subject: 'Science',
       grade: '10',
       classIds: ['A1'],
-      uploadedBy: 'librarian@educonnect.test',
+      uploadedBy: 'librarian.demo1@educonnect.test',
     },
     {
       id: 'library-tenant-b-cs-basics',
@@ -919,7 +939,7 @@ async function seedLibrary(supabase: SupabaseClient, idsByEmail: Map<string, str
       subject: 'Computer Science',
       grade: '9',
       classIds: ['B1', 'B2'],
-      uploadedBy: 'librarian.b@educonnect.test',
+      uploadedBy: 'librarian.demo2@educonnect.test',
     },
   ];
 
@@ -951,14 +971,14 @@ async function seedAnnouncements(supabase: SupabaseClient, idsByEmail: Map<strin
       tenantId: 'tenant-a',
       title: 'Welcome to the new academic week',
       content: 'Please review attendance, fee reminders, and assignment schedules for the week.',
-      authorEmail: 'principal@educonnect.test',
+      authorEmail: 'principal.demo1@educonnect.test',
     },
     {
       id: 'announcement-tenant-b-library',
       tenantId: 'tenant-b',
       title: 'Library resources updated',
       content: 'New Computer Science and English resources are available in the library module.',
-      authorEmail: 'principal.b@educonnect.test',
+      authorEmail: 'principal.demo2@educonnect.test',
     },
   ];
 
@@ -991,7 +1011,7 @@ async function seedNotifications(supabase: SupabaseClient, idsByEmail: Map<strin
       title: 'Attendance follow-up',
       message: 'Class A1 attendance is ready for review.',
       targetRoles: ['admin', 'principal', 'teacher'],
-      actorEmail: 'teacher.a@educonnect.test',
+      actorEmail: 'teacher.math.demo1@educonnect.test',
     },
     {
       id: 'notification-tenant-b-fees',
@@ -999,7 +1019,7 @@ async function seedNotifications(supabase: SupabaseClient, idsByEmail: Map<strin
       title: 'Fee reminder queue ready',
       message: 'Pending fee reminders are available for School B.',
       targetRoles: ['admin', 'principal', 'accountant'],
-      actorEmail: 'accountant.b@educonnect.test',
+      actorEmail: 'accountant.demo2@educonnect.test',
     },
   ];
 

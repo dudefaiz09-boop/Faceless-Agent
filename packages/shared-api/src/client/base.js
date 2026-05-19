@@ -1,4 +1,57 @@
 import { formatError } from '@educonnect/shared';
+export class ApiRequestError extends Error {
+  kind;
+  status;
+  endpoint;
+  method;
+  data;
+  constructor(args) {
+    super(args.message);
+    this.name = `Api${args.kind.charAt(0).toUpperCase()}${args.kind.slice(1)}Error`;
+    this.kind = args.kind;
+    this.status = args.status;
+    this.endpoint = args.endpoint;
+    this.method = args.method;
+    this.data = args.data;
+  }
+}
+function classifyResponse(status, body) {
+  const message = `${body?.error || ''} ${body?.message || ''}`.toLowerCase();
+  if (status === 401) return 'auth';
+  if (status === 403) return message.includes('tenant') ? 'tenant' : 'auth';
+  if (status === 400 && message.includes('tenant')) return 'tenant';
+  if (status === 400 || status === 422) return 'validation';
+  return 'server';
+}
+function userSafeMessage(kind, fallback) {
+  if (kind === 'network') return 'API server unreachable. Please check the API URL and try again.';
+  if (kind === 'auth') return 'You are not signed in or do not have permission.';
+  if (kind === 'tenant') return 'Tenant context missing or denied. Select a school and retry.';
+  if (kind === 'validation') return fallback || 'The request contains invalid data.';
+  return fallback || 'Server error, please try again.';
+}
+function runtimeOrigin() {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'http://localhost';
+}
+function baseEndsWithApi(baseUrl) {
+  try {
+    return new URL(baseUrl).pathname.replace(/\/+$/, '').endsWith('/api');
+  } catch {
+    return baseUrl.replace(/\/+$/, '').endsWith('/api');
+  }
+}
+function buildRequestUrl(baseUrl, path) {
+  const normalizedBase = (baseUrl || '').trim().replace(/\/+$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const requestPath =
+    baseEndsWithApi(normalizedBase) && /^\/api(\/|$)/.test(normalizedPath)
+      ? normalizedPath.replace(/^\/api(?=\/|$)/, '') || '/'
+      : normalizedPath;
+  return new URL(`${normalizedBase}${requestPath}`, runtimeOrigin());
+}
 export class ApiClient {
   config;
   requestInterceptors = [];
@@ -47,8 +100,7 @@ export class ApiClient {
       }
       throw new Error('NETWORK_OFFLINE');
     }
-    // Construct URL with params
-    const url = new URL(`${this.config.baseUrl}${path}`);
+    const url = buildRequestUrl(this.config.baseUrl, path);
     if (params) {
       Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
     }
@@ -61,6 +113,7 @@ export class ApiClient {
       try {
         const token = this.config.getToken ? await this.config.getToken() : null;
         const tenantId = this.config.getTenantId ? this.config.getTenantId() : null;
+        const method = (fetchConfig.method || 'GET').toUpperCase();
         const headers = new Headers(fetchConfig.headers);
         if (token && !headers.has('Authorization')) {
           headers.set('Authorization', `Bearer ${token}`);
@@ -70,6 +123,15 @@ export class ApiClient {
         }
         if (!headers.has('Content-Type')) {
           headers.set('Content-Type', 'application/json');
+        }
+        if (this.config.debug) {
+          console.debug('[ApiClient] request', {
+            baseUrl: this.config.baseUrl,
+            endpoint: url.pathname,
+            method,
+            selectedTenantId: tenantId,
+            hasToken: Boolean(token),
+          });
         }
         const response = await fetch(url.toString(), {
           ...fetchConfig,
@@ -83,11 +145,15 @@ export class ApiClient {
         }
         if (!response.ok) {
           const errorBody = await response.json().catch(() => ({}));
-          throw {
+          const kind = classifyResponse(response.status, errorBody);
+          throw new ApiRequestError({
+            kind,
             status: response.status,
-            message: errorBody.message || response.statusText,
+            message: userSafeMessage(kind, errorBody.message || response.statusText),
+            endpoint: url.pathname,
+            method,
             data: errorBody,
-          };
+          });
         }
         let data = await response.json();
         // Apply response interceptors
@@ -99,14 +165,29 @@ export class ApiClient {
         clearTimeout(id);
         if (cancelToken) this.abortControllers.delete(cancelToken);
         if (error.name === 'AbortError') {
-          throw new Error('Request Timeout or Cancelled');
+          throw new ApiRequestError({
+            kind: 'network',
+            message: 'API request timed out. Please try again.',
+            endpoint: url.pathname,
+            method: (fetchConfig.method || 'GET').toUpperCase(),
+            data: error,
+          });
         }
         // Retry logic for 5xx or network failures
         if (attempt < (retry ?? 0) && (error.status >= 500 || !error.status)) {
           await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt)));
           return execute(attempt + 1);
         }
-        throw formatError(error);
+        if (error instanceof ApiRequestError) {
+          throw error;
+        }
+        throw new ApiRequestError({
+          kind: 'network',
+          message: userSafeMessage('network', error?.message || 'Network request failed'),
+          endpoint: url.pathname,
+          method: (fetchConfig.method || 'GET').toUpperCase(),
+          data: formatError(error),
+        });
       }
     };
     return execute(0);

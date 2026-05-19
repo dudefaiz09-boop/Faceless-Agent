@@ -117,13 +117,23 @@ export const AnnouncementsPage = () => {
 
   const createAnnouncement = async (event: React.FormEvent) => {
     event.preventDefault();
+    const title = form.title.trim();
+    const content = form.content.trim();
+    if (title.length < 3 || content.length < 10) {
+      toast({
+        tone: 'error',
+        title: 'Announcement not posted',
+        description: 'Use a title of at least 3 characters and content of at least 10 characters.',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       await apiClient.request('/api/announcements', {
         method: 'POST',
         body: JSON.stringify({
-          title: form.title,
-          content: form.content,
+          title,
+          content,
           targetClasses: form.targetClasses
             .split(',')
             .map((item) => item.trim())
@@ -164,10 +174,15 @@ export const AnnouncementsPage = () => {
         description: 'The update is now visible to the selected audience.',
       });
     } catch (error) {
+      const apiError = error as Error & { data?: { message?: string; error?: string } };
       toast({
         tone: 'error',
         title: 'Announcement not posted',
-        description: (error as Error).message,
+        description:
+          apiError.data?.message ||
+          apiError.data?.error ||
+          apiError.message ||
+          'Please check the announcement fields and try again.',
       });
     } finally {
       setSubmitting(false);
@@ -398,7 +413,7 @@ export const AnnouncementsPage = () => {
                     required
                     value={form.title}
                     onChange={(event) => setForm({ ...form, title: event.target.value })}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none focus:ring-4 focus:ring-blue-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
                 </label>
                 <label className="space-y-2 md:col-span-2">
@@ -410,7 +425,7 @@ export const AnnouncementsPage = () => {
                     rows={7}
                     value={form.content}
                     onChange={(event) => setForm({ ...form, content: event.target.value })}
-                    className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold leading-7 outline-none focus:ring-4 focus:ring-blue-100"
+                    className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold leading-7 text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
                 </label>
                 <FormInput
@@ -437,7 +452,7 @@ export const AnnouncementsPage = () => {
                     onChange={(event) =>
                       setForm({ ...form, priority: event.target.value as Announcement['priority'] })
                     }
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   >
                     <option value="low">Low</option>
                     <option value="normal">Normal</option>
@@ -470,7 +485,7 @@ export const AnnouncementsPage = () => {
                     type="datetime-local"
                     value={form.scheduledFor}
                     onChange={(event) => setForm({ ...form, scheduledFor: event.target.value })}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none md:col-span-2"
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold text-slate-900 outline-none md:col-span-2 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
                 )}
               </div>
@@ -506,7 +521,7 @@ function FormInput({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none focus:ring-4 focus:ring-blue-100"
+        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
       />
     </label>
   );

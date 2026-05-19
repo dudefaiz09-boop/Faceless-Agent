@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { getDefaultClassId } from '../lib/tenant';
+import { getActiveTenantId, getDefaultClassId, getDemoClassesForTenant } from '../lib/tenant';
 import { validatePerformanceCSV, CSVValidationError } from '../lib/csvValidator';
 import {
   AreaChart,
@@ -56,6 +56,12 @@ interface PerformanceReport {
 export const PerformancePage = () => {
   const { user, isStudent, canManagePerformance, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
+  const activeTenantId = getActiveTenantId(schoolId);
+  const classOptions = React.useMemo(
+    () => getDemoClassesForTenant(activeTenantId),
+    [activeTenantId]
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [records, setRecords] = useState<PerformanceRecord[]>([]);
   const [report, setReport] = useState<PerformanceReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +76,14 @@ export const PerformancePage = () => {
   const [scoreSearch, setScoreSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!classOptions.some((option) => option.id === selectedClass)) {
+      queueMicrotask(() =>
+        setSelectedClass(userClassId || classOptions[0]?.id || getDefaultClassId(activeTenantId))
+      );
+    }
+  }, [activeTenantId, classOptions, selectedClass, userClassId]);
 
   const loadStudentData = useCallback(async () => {
     try {
@@ -165,6 +179,25 @@ export const PerformancePage = () => {
     setLoading(true);
   };
 
+  const readCsvFile = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setUploadText(String(reader.result || ''));
+    reader.readAsText(file);
+  };
+
+  const downloadPerformanceSample = () => {
+    const sample =
+      'studentId,subject,term,score,grade,class\nstudent_demo1_a,Mathematics,Term 1,85,A,10A\nstudent_demo1_b,Science,Term 1,72,B,10B';
+    const blob = new Blob([sample], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'educonnect-performance-sample.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleViewChange = (newView: 'analytics' | 'management') => {
     setView(newView);
     setLoading(true);
@@ -196,6 +229,37 @@ export const PerformancePage = () => {
       record.grade.toLowerCase().includes(query)
     );
   });
+
+  const exportPerformanceCsv = () => {
+    if (filteredRecords.length === 0) {
+      toast({
+        tone: 'warning',
+        title: 'No records',
+        description: 'There are no score rows to export.',
+      });
+      return;
+    }
+    const csv = [
+      'studentId,subject,term,score,grade,class',
+      ...filteredRecords.map((record) =>
+        [
+          record.studentId,
+          record.subject,
+          record.term,
+          record.score,
+          record.grade,
+          selectedClass,
+        ].join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `performance-${selectedClass}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const scoreColumns: Array<DataTableColumn<PerformanceRecord>> = [
     {
@@ -446,13 +510,18 @@ export const PerformancePage = () => {
                   onChange={(e) => handleClassChange(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl outline-none font-bold text-slate-700"
                 >
-                  <option value="10A">Class 10A</option>
-                  <option value="10B">Class 10B</option>
-                  <option value="9A">Class 9A</option>
+                  {classOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="pt-4 border-t border-slate-50 space-y-2">
-                <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group">
+                <button
+                  onClick={exportPerformanceCsv}
+                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group"
+                >
                   <span className="text-sm font-bold text-slate-600 group-hover:text-indigo-600">
                     Export Statistics
                   </span>
@@ -637,8 +706,31 @@ export const PerformancePage = () => {
                       value={uploadText}
                       onChange={(e) => setUploadText(e.target.value)}
                       placeholder="studentId, subject, term, score, grade&#10;user_uid_1, Mathematics, Term 1, 85, A&#10;user_uid_2, Science, Term 1, 72, B"
-                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-[32px] outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-mono text-xs leading-relaxed"
+                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-[32px] text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-mono text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="hidden"
+                      onChange={(event) => readCsvFile(event.target.files?.[0])}
+                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-100"
+                      >
+                        Choose CSV File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={downloadPerformanceSample}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
+                      >
+                        Download Sample CSV
+                      </button>
+                    </div>
                     <div className="bg-indigo-50 p-4 rounded-2xl flex gap-3 items-center">
                       <AlertCircle size={18} className="text-indigo-600" />
                       <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider">

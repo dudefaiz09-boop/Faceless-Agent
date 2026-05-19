@@ -330,22 +330,36 @@ export async function updateManagedUser(
   await userRef.update(after);
   await auth.setCustomUserClaims(uid, buildClaims(after));
 
-  // Update user_tenants if schoolId changed
-  if (before.schoolId !== after.schoolId) {
-    const supabase = (auth as any).getSupabaseAdmin ? (auth as any).getSupabaseAdmin() : null;
-    if (supabase) {
-      await supabase.from('user_tenants').upsert(
-        {
-          user_id: uid,
-          email: after.email,
-          tenant_id: after.schoolId,
-          role: after.role,
-          is_default: true,
-          is_active: after.status === 'active',
-        },
-        { onConflict: 'email,tenant_id' }
-      );
-    }
+  // Keep Supabase Auth/Profile state aligned with the document profile.
+  // Disabled users keep their records for referential integrity, but middleware denies access.
+  const supabase = (auth as any).getSupabaseAdmin ? (auth as any).getSupabaseAdmin() : null;
+  if (supabase) {
+    await supabase.from('profiles').upsert({
+      id: uid,
+      school_id: after.schoolId,
+      email: after.email,
+      display_name: after.displayName,
+      role: after.role,
+      roles: after.roles,
+      permissions: after.permissions,
+      class_ids: after.classIds,
+      linked_student_ids: after.linkedStudentIds,
+      assigned_modules: after.assignedModules,
+      status: after.status,
+      updated_at: after.updatedAt,
+    });
+    await supabase.from('user_tenants').upsert(
+      {
+        user_id: uid,
+        email: after.email,
+        tenant_id: after.schoolId,
+        role: after.role,
+        is_default: true,
+        is_active: after.status === 'active',
+        updated_at: after.updatedAt,
+      },
+      { onConflict: 'email,tenant_id' }
+    );
   }
 
   const changedKeys = getChangedKeys(before, after);

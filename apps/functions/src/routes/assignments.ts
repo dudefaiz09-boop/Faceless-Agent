@@ -132,24 +132,34 @@ router.post(['/', '/create'], checkPermission('manageAssignments'), async (req, 
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const targetClasses = [req.body.classId].filter(Boolean);
-    if (!req.body.title || !req.body.classId || !req.body.dueDate) {
+    const targetClasses = Array.isArray(req.body.targetClasses)
+      ? req.body.targetClasses.map(String).filter(Boolean)
+      : [req.body.classId].filter(Boolean);
+    const classId = String(req.body.classId || targetClasses[0] || '').trim();
+    const dueDate = String(req.body.dueDate || req.body.due_at || '').trim();
+    const title = String(req.body.title || '').trim();
+
+    if (!title || !classId || !dueDate) {
       return res.status(400).json({ error: 'title, classId, and dueDate are required' });
     }
 
     const assignment = {
       tenantId: req.tenantId,
       schoolId: req.tenantId,
-      title: req.body.title,
-      description: req.body.description,
-      dueDate: req.body.dueDate,
-      classId: req.body.classId,
-      targetClasses: targetClasses,
+      title,
+      description: req.body.description || '',
+      subject: req.body.subject || req.body.subjectId || 'General',
+      subjectId: req.body.subjectId || req.body.subject || 'General',
+      status: req.body.status || 'published',
+      dueDate,
+      classId,
+      targetClasses: targetClasses.length ? targetClasses : [classId],
       attachments: req.body.attachments || [],
       rubric: req.body.rubric || null,
       visibility: req.body.visibility || 'public',
       createdBy: req.user.uid,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     const docRef = await db.collection('assignments').add(assignment);
 
@@ -163,10 +173,36 @@ router.post(['/', '/create'], checkPermission('manageAssignments'), async (req, 
       schoolId: req.tenantId,
       tenantId: req.tenantId,
       actorId: req.user.uid,
-      metadata: { assignmentId: docRef.id, classId: req.body.classId, dueDate: assignment.dueDate },
+      metadata: { assignmentId: docRef.id, classId, dueDate: assignment.dueDate },
     });
 
     res.json({ id: docRef.id, ...assignment });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/:id', checkPermission('manageAssignments'), async (req, res, next) => {
+  try {
+    const assignmentRef = db.collection('assignments').doc(req.params.id);
+    const assignmentSnapshot = await assignmentRef.get();
+    if (!assignmentSnapshot.exists) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    const assignment = assignmentSnapshot.data() as Record<string, any>;
+    if (assignment.tenantId !== req.tenantId && assignment.schoolId !== req.tenantId) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
+    }
+
+    await assignmentRef.update({
+      status: 'archived',
+      deletedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: req.user?.uid,
+    });
+
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

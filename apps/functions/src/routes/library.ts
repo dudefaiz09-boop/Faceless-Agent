@@ -32,6 +32,7 @@ type BorrowRecord = {
   studentId: string;
   studentName: string;
   borrowedAt: string;
+  dueAt?: string;
   status: 'borrowed' | 'returned';
   returnedAt?: string | null;
   tenantId?: string;
@@ -83,7 +84,9 @@ router.get('/resources', async (req, res, next) => {
     const snapshot = await db.collection('library').where('tenantId', '==', req.tenantId).get();
 
     // Filter resources based on visibility and user role/class
-    const allResources = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const allResources = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((resource: any) => resource.status !== 'archived');
     const filteredResources = allResources.filter((resource: any) => {
       // Admin/librarian/principal see all
       if (user?.isAdmin || user?.roles.includes('librarian') || user?.roles.includes('principal')) {
@@ -235,6 +238,7 @@ router.post('/borrow', async (req, res, next) => {
     }
 
     const now = new Date().toISOString();
+    const dueAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
     const borrowRecord: BorrowRecord & Record<string, unknown> = {
       tenantId: req.tenantId,
       schoolId: req.tenantId,
@@ -242,6 +246,7 @@ router.post('/borrow', async (req, res, next) => {
       studentId: user.uid,
       studentName: user.displayName || user.email || 'Student',
       borrowedAt: now,
+      dueAt,
       status: 'borrowed',
       returnedAt: null,
     };
@@ -321,6 +326,33 @@ router.post('/return', async (req, res, next) => {
     });
 
     res.json({ success: true, id: recordId, status: 'returned' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/resources/:id', checkPermission('manageLibrary'), async (req, res, next) => {
+  try {
+    const user = requireUser(req, res);
+    if (!user) return;
+
+    const resourceRef = db.collection('library').doc(req.params.id);
+    const resourceSnapshot = await resourceRef.get();
+    if (!resourceSnapshot.exists) return res.status(404).json({ error: 'Resource not found' });
+
+    const resource = resourceSnapshot.data() as LibraryResource;
+    if (resource.tenantId !== req.tenantId && resource.schoolId !== req.tenantId) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
+    }
+
+    await resourceRef.update({
+      status: 'archived',
+      deletedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: user.uid,
+    });
+
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

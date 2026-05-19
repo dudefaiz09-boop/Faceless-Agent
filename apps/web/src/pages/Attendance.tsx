@@ -16,7 +16,7 @@ import {
 import { cn } from '../lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useDebounce } from '../lib/hooks';
-import { getDefaultClassId } from '../lib/tenant';
+import { getActiveTenantId, getDefaultClassId, getDemoClassesForTenant } from '../lib/tenant';
 import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
 import { Card } from '../components/ui/Card';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -92,6 +92,11 @@ function exportCsv(filename: string, rows: Array<Record<string, unknown>>) {
 export const AttendancePage = () => {
   const { user, canManageAttendance, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
+  const activeTenantId = getActiveTenantId(schoolId);
+  const classOptions = React.useMemo(
+    () => getDemoClassesForTenant(activeTenantId),
+    [activeTenantId]
+  );
 
   const [view, setView] = useState<'marking' | 'history' | 'reports'>(
     canManageAttendance ? 'marking' : 'history'
@@ -123,11 +128,20 @@ export const AttendancePage = () => {
     return userDocuments.filter((student) => {
       const studentSchoolId = student.schoolId || student.tenantId;
       const isStudent = student.role === 'student' || student.roles?.includes('student');
-      const matchesClass = student.classId === selectedClass;
-      const matchesSchool = !schoolId || !studentSchoolId || studentSchoolId === schoolId;
+      const studentClassIds = student.classIds || (student.classId ? [student.classId] : []);
+      const matchesClass = studentClassIds.includes(selectedClass);
+      const matchesSchool = !activeTenantId || studentSchoolId === activeTenantId;
       return isStudent && matchesClass && matchesSchool;
     });
-  }, [userDocuments, selectedClass, schoolId]);
+  }, [userDocuments, selectedClass, activeTenantId]);
+
+  useEffect(() => {
+    if (!classOptions.some((option) => option.id === selectedClass)) {
+      queueMicrotask(() =>
+        setSelectedClass(userClassId || classOptions[0]?.id || getDefaultClassId(activeTenantId))
+      );
+    }
+  }, [activeTenantId, classOptions, selectedClass, userClassId]);
 
   const loadMarkingData = useCallback(async () => {
     setLoading(true);
@@ -200,7 +214,8 @@ export const AttendancePage = () => {
   const markAllPresent = () => {
     const newRecords = { ...dailyRecords };
     students.forEach((s) => {
-      if (!newRecords[s.uid]) newRecords[s.uid] = 'present';
+      const studentId = s.uid || s.id;
+      if (studentId && !newRecords[studentId]) newRecords[studentId] = 'present';
     });
     setDailyRecords(newRecords);
   };
@@ -209,9 +224,9 @@ export const AttendancePage = () => {
     setSaving(true);
     try {
       const records = students.map((s) => ({
-        studentId: s.uid,
+        studentId: s.uid || s.id,
         studentName: s.displayName,
-        status: dailyRecords[s.uid] || 'absent',
+        status: dailyRecords[s.uid || s.id] || 'absent',
       }));
 
       await apiClient.request('/api/attendance/mark', {
@@ -254,7 +269,7 @@ export const AttendancePage = () => {
   const dailySummary = React.useMemo(() => {
     return students.reduce(
       (summary, student) => {
-        const status = dailyRecords[student.uid] || 'absent';
+        const status = dailyRecords[student.uid || student.id] || 'absent';
         summary[status] += 1;
         return summary;
       },
@@ -268,10 +283,10 @@ export const AttendancePage = () => {
       students.map((student) => ({
         date: selectedDate,
         classId: selectedClass,
-        studentId: student.uid,
+        studentId: student.uid || student.id,
         studentName: student.displayName || '',
         email: student.email || '',
-        status: dailyRecords[student.uid] || 'absent',
+        status: dailyRecords[student.uid || student.id] || 'absent',
       }))
     );
   };
@@ -401,9 +416,11 @@ export const AttendancePage = () => {
                     onChange={(e) => setSelectedClass(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 pl-11 pr-4 py-3 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all appearance-none"
                   >
-                    <option value="10A">10A</option>
-                    <option value="10B">10B</option>
-                    <option value="9A">9A</option>
+                    {classOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -484,42 +501,48 @@ export const AttendancePage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {filteredStudents.map((s) => (
-                        <tr key={s.uid} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs">
-                                {(s.displayName || '?')[0]}
+                      {filteredStudents.map((s) => {
+                        const studentId = s.uid || s.id;
+                        if (!studentId) return null;
+                        return (
+                          <tr key={studentId} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs">
+                                  {(s.displayName || '?')[0]}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-800 text-sm">
+                                    {s.displayName || 'Unnamed Student'}
+                                  </p>
+                                  <p className="text-xs text-slate-400">{s.email}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-bold text-slate-800 text-sm">
-                                  {s.displayName || 'Unnamed Student'}
-                                </p>
-                                <p className="text-xs text-slate-400">{s.email}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                {statusOptions.map((btn) => (
+                                  <button
+                                    key={btn.id}
+                                    onClick={() =>
+                                      handleMark(studentId, btn.id as AttendanceStatus)
+                                    }
+                                    className={cn(
+                                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border',
+                                      dailyRecords[studentId] === btn.id
+                                        ? btn.activeClass
+                                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                                    )}
+                                  >
+                                    <btn.icon size={14} />
+                                    {btn.label}
+                                  </button>
+                                ))}
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              {statusOptions.map((btn) => (
-                                <button
-                                  key={btn.id}
-                                  onClick={() => handleMark(s.uid, btn.id as AttendanceStatus)}
-                                  className={cn(
-                                    'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border',
-                                    dailyRecords[s.uid] === btn.id
-                                      ? btn.activeClass
-                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                                  )}
-                                >
-                                  <btn.icon size={14} />
-                                  {btn.label}
-                                </button>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

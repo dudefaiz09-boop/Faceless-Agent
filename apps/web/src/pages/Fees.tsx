@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { getDefaultClassId } from '../lib/tenant';
+import { getActiveTenantId, getDefaultClassId, getDemoClassesForTenant } from '../lib/tenant';
 import { validateFeesCSV, CSVValidationError } from '../lib/csvValidator';
 import {
   BarChart,
@@ -62,6 +62,7 @@ interface FeeReport {
     studentId: string;
     amountDue: number;
     amountPaid: number;
+    dueDate?: string;
     status: string;
   }>;
 }
@@ -90,6 +91,12 @@ function formatCurrency(amount: number): string {
 export const FeesPage = () => {
   const { user, isStudent, canManageFees, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
+  const activeTenantId = getActiveTenantId(schoolId);
+  const classOptions = React.useMemo(
+    () => getDemoClassesForTenant(activeTenantId),
+    [activeTenantId]
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
@@ -106,6 +113,14 @@ export const FeesPage = () => {
   const [feeSearch, setFeeSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!classOptions.some((option) => option.id === selectedClass)) {
+      queueMicrotask(() =>
+        setSelectedClass(userClassId || classOptions[0]?.id || getDefaultClassId(activeTenantId))
+      );
+    }
+  }, [activeTenantId, classOptions, selectedClass, userClassId]);
 
   const loadStudentData = React.useCallback(async () => {
     setLoading(true);
@@ -204,6 +219,25 @@ export const FeesPage = () => {
     }
   };
 
+  const readCsvFile = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setUploadText(String(reader.result || ''));
+    reader.readAsText(file);
+  };
+
+  const downloadFeeSample = () => {
+    const sample =
+      'studentId,amountDue,dueDate,status,amountPaid\nstudent_demo1_a,5000,2026-06-30,pending,0\nstudent_demo1_b,4500,2026-06-15,paid,4500';
+    const blob = new Blob([sample], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'educonnect-fees-sample.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const processPayment = async (feeId: string, amount: number) => {
     try {
       await apiClient.request('/api/fees/pay', {
@@ -246,6 +280,37 @@ export const FeesPage = () => {
       record.studentId.toLowerCase().includes(query)
     );
   }, [report, feeSearch]);
+
+  const exportFeeCsv = () => {
+    const rows = filteredFeeRecords;
+    if (rows.length === 0) {
+      toast({
+        tone: 'warning',
+        title: 'No records',
+        description: 'There are no fee rows to export.',
+      });
+      return;
+    }
+    const csv = [
+      'studentId,amountDue,dueDate,status,amountPaid',
+      ...rows.map((record) =>
+        [
+          record.studentId,
+          record.amountDue,
+          record.dueDate || '',
+          record.status,
+          record.amountPaid,
+        ].join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `fees-${selectedClass}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const feeColumns: Array<DataTableColumn<FeeReport['records'][number]>> = [
     {
@@ -484,13 +549,18 @@ export const FeesPage = () => {
                   onChange={(e) => setSelectedClass(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl outline-none font-bold text-slate-700"
                 >
-                  <option value="10A">Class 10A</option>
-                  <option value="10B">Class 10B</option>
-                  <option value="9A">Class 9A</option>
+                  {classOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="pt-4 border-t border-slate-50 space-y-2">
-                <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group">
+                <button
+                  onClick={exportFeeCsv}
+                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group"
+                >
                   <span className="text-sm font-bold text-slate-600 group-hover:text-blue-600">
                     Download Excel
                   </span>
@@ -675,11 +745,34 @@ export const FeesPage = () => {
                       rows={8}
                       value={uploadText}
                       onChange={(e) => setUploadText(e.target.value)}
-                      placeholder="studentId, amountDue, yyyy-mm-dd&#10;user_uid_1, 5000, 2026-05-30&#10;user_uid_2, 4500, 2026-06-15"
-                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 transition-all font-mono text-xs leading-relaxed"
+                      placeholder="studentId,amountDue,dueDate,status,amountPaid&#10;student_demo1_a,5000,2026-06-30,pending,0&#10;student_demo1_b,4500,2026-06-15,paid,4500"
+                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-3xl text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 transition-all font-mono text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="hidden"
+                      onChange={(event) => readCsvFile(event.target.files?.[0])}
+                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-blue-700 hover:bg-blue-100"
+                      >
+                        Choose CSV File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={downloadFeeSample}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
+                      >
+                        Download Sample CSV
+                      </button>
+                    </div>
                     <p className="text-[10px] text-slate-400 font-bold uppercase text-center tracking-wider">
-                      Format: UID, Amount, DueDate (one per line)
+                      Format: studentId, amountDue, dueDate, status, amountPaid
                     </p>
                   </div>
 

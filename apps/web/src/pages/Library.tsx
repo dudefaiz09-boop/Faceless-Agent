@@ -12,6 +12,7 @@ import {
   Filter,
   Layers,
   GraduationCap,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDebounce } from '../lib/hooks';
@@ -21,6 +22,7 @@ import { StatCard } from '../components/saas/StatCard';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
+import { FileUpload } from '../components/FileUpload';
 
 interface TimestampLike {
   toDate: () => Date;
@@ -51,6 +53,7 @@ interface BorrowRecord {
   studentId: string;
   studentName: string;
   borrowedAt: TimestampLike | string | number | null;
+  dueAt?: TimestampLike | string | number | null;
   status: 'borrowed' | 'returned';
   returnedAt: TimestampLike | string | number | null;
 }
@@ -243,6 +246,27 @@ export const LibraryPage = () => {
         tone: 'error',
         title: 'Return failed',
         description: 'Unable to update this borrowing record.',
+      });
+    }
+  };
+
+  const deleteResource = async (resource: LibraryResource) => {
+    if (!canManageLibrary) return;
+    if (!window.confirm(`Delete "${resource.title}" from the catalog?`)) return;
+
+    try {
+      await apiClient.request(`/api/library/resources/${resource.id}`, { method: 'DELETE' });
+      await loadResources();
+      toast({
+        tone: 'success',
+        title: 'Resource deleted',
+        description: 'The library catalog has been updated.',
+      });
+    } catch (error) {
+      toast({
+        tone: 'error',
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Unable to delete this resource.',
       });
     }
   };
@@ -447,6 +471,15 @@ export const LibraryPage = () => {
                             <Layers size={18} />
                           </button>
                         )}
+                        {canManageLibrary && (
+                          <button
+                            onClick={() => deleteResource(res)}
+                            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            title="Delete resource"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -487,6 +520,11 @@ export const LibraryPage = () => {
                           <p className="text-xs text-slate-400">
                             Borrowed: {formatTimestamp(record.borrowedAt)}
                           </p>
+                          {record.status === 'borrowed' && record.dueAt && (
+                            <p className="text-xs font-bold text-amber-600">
+                              Due: {formatTimestamp(record.dueAt)}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -576,14 +614,13 @@ export const LibraryPage = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                    File URL
+                    File upload
                   </label>
-                  <input
-                    required
-                    value={uploadData.fileUrl}
-                    onChange={(e) => setUploadData({ ...uploadData, fileUrl: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl outline-none"
-                    placeholder="https://..."
+                  <FileUpload
+                    label=""
+                    path="library/resources"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                    onUploadComplete={(url) => setUploadData({ ...uploadData, fileUrl: url })}
                   />
                 </div>
                 <div className="space-y-2">
