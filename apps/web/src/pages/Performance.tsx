@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { getDefaultClassId } from '../lib/tenant';
 import { validatePerformanceCSV, CSVValidationError } from '../lib/csvValidator';
 import {
   AreaChart,
@@ -53,7 +54,7 @@ interface PerformanceReport {
 }
 
 export const PerformancePage = () => {
-  const { user, isStudent, canManagePerformance, classId: userClassId } = useAuth();
+  const { user, isStudent, canManagePerformance, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
   const [records, setRecords] = useState<PerformanceRecord[]>([]);
   const [report, setReport] = useState<PerformanceReport | null>(null);
@@ -65,7 +66,7 @@ export const PerformancePage = () => {
   // Import State
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadText, setUploadText] = useState('');
-  const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [selectedClass, setSelectedClass] = useState(userClassId || getDefaultClassId(schoolId));
   const [scoreSearch, setScoreSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { UserRole, ROLES, getUserRole, hasPermission } from '@educonnect/shared';
 import { supabase } from '../lib/supabase';
+import { clearStoredTenantId, resolveActiveTenantId, setStoredTenantId } from '../lib/tenant';
 
 export enum OperationType {
   CREATE = 'create',
@@ -83,6 +84,11 @@ type UserProfileData = {
   permissions?: Record<string, boolean>;
   schoolId?: string | null;
   tenantId?: string | null;
+  defaultTenantId?: string | null;
+  is_super_admin?: boolean;
+  isSuperAdmin?: boolean;
+  managed_tenant_ids?: string[];
+  managedTenantIds?: string[];
   classId?: string | null;
   classIds?: string[];
   subjectIds?: string[];
@@ -171,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSectionIds([]);
       setAssignedModules([]);
       setLinkedStudentIds([]);
+      clearStoredTenantId();
       latestAuthInfo = {};
       setLoading(false);
       return;
@@ -188,15 +195,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const profile = await getProfile(session.user.id);
       const appMetadata = session.user.app_metadata || {};
-      const nextIsSuperAdmin = !!profile.is_super_admin || !!appMetadata.isSuperAdmin;
-      const nextManagedTenantIds = profile.managed_tenant_ids || appMetadata.managedTenantIds || [];
+      const nextIsSuperAdmin =
+        !!profile.is_super_admin || !!profile.isSuperAdmin || !!appMetadata.isSuperAdmin;
+      const nextManagedTenantIds =
+        profile.managed_tenant_ids ||
+        profile.managedTenantIds ||
+        appMetadata.managedTenantIds ||
+        [];
 
       setIsSuperAdmin(nextIsSuperAdmin);
       setManagedTenantIds(nextManagedTenantIds);
 
       const nextRoles = profile.roles || appMetadata.roles || [];
       const nextPermissions = profile.permissions || appMetadata.permissions || {};
-      const nextSchoolId = profile.schoolId || appMetadata.schoolId || null;
+      const profileTenantId =
+        profile.tenantId ||
+        profile.schoolId ||
+        appMetadata.tenantId ||
+        appMetadata.schoolId ||
+        null;
+      const nextSchoolId = resolveActiveTenantId({
+        isSuperAdmin: nextIsSuperAdmin,
+        managedTenantIds: nextManagedTenantIds,
+        profileTenantId,
+        defaultTenantId: profile.defaultTenantId || appMetadata.defaultTenantId || 'tenant-a',
+      });
 
       setRoles(nextRoles);
       setPermissions(nextPermissions);
@@ -212,7 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLinkedStudentIds(profile.linkedStudentIds || appMetadata.linkedStudentIds || []);
 
       if (nextSchoolId) {
-        localStorage.setItem('educonnect_school_id', nextSchoolId);
+        setStoredTenantId(nextSchoolId);
       }
     } catch (error) {
       console.error('Error fetching Supabase profile:', error);

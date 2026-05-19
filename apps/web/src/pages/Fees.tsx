@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { getDefaultClassId } from '../lib/tenant';
 import { validateFeesCSV, CSVValidationError } from '../lib/csvValidator';
 import {
   BarChart,
@@ -87,7 +88,7 @@ function formatCurrency(amount: number): string {
 }
 
 export const FeesPage = () => {
-  const { user, isStudent, canManageFees, classId: userClassId } = useAuth();
+  const { user, isStudent, canManageFees, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
 
   const [fees, setFees] = useState<FeeRecord[]>([]);
@@ -101,7 +102,7 @@ export const FeesPage = () => {
   // Management State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadText, setUploadText] = useState('');
-  const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [selectedClass, setSelectedClass] = useState(userClassId || getDefaultClassId(schoolId));
   const [feeSearch, setFeeSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);

@@ -1,4 +1,5 @@
 import { db } from './documents.js';
+import { getTenantId } from './context.js';
 
 export interface NotificationAudience {
   targetUserIds?: string[];
@@ -19,6 +20,19 @@ export interface NotificationInput extends NotificationAudience {
 
 export async function createNotification(input: NotificationInput) {
   const now = new Date().toISOString();
+  let contextTenantId: string | null;
+
+  try {
+    contextTenantId = getTenantId();
+  } catch {
+    contextTenantId = null;
+  }
+
+  const tenantId = input.tenantId || input.schoolId || contextTenantId;
+  if (!tenantId) {
+    throw Object.assign(new Error('Tenant Context Required'), { statusCode: 400 });
+  }
+
   const notification = {
     title: input.title,
     message: input.message,
@@ -27,8 +41,8 @@ export async function createNotification(input: NotificationInput) {
     targetUserIds: input.targetUserIds || [],
     targetRoles: input.targetRoles?.length ? input.targetRoles : ['all'],
     targetClasses: input.targetClasses?.length ? input.targetClasses : ['all'],
-    schoolId: input.schoolId || input.tenantId || 'default-school',
-    tenantId: input.tenantId || input.schoolId || 'default-school',
+    schoolId: input.schoolId || tenantId,
+    tenantId,
     actorId: input.actorId || null,
     readBy: [],
     archived: false,

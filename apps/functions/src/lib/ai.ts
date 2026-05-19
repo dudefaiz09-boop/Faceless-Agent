@@ -2,6 +2,7 @@ import { AiGenerationConfig } from './ai-providers/base.provider.js';
 import { OfflineAiProvider } from './ai-providers/offline.provider.js';
 
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
+const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /**
  * Prioritized list of approved free OpenRouter models for fallback.
@@ -21,6 +22,14 @@ function getOpenRouterApiKey(): string {
   return process.env.OPENROUTER_API_KEY || '';
 }
 
+function getGeminiApiKey(): string {
+  return process.env.GEMINI_API_KEY || '';
+}
+
+function getGeminiModel(): string {
+  return process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+}
+
 function getHttpReferer(): string {
   return process.env.PUBLIC_APP_URL || 'http://localhost:5173';
 }
@@ -31,7 +40,7 @@ function sanitizeFreeModel(model?: string): string {
 }
 
 export function isAiEnabled() {
-  return Boolean(getOpenRouterApiKey());
+  return Boolean(getOpenRouterApiKey() || getGeminiApiKey());
 }
 
 export function getOpenRouterModel() {
@@ -40,19 +49,69 @@ export function getOpenRouterModel() {
 
 export function getAiRuntimeStatus() {
   const hasOpenRouterKey = Boolean(getOpenRouterApiKey());
+  const hasGeminiKey = Boolean(getGeminiApiKey());
   const model = getOpenRouterModel();
+  const provider = hasOpenRouterKey ? 'openrouter' : hasGeminiKey ? 'gemini' : 'offline';
 
   return {
-    enabled: hasOpenRouterKey,
-    provider: 'openrouter',
-    model,
-    mode: hasOpenRouterKey ? 'live' : 'offline-fallback',
+    enabled: hasOpenRouterKey || hasGeminiKey,
+    provider,
+    model: hasOpenRouterKey ? model : hasGeminiKey ? getGeminiModel() : 'offline',
+    mode: hasOpenRouterKey || hasGeminiKey ? 'live' : 'offline-fallback',
     hasOpenRouterKey,
+    hasGeminiKey,
     freeModelEnforced: true,
     allowedFreeModels: Array.from(FREE_OPENROUTER_MODELS),
     runtime: process.env.VERCEL_URL ? 'vercel' : 'local',
     checkedAt: new Date().toISOString(),
   };
+}
+
+async function callGeminiModel(
+  systemInstruction: string,
+  userPrompt: string,
+  config: AiGenerationConfig = {}
+): Promise<string> {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API key missing');
+  }
+
+  const model = getGeminiModel();
+  const response = await fetch(`${geminiBaseUrl}/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: systemInstruction }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPrompt }],
+        },
+      ],
+      generationConfig: {
+        maxOutputTokens: config.maxOutputTokens || 900,
+        temperature: config.temperature ?? 0.35,
+        topP: config.topP ?? 0.9,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini error: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const parts = payload?.candidates?.[0]?.content?.parts || [];
+  return parts
+    .map((part: { text?: string }) => part.text || '')
+    .join('')
+    .trim();
 }
 
 async function callOpenRouterFreeModel(
@@ -113,6 +172,17 @@ export async function generateSafeContent(
 
   const apiKey = getOpenRouterApiKey();
   if (!apiKey) {
+    if (getGeminiApiKey()) {
+      try {
+        const response = await callGeminiModel(systemInstruction, userPrompt, config);
+        if (response.trim()) {
+          return response;
+        }
+      } catch (error) {
+        console.error('[AI] Gemini fallback failed:', error);
+      }
+    }
+
     const offlineProvider = new OfflineAiProvider();
     return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
   }
@@ -135,6 +205,17 @@ export async function generateSafeContent(
       }
     } catch (error) {
       console.error(`[AI] Free model ${model} failed:`, error);
+    }
+  }
+
+  if (getGeminiApiKey()) {
+    try {
+      const response = await callGeminiModel(systemInstruction, userPrompt, config);
+      if (response.trim()) {
+        return response;
+      }
+    } catch (error) {
+      console.error('[AI] Gemini fallback failed:', error);
     }
   }
 

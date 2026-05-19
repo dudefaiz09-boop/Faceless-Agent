@@ -18,7 +18,11 @@ interface NotificationDoc {
   [key: string]: any;
 }
 
-function canSeeNotification(notification: NotificationDoc, user: NonNullable<Request['user']>) {
+function canSeeNotification(
+  notification: NotificationDoc,
+  user: NonNullable<Request['user']>,
+  activeTenantId?: string
+) {
   const archivedBy = notification.archivedBy || [];
   if (archivedBy.includes(user.uid)) return false;
 
@@ -33,7 +37,7 @@ function canSeeNotification(notification: NotificationDoc, user: NonNullable<Req
   const classMatch =
     targetClasses.includes('all') ||
     user.classIds.some((classId) => targetClasses.includes(classId));
-  const schoolMatch = !schoolId || !user.schoolId || schoolId === user.schoolId;
+  const schoolMatch = !schoolId || schoolId === activeTenantId || schoolId === user.schoolId;
 
   return !notification.archived && userMatch && roleMatch && classMatch && schoolMatch;
 }
@@ -50,7 +54,7 @@ router.get('/', async (req, res, next) => {
       .get();
     const notifications = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((notification) => canSeeNotification(notification, req.user!));
+      .filter((notification) => canSeeNotification(notification, req.user!, req.tenantId));
 
     res.json(notifications);
   } catch (error) {
@@ -74,7 +78,7 @@ router.post('/', checkAdmin, async (req, res, next) => {
       targetUserIds: Array.isArray(req.body.targetUserIds) ? req.body.targetUserIds : [],
       targetRoles: Array.isArray(req.body.targetRoles) ? req.body.targetRoles : ['all'],
       targetClasses: Array.isArray(req.body.targetClasses) ? req.body.targetClasses : ['all'],
-      schoolId: req.user.schoolId,
+      schoolId: req.tenantId,
       tenantId: req.tenantId,
       actorId: req.user.uid,
       metadata: req.body.metadata || {},
@@ -99,7 +103,7 @@ router.patch('/read-all', async (req, res, next) => {
       .get();
     const visible = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((notification) => canSeeNotification(notification, req.user!));
+      .filter((notification) => canSeeNotification(notification, req.user!, req.tenantId));
 
     await Promise.all(
       visible.map((notification: NotificationDoc) =>
@@ -128,7 +132,7 @@ router.patch('/:id/read', async (req, res, next) => {
     if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
 
     const notification = { id: snapshot.id, ...snapshot.data() };
-    if (!canSeeNotification(notification, req.user)) {
+    if (!canSeeNotification(notification, req.user, req.tenantId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -152,7 +156,7 @@ router.delete('/read', async (req, res, next) => {
       .get();
     const visible = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((notification) => canSeeNotification(notification, req.user!));
+      .filter((notification) => canSeeNotification(notification, req.user!, req.tenantId));
 
     const readNotifications = visible.filter((n: NotificationDoc) =>
       n.readBy?.includes(req.user!.uid)
@@ -185,7 +189,7 @@ router.delete('/:id', async (req, res, next) => {
     if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
 
     const notification = { id: snapshot.id, ...snapshot.data() };
-    if (!canSeeNotification(notification, req.user)) {
+    if (!canSeeNotification(notification, req.user, req.tenantId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

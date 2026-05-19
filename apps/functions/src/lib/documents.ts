@@ -243,8 +243,16 @@ export const db = {
 };
 
 async function getUserProfile(uid: string) {
-  const snapshot = await db.collection('users').doc(uid).get();
-  return snapshot.exists ? snapshot.data() || {} : {};
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from('documents')
+    .select('data')
+    .eq('collection', 'users')
+    .eq('id', uid)
+    .maybeSingle<{ data: DocumentData | null }>();
+
+  if (error) throw error;
+  return data?.data || {};
 }
 
 export const auth = {
@@ -268,7 +276,19 @@ export const auth = {
       role: profile.role || appMetadata.role || (profile.roles || appMetadata.roles || [])[0],
       roles: profile.roles || appMetadata.roles || [],
       isAdmin: !!profile.isAdmin || !!appMetadata.isAdmin,
-      schoolId: profile.schoolId || appMetadata.schoolId || null,
+      isSuperAdmin:
+        !!profile.isSuperAdmin || !!profile.is_super_admin || !!appMetadata.isSuperAdmin,
+      managedTenantIds:
+        profile.managedTenantIds ||
+        profile.managed_tenant_ids ||
+        appMetadata.managedTenantIds ||
+        [],
+      schoolId:
+        profile.schoolId ||
+        profile.tenantId ||
+        appMetadata.schoolId ||
+        appMetadata.tenantId ||
+        null,
       classId: profile.classId || appMetadata.classId || null,
       classIds:
         profile.classIds ||

@@ -16,6 +16,7 @@ import {
 import { cn } from '../lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useDebounce } from '../lib/hooks';
+import { getDefaultClassId } from '../lib/tenant';
 import { AttendanceRecord, StudentProfile as Student } from '@educonnect/shared';
 import { Card } from '../components/ui/Card';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -98,7 +99,7 @@ export const AttendancePage = () => {
 
   // Shared state
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [selectedClass, setSelectedClass] = useState(userClassId || getDefaultClassId(schoolId));
   const [loading, setLoading] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 

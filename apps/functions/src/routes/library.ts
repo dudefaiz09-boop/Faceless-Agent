@@ -156,7 +156,7 @@ router.post('/upload', checkPermission('manageLibrary'), async (req, res, next) 
     const now = new Date().toISOString();
     const resource: LibraryResource & Record<string, unknown> = {
       tenantId: req.tenantId,
-      schoolId: user.schoolId,
+      schoolId: req.tenantId,
       title,
       description,
       subject,
@@ -196,7 +196,7 @@ router.post('/upload', checkPermission('manageLibrary'), async (req, res, next) 
       type: 'system',
       href: '/library',
       ...notificationTargets,
-      schoolId: user.schoolId,
+      schoolId: req.tenantId,
       tenantId: req.tenantId,
       actorId: user.uid,
       metadata: { resourceId: ref.id, subject, grade, type },
@@ -237,7 +237,7 @@ router.post('/borrow', async (req, res, next) => {
     const now = new Date().toISOString();
     const borrowRecord: BorrowRecord & Record<string, unknown> = {
       tenantId: req.tenantId,
-      schoolId: user.schoolId,
+      schoolId: req.tenantId,
       resourceId,
       studentId: user.uid,
       studentName: user.displayName || user.email || 'Student',
@@ -258,7 +258,7 @@ router.post('/borrow', async (req, res, next) => {
       type: 'system',
       href: '/library',
       targetUserIds: [user.uid],
-      schoolId: user.schoolId,
+      schoolId: req.tenantId,
       tenantId: req.tenantId,
       actorId: user.uid,
       metadata: { resourceId, borrowRecordId: recordRef.id },
@@ -314,7 +314,7 @@ router.post('/return', async (req, res, next) => {
       type: 'system',
       href: '/library',
       targetUserIds: [record.studentId],
-      schoolId: user.schoolId,
+      schoolId: req.tenantId,
       tenantId: req.tenantId,
       actorId: user.uid,
       metadata: { resourceId: record.resourceId, borrowRecordId: recordId },

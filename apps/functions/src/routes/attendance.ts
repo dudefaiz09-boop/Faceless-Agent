@@ -162,7 +162,7 @@ router.post('/mark', checkPermission('markAttendance'), async (req, res, next) =
 
     await db.collection('attendance').doc(docId).set({
       tenantId: req.tenantId,
-      schoolId: req.user.schoolId,
+      schoolId: req.tenantId,
       classId,
       date,
       records: normalizedRecords,
@@ -173,7 +173,7 @@ router.post('/mark', checkPermission('markAttendance'), async (req, res, next) =
     // Defer processing of notifications to the background
     appEvents.emit('attendanceMarked', {
       tenantId: req.tenantId,
-      schoolId: req.user.schoolId,
+      schoolId: req.tenantId,
       actorId: req.user.uid,
       classId,
       date,

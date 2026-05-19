@@ -1,4 +1,4 @@
-import { ErrorCode, formatError } from '@educonnect/shared';
+import { formatError } from '@educonnect/shared';
 
 export interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
@@ -19,6 +19,51 @@ export interface ApiClientConfig {
   defaultTimeout?: number;
   defaultRetry?: number;
   isOnline?: () => boolean;
+  debug?: boolean;
+}
+
+export type ApiErrorKind = 'network' | 'auth' | 'tenant' | 'validation' | 'server';
+
+export class ApiRequestError extends Error {
+  readonly kind: ApiErrorKind;
+  readonly status?: number;
+  readonly endpoint: string;
+  readonly method: string;
+  readonly data?: any;
+
+  constructor(args: {
+    kind: ApiErrorKind;
+    message: string;
+    status?: number;
+    endpoint: string;
+    method: string;
+    data?: any;
+  }) {
+    super(args.message);
+    this.name = `Api${args.kind.charAt(0).toUpperCase()}${args.kind.slice(1)}Error`;
+    this.kind = args.kind;
+    this.status = args.status;
+    this.endpoint = args.endpoint;
+    this.method = args.method;
+    this.data = args.data;
+  }
+}
+
+function classifyResponse(status: number, body: any): ApiErrorKind {
+  const message = `${body?.error || ''} ${body?.message || ''}`.toLowerCase();
+  if (status === 401) return 'auth';
+  if (status === 403) return message.includes('tenant') ? 'tenant' : 'auth';
+  if (status === 400 && message.includes('tenant')) return 'tenant';
+  if (status === 400 || status === 422) return 'validation';
+  return 'server';
+}
+
+function userSafeMessage(kind: ApiErrorKind, fallback: string) {
+  if (kind === 'network') return 'API server unreachable. Please check the API URL and try again.';
+  if (kind === 'auth') return 'You are not signed in or do not have permission.';
+  if (kind === 'tenant') return 'Tenant context missing or denied. Select a school and retry.';
+  if (kind === 'validation') return fallback || 'The request contains invalid data.';
+  return fallback || 'Server error, please try again.';
 }
 
 function runtimeOrigin() {
@@ -59,7 +104,7 @@ export class ApiClient {
       defaultTimeout: 15000, // 15s default for mobile stability
       defaultRetry: 3,
       isOnline: () => (typeof navigator !== 'undefined' ? navigator.onLine : true),
-      getTenantId: () => 'default-school', // Fallback for migration
+      getTenantId: () => null,
       ...config,
     };
   }
@@ -123,6 +168,7 @@ export class ApiClient {
       try {
         const token = this.config.getToken ? await this.config.getToken() : null;
         const tenantId = this.config.getTenantId ? this.config.getTenantId() : null;
+        const method = (fetchConfig.method || 'GET').toUpperCase();
 
         const headers = new Headers(fetchConfig.headers);
         if (token && !headers.has('Authorization')) {
@@ -133,6 +179,16 @@ export class ApiClient {
         }
         if (!headers.has('Content-Type')) {
           headers.set('Content-Type', 'application/json');
+        }
+
+        if (this.config.debug) {
+          console.debug('[ApiClient] request', {
+            baseUrl: this.config.baseUrl,
+            endpoint: url.pathname,
+            method,
+            selectedTenantId: tenantId,
+            hasToken: Boolean(token),
+          });
         }
 
         const response = await fetch(url.toString(), {
@@ -150,11 +206,15 @@ export class ApiClient {
 
         if (!response.ok) {
           const errorBody = await response.json().catch(() => ({}));
-          throw {
+          const kind = classifyResponse(response.status, errorBody);
+          throw new ApiRequestError({
+            kind,
             status: response.status,
-            message: errorBody.message || response.statusText,
+            message: userSafeMessage(kind, errorBody.message || response.statusText),
+            endpoint: url.pathname,
+            method,
             data: errorBody,
-          };
+          });
         }
 
         let data = await response.json();
@@ -170,7 +230,13 @@ export class ApiClient {
         if (cancelToken) this.abortControllers.delete(cancelToken);
 
         if (error.name === 'AbortError') {
-          throw new Error('Request Timeout or Cancelled');
+          throw new ApiRequestError({
+            kind: 'network',
+            message: 'API request timed out. Please try again.',
+            endpoint: url.pathname,
+            method: (fetchConfig.method || 'GET').toUpperCase(),
+            data: error,
+          });
         }
 
         // Retry logic for 5xx or network failures
@@ -179,7 +245,17 @@ export class ApiClient {
           return execute(attempt + 1);
         }
 
-        throw formatError(error);
+        if (error instanceof ApiRequestError) {
+          throw error;
+        }
+
+        throw new ApiRequestError({
+          kind: 'network',
+          message: userSafeMessage('network', error?.message || 'Network request failed'),
+          endpoint: url.pathname,
+          method: (fetchConfig.method || 'GET').toUpperCase(),
+          data: formatError(error),
+        });
       }
     };
 

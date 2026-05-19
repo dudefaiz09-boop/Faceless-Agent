@@ -23,6 +23,7 @@ import {
   AssignmentSubmission as Submission,
 } from '@educonnect/shared-education';
 import { assignmentsService } from '../lib/api-client';
+import { getDefaultClassId } from '../lib/tenant';
 import { FileUpload } from '../components/FileUpload';
 import { EmptyState } from '../components/saas/EmptyState';
 import { SearchBar } from '../components/saas/SearchBar';
@@ -36,7 +37,7 @@ export const AssignmentsPage = () => {
   const { toast } = useToast();
   const uid = user?.uid;
 
-  const [selectedClass, setSelectedClass] = useState(userClassId || '10A');
+  const [selectedClass, setSelectedClass] = useState(userClassId || getDefaultClassId(schoolId));
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(() => Date.now());

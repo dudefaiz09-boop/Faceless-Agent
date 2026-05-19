@@ -13,13 +13,16 @@ function actorFromRequest(req: any) {
   return {
     uid: req.user.uid,
     email: req.user.email,
-    schoolId: req.user.schoolId,
+    schoolId: req.tenantId || req.user.schoolId,
   };
 }
 
 router.post('/create', checkAdmin, async (req, res, next) => {
   try {
-    const profile = await createManagedUser(req.body, actorFromRequest(req));
+    const profile = await createManagedUser(
+      { ...req.body, tenantId: req.body.tenantId || req.tenantId },
+      actorFromRequest(req)
+    );
     res.status(201).json({ success: true, profile });
   } catch (error) {
     next(error);

@@ -70,8 +70,8 @@ router.post('/', checkPermission('manageAnnouncements'), async (req, res, next) 
       timestamp: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      schoolId: req.user.schoolId || 'default-school',
-      tenantId: req.user.schoolId || 'default-school',
+      schoolId: req.tenantId,
+      tenantId: req.tenantId,
       views: [],
     };
 
@@ -83,7 +83,7 @@ router.post('/', checkPermission('manageAnnouncements'), async (req, res, next) 
       href: '/announcements',
       targetRoles: announcement.targetRoles,
       targetClasses: announcement.targetClasses,
-      schoolId: req.user.schoolId,
+      schoolId: req.tenantId,
       tenantId: req.tenantId,
       actorId: req.user.uid,
       metadata: { announcementId: docRef.id, priority: announcement.priority },

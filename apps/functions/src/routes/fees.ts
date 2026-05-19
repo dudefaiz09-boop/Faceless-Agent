@@ -120,7 +120,7 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
         const amountPaid = Number(existingFee?.amountPaid || 0);
         const payload: FeeRecord & Record<string, unknown> = {
           tenantId: req.tenantId,
-          schoolId: req.user?.schoolId || null,
+          schoolId: req.tenantId,
           studentId,
           classId,
           amountDue,
@@ -144,7 +144,7 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
           type: 'fee',
           href: '/fees',
           targetUserIds: [studentId],
-          schoolId: req.user?.schoolId || null,
+          schoolId: req.tenantId,
           tenantId: req.tenantId,
           actorId: req.user?.uid,
           metadata: { feeId: id, classId, dueDate, amountDue },
@@ -164,7 +164,7 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
               type: 'fee',
               href: '/fees',
               targetUserIds: parentIds,
-              schoolId: req.user?.schoolId || null,
+              schoolId: req.tenantId,
               tenantId: req.tenantId,
               actorId: req.user?.uid,
               metadata: { feeId: id, classId, dueDate, amountDue, studentId },
@@ -210,7 +210,7 @@ router.post('/pay', async (req, res, next) => {
     const nextPaid = Math.min(currentPaid + amount, amountDue);
     const paymentRef = await db.collection('payments').add({
       tenantId: req.tenantId,
-      schoolId: req.user.schoolId,
+      schoolId: req.tenantId,
       feeId,
       studentId: fee.studentId,
       amount,
@@ -233,7 +233,7 @@ router.post('/pay', async (req, res, next) => {
       type: 'fee',
       href: '/fees',
       targetUserIds: [fee.studentId],
-      schoolId: req.user.schoolId,
+      schoolId: req.tenantId,
       tenantId: req.tenantId,
       actorId: req.user.uid,
       metadata: { feeId, paymentId: paymentRef.id, amount },

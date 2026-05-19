@@ -130,7 +130,7 @@ router.post('/upload', checkPermission('managePerformance'), async (req, res, ne
         const id = stablePerformanceId(classId, studentId, subject, term);
         const payload: PerformanceRecord & Record<string, unknown> = {
           tenantId: req.tenantId,
-          schoolId: req.user?.schoolId || null,
+          schoolId: req.tenantId,
           studentId,
           classId,
           subject,
@@ -149,7 +149,7 @@ router.post('/upload', checkPermission('managePerformance'), async (req, res, ne
           type: 'system',
           href: '/performance',
           targetUserIds: [studentId],
-          schoolId: req.user?.schoolId || null,
+          schoolId: req.tenantId,
           tenantId: req.tenantId,
           actorId: req.user?.uid,
           metadata: { performanceId: id, classId, subject, term, score, grade },

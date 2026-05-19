@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { School, ChevronDown, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { listDocuments } from '../../lib/documents';
+import { setStoredTenantId } from '../../lib/tenant';
 import { cn } from '../../lib/utils';
 
 interface Tenant {
@@ -33,7 +34,7 @@ export const TenantSwitcher = () => {
   };
 
   const switchTenant = (id: string) => {
-    localStorage.setItem('educonnect_school_id', id);
+    setStoredTenantId(id);
     setIsOpen(false);
     window.location.reload();
   };

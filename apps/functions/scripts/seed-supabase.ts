@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
-import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 config({ path: '../../.env', quiet: true });
 config({ quiet: true });
@@ -27,6 +27,11 @@ type SeedUser = {
 
 const dryRun = process.argv.includes('--dry-run');
 const now = new Date().toISOString();
+
+function deterministicUuid(input: string) {
+  const hash = createHash('sha256').update(input).digest('hex').slice(0, 32);
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+}
 
 const tenants = [
   {
@@ -565,6 +570,15 @@ async function seedUser(
 async function seedAttendance(supabase: SupabaseClient, idsByEmail: Map<string, string>) {
   const days = 7;
   const statuses = ['present', 'present', 'present', 'present', 'absent', 'late', 'present'];
+  const attendanceDocuments = new Map<
+    string,
+    {
+      tenantId: string;
+      classId: string;
+      date: string;
+      records: Array<{ studentId: string; studentName: string; status: string }>;
+    }
+  >();
 
   const studentEmails = [
     'student.a@educonnect.test',
@@ -598,9 +612,30 @@ async function seedAttendance(supabase: SupabaseClient, idsByEmail: Map<string, 
         .from('attendance')
         .upsert(record, { onConflict: 'student_id,class_id,attendance_date' });
 
-      // Legacy document
-      await upsertDocument(supabase, 'attendance', `${userId}-${dateStr}`, user.tenantId, record);
+      const documentKey = `${user.tenantId}:${user.classId || 'default'}:${dateStr}`;
+      const documentRecord = attendanceDocuments.get(documentKey) || {
+        tenantId: user.tenantId,
+        classId: user.classId || 'default',
+        date: dateStr,
+        records: [],
+      };
+      documentRecord.records.push({
+        studentId: userId,
+        studentName: user.displayName,
+        status,
+      });
+      attendanceDocuments.set(documentKey, documentRecord);
     }
+  }
+
+  for (const attendance of attendanceDocuments.values()) {
+    await upsertDocument(
+      supabase,
+      'attendance',
+      `${attendance.classId}_${attendance.date}`,
+      attendance.tenantId,
+      attendance
+    );
   }
 }
 
@@ -645,7 +680,7 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 5);
 
-    const record = {
+    const tableRecord = {
       id: a.id,
       school_id: a.tenantId,
       title: a.title,
@@ -655,9 +690,20 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
       due_at: dueDate.toISOString(),
       created_by: teacherId,
     };
+    const documentRecord = {
+      ...tableRecord,
+      tenantId: a.tenantId,
+      schoolId: a.tenantId,
+      classId: a.classes[0],
+      targetClasses: a.classes,
+      subject: a.subject,
+      dueDate: dueDate.toISOString(),
+      createdBy: teacherId,
+      createdAt: now,
+    };
 
-    await supabase.from('assignments').upsert(record);
-    await upsertDocument(supabase, 'assignments', a.id, a.tenantId, record);
+    await supabase.from('assignments').upsert(tableRecord);
+    await upsertDocument(supabase, 'assignments', a.id, a.tenantId, documentRecord);
 
     // Seed some submissions
     const students = seedUsers.filter(
@@ -671,7 +717,7 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
       const studentId = idsByEmail.get(student.email);
       if (!studentId) continue;
 
-      const submission = {
+      const tableSubmission = {
         assignment_id: a.id,
         student_id: studentId,
         status: student.email.includes('a') ? 'graded' : 'submitted',
@@ -679,18 +725,31 @@ async function seedAssignments(supabase: SupabaseClient, idsByEmail: Map<string,
         feedback: student.email.includes('a') ? 'Excellent work!' : null,
         submitted_at: now,
       };
+      const documentSubmission = {
+        ...tableSubmission,
+        assignmentId: a.id,
+        studentId,
+        submittedAt: now,
+        tenantId: a.tenantId,
+      };
       await supabase
         .from('submissions')
-        .upsert(submission, { onConflict: 'assignment_id,student_id' });
-      await upsertDocument(supabase, 'submissions', `${a.id}-${studentId}`, a.tenantId, submission);
+        .upsert(tableSubmission, { onConflict: 'assignment_id,student_id' });
+      await upsertDocument(
+        supabase,
+        'submissions',
+        `${a.id}-${studentId}`,
+        a.tenantId,
+        documentSubmission
+      );
     }
   }
 }
 
 async function seedFees(supabase: SupabaseClient, idsByEmail: Map<string, string>) {
   const feeTypes = [
-    { label: 'Tuition Fee Term 1', amount: 25000 },
-    { label: 'Library Fee', amount: 1500 },
+    { key: 'tuition-term-1', label: 'Tuition Fee Term 1', amount: 25000 },
+    { key: 'library', label: 'Library Fee', amount: 1500 },
   ];
 
   const students = seedUsers.filter((u) => u.role === 'student');
@@ -699,19 +758,113 @@ async function seedFees(supabase: SupabaseClient, idsByEmail: Map<string, string
     if (!studentId) continue;
 
     for (const ft of feeTypes) {
-      const feeId = randomUUID();
-      const record = {
-        id: feeId,
+      const docId = `fee-${student.tenantId}-${studentId}-${ft.key}`;
+      const tableId = deterministicUuid(docId);
+      const paid = student.email.includes('a') ? ft.amount : 0;
+      const tableRecord = {
+        id: tableId,
         school_id: student.tenantId,
         student_id: studentId,
         label: ft.label,
         amount: ft.amount,
-        status: student.email.includes('a') ? 'paid' : 'pending',
+        status: paid >= ft.amount ? 'paid' : 'pending',
         due_at: now,
       };
-      await supabase.from('fees').upsert(record);
-      await upsertDocument(supabase, 'fees', feeId, student.tenantId, record);
+      const documentRecord = {
+        ...tableRecord,
+        id: docId,
+        tenantId: student.tenantId,
+        schoolId: student.tenantId,
+        studentId,
+        classId: student.classId || 'default',
+        amountDue: ft.amount,
+        amountPaid: paid,
+        dueDate: now.split('T')[0],
+        uploadedAt: now,
+        createdAt: now,
+      };
+      await supabase.from('fees').upsert(tableRecord);
+      await upsertDocument(supabase, 'fees', docId, student.tenantId, documentRecord);
     }
+  }
+}
+
+async function seedPerformance(supabase: SupabaseClient, idsByEmail: Map<string, string>) {
+  const subjectsByTenant: Record<string, string[]> = {
+    'tenant-a': ['Mathematics', 'Science', 'English'],
+    'tenant-b': ['Mathematics', 'Computer Science', 'English'],
+    'tenant-c': ['Science', 'Social Studies', 'Mathematics'],
+  };
+
+  const students = seedUsers.filter((u) => u.role === 'student');
+  for (const student of students) {
+    const studentId = idsByEmail.get(student.email);
+    if (!studentId) continue;
+
+    const subjects = subjectsByTenant[student.tenantId] || ['Mathematics', 'Science'];
+    for (const [index, subject] of subjects.entries()) {
+      const score = 72 + ((student.email.length + index * 7) % 22);
+      const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : 'C';
+      const docId = `performance-${student.tenantId}-${studentId}-${subject.toLowerCase().replace(/\s+/g, '-')}-term-1`;
+      const tableId = deterministicUuid(docId);
+      const tableRecord = {
+        id: tableId,
+        school_id: student.tenantId,
+        student_id: studentId,
+        subject_id: subject,
+        term: 'Term 1',
+        score,
+        grade,
+        remarks: score >= 85 ? 'Strong progress' : 'Steady improvement needed',
+      };
+      const documentRecord = {
+        ...tableRecord,
+        id: docId,
+        tenantId: student.tenantId,
+        schoolId: student.tenantId,
+        studentId,
+        classId: student.classId || 'default',
+        subject,
+        maxScore: 100,
+        date: now.split('T')[0],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await supabase.from('performance').upsert(tableRecord);
+      await upsertDocument(supabase, 'performance', docId, student.tenantId, documentRecord);
+    }
+  }
+}
+
+async function countDocuments(supabase: SupabaseClient, collection: string) {
+  const { count, error } = await supabase
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('collection', collection);
+
+  if (error) throw error;
+  return count || 0;
+}
+
+async function printSeedVerificationSummary(supabase: SupabaseClient) {
+  const collections = [
+    ['tenants', 'schools'],
+    ['profiles', 'users'],
+    ['users documents', 'users'],
+    ['attendance', 'attendance'],
+    ['assignments', 'assignments'],
+    ['submissions', 'submissions'],
+    ['fees', 'fees'],
+    ['performance/grades', 'performance'],
+    ['library', 'library'],
+    ['announcements', 'announcements'],
+    ['notifications', 'notifications'],
+  ] as const;
+
+  console.log('Seed verification summary:');
+  for (const [label, collection] of collections) {
+    console.log(`- ${label}: ${await countDocuments(supabase, collection)}`);
   }
 }
 
@@ -739,11 +892,13 @@ async function main() {
   await seedAttendance(supabase, idsByEmail);
   await seedAssignments(supabase, idsByEmail);
   await seedFees(supabase, idsByEmail);
+  await seedPerformance(supabase, idsByEmail);
   await seedTimetable(supabase);
   await seedLibrary(supabase, idsByEmail);
   await seedAnnouncements(supabase, idsByEmail);
   await seedNotifications(supabase, idsByEmail);
 
+  await printSeedVerificationSummary(supabase);
   console.log('Seed complete!');
 }
 

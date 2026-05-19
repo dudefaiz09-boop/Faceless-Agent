@@ -9,7 +9,7 @@ export class ApiClient {
       defaultTimeout: 15000, // 15s default for mobile stability
       defaultRetry: 3,
       isOnline: () => (typeof navigator !== 'undefined' ? navigator.onLine : true),
-      getTenantId: () => 'default-school', // Fallback for migration
+      getTenantId: () => null,
       ...config,
     };
   }

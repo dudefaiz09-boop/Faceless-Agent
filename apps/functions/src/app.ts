@@ -229,7 +229,7 @@ app.use(tenantMiddleware);
 app.use((req, res, next) => {
   contextStorage.run(
     {
-      tenantId: req.tenantId || (req.headers['x-school-id'] as string) || 'default-school',
+      tenantId: req.tenantId || (req.headers['x-school-id'] as string),
       user: req.user as any,
     },
     next

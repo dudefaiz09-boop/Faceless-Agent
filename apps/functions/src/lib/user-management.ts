@@ -11,6 +11,7 @@ import {
   type Role,
 } from '@educonnect/shared';
 import { auth, db } from './documents.js';
+import { getTenantId } from './context.js';
 
 export type ManagedUserPayload = {
   email?: string;
@@ -221,6 +222,11 @@ export function buildManagedUserProfile(
   const permissions = resolvePermissions(role, payload, existing);
   const assignedModules = resolveModules(role, payload, existing);
   const now = new Date().toISOString();
+  const tenantId = payload.tenantId || actor.schoolId || existing.tenantId || existing.schoolId;
+
+  if (!tenantId) {
+    throw Object.assign(new Error('Tenant Context Required'), { statusCode: 400 });
+  }
 
   return {
     ...existing,
@@ -245,13 +251,8 @@ export function buildManagedUserProfile(
     section: sectionIds[0] || existing.section || null,
     linkedStudentIds,
     status: resolveStatus(payload.status, existing),
-    schoolId: payload.tenantId || actor.schoolId || existing.schoolId || 'default-school',
-    tenantId:
-      payload.tenantId ||
-      actor.schoolId ||
-      existing.tenantId ||
-      existing.schoolId ||
-      'default-school',
+    schoolId: tenantId,
+    tenantId,
     updatedAt: now,
     updatedBy: actor.uid,
     createdAt: existing.createdAt || now,
@@ -286,6 +287,17 @@ export async function writeAuditLog(args: {
   after?: Record<string, any> | null;
   schoolId?: string | null;
 }) {
+  let contextTenantId: string | null;
+  try {
+    contextTenantId = getTenantId();
+  } catch {
+    contextTenantId = null;
+  }
+  const tenantId = args.schoolId || contextTenantId;
+  if (!tenantId) {
+    throw Object.assign(new Error('Tenant Context Required'), { statusCode: 400 });
+  }
+
   await db.collection('auditLogs').add({
     action: args.action,
     targetUid: args.targetUid,
@@ -294,8 +306,8 @@ export async function writeAuditLog(args: {
     before: args.before || null,
     after: args.after || null,
     timestamp: new Date().toISOString(),
-    schoolId: args.schoolId || 'default-school',
-    tenantId: args.schoolId || 'default-school',
+    schoolId: tenantId,
+    tenantId,
   });
 }
 

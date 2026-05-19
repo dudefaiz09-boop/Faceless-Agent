@@ -44,10 +44,14 @@ export class AiContextService {
       // Fallback
     }
 
-    const tenantId = req?.tenantId || (req?.headers['x-school-id'] as string) || 'default-school';
+    const tenantId = req?.tenantId || (req?.headers['x-school-id'] as string);
 
     if (!user) {
       throw new Error('AI request failed because school context was not sent.');
+    }
+
+    if (!tenantId) {
+      throw new Error('AI request failed because tenant context was not sent.');
     }
 
     const context: UserContext = {
@@ -56,7 +60,7 @@ export class AiContextService {
       displayName: user.displayName,
       role: user.role || user.roles?.[0] || 'student',
       roles: user.roles || [],
-      schoolId: user.schoolId || tenantId,
+      schoolId: tenantId || user.schoolId,
       classId: user.classId,
       classIds: user.classIds || [],
       linkedStudentIds: user.linkedStudentIds || [],
@@ -64,7 +68,7 @@ export class AiContextService {
     };
 
     // Identity Resolution: Fetch full profile from Supabase if critical fields are missing
-    if (!context.role || context.schoolId === 'default-school' || context.classIds.length === 0) {
+    if (!context.role || context.classIds.length === 0) {
       try {
         const supabase = getSupabaseAdmin();
         const { data: profile, error } = await supabase

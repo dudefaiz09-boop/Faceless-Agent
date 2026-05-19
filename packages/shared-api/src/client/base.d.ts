@@ -15,6 +15,23 @@ export interface ApiClientConfig {
   defaultTimeout?: number;
   defaultRetry?: number;
   isOnline?: () => boolean;
+  debug?: boolean;
+}
+export type ApiErrorKind = 'network' | 'auth' | 'tenant' | 'validation' | 'server';
+export declare class ApiRequestError extends Error {
+  readonly kind: ApiErrorKind;
+  readonly status?: number;
+  readonly endpoint: string;
+  readonly method: string;
+  readonly data?: any;
+  constructor(args: {
+    kind: ApiErrorKind;
+    message: string;
+    status?: number;
+    endpoint: string;
+    method: string;
+    data?: any;
+  });
 }
 export declare class ApiClient {
   private config;
