@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ALL_MODULES,
@@ -33,6 +33,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { listDocuments, useDocuments } from '../lib/documents';
+import { DEMO_TENANTS, getStoredTenantId, setStoredTenantId } from '../lib/tenant';
 import { cn } from '../lib/utils';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
@@ -58,6 +59,8 @@ interface UserProfile {
   linkedStudentIds?: string[];
   updatedAt?: string;
   schoolId?: string;
+  tenantId?: string;
+  managedTenantIds?: string[];
 }
 
 interface AuditLogRecord {
@@ -94,7 +97,7 @@ const emptyForm = {
 };
 
 const inputClass =
-  'w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 transition-all font-semibold text-slate-700';
+  'w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 transition-all font-semibold text-slate-700 placeholder:text-slate-400 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-cyan-400/20';
 
 function splitCsv(value: string) {
   return value
@@ -153,19 +156,68 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
-  const [targetTenantId, setTargetTenantId] = useState(schoolId || '');
+  const [targetTenantId, setTargetTenantId] = useState(() => getStoredTenantId() || schoolId || '');
+  const [selectedTenantId, setSelectedTenantId] = useState(
+    () => getStoredTenantId() || schoolId || ''
+  );
 
-  useMemo(() => {
+  useEffect(() => {
     if (isSuperAdmin && managedTenantIds.length > 0) {
-      listDocuments<Tenant>('schools').then(setTenants);
+      listDocuments<Tenant>('schools')
+        .then((records) => setTenants(records))
+        .catch(() => setTenants([]));
     }
   }, [isSuperAdmin, managedTenantIds]);
+
+  const tenantOptions = useMemo(() => {
+    const tenantById = new Map<string, Tenant>();
+    DEMO_TENANTS.forEach((tenant) => tenantById.set(tenant.id, tenant));
+    tenants.forEach((tenant) => tenantById.set(tenant.id, tenant));
+
+    const allowedIds =
+      isSuperAdmin && managedTenantIds.length > 0
+        ? managedTenantIds
+        : schoolId
+          ? [schoolId]
+          : DEMO_TENANTS.map((tenant) => tenant.id);
+
+    return allowedIds.map(
+      (id) => tenantById.get(id) || { id, name: id.replaceAll('-', ' '), slug: id }
+    );
+  }, [isSuperAdmin, managedTenantIds, schoolId, tenants]);
+
+  const activeTenantId = useMemo(() => {
+    const allowedIds = tenantOptions.map((tenant) => tenant.id);
+    if (selectedTenantId && allowedIds.includes(selectedTenantId)) return selectedTenantId;
+    const stored = getStoredTenantId(allowedIds);
+    return stored || schoolId || allowedIds[0] || '';
+  }, [schoolId, selectedTenantId, tenantOptions]);
+
+  const bulkTargetTenantId = useMemo(() => {
+    const allowedIds = tenantOptions.map((tenant) => tenant.id);
+    return targetTenantId && allowedIds.includes(targetTenantId) ? targetTenantId : activeTenantId;
+  }, [activeTenantId, targetTenantId, tenantOptions]);
+
+  const handleTenantChange = (tenantId: string) => {
+    if (!tenantOptions.some((tenant) => tenant.id === tenantId)) return;
+    setStoredTenantId(tenantId);
+    setSelectedTenantId(tenantId);
+    setTargetTenantId(tenantId);
+    setRoleFilter('all');
+    setStatusFilter('all');
+    setModuleFilter('');
+  };
 
   const users = useMemo(() => {
     return allUsers.filter((profile) => {
       const role = getPrimaryRole(profile);
       const searchable =
         `${profile.displayName || ''} ${profile.email || ''} ${role}`.toLowerCase();
+      const profileTenantId = profile.tenantId || profile.schoolId;
+      const matchesTenant =
+        !activeTenantId ||
+        profileTenantId === activeTenantId ||
+        profile.managedTenantIds?.includes(activeTenantId);
       const matchesType = type === 'all' || role === type;
       const matchesSearch = searchable.includes(debouncedSearch.toLowerCase());
       const matchesRole = roleFilter === 'all' || role === roleFilter;
@@ -177,12 +229,19 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
           MODULE_LABELS[module as ModuleKey]?.toLowerCase().includes(moduleFilter.toLowerCase())
         );
 
-      return matchesType && matchesSearch && matchesRole && matchesStatus && matchesModule;
+      return (
+        matchesTenant &&
+        matchesType &&
+        matchesSearch &&
+        matchesRole &&
+        matchesStatus &&
+        matchesModule
+      );
     });
-  }, [allUsers, debouncedSearch, moduleFilter, roleFilter, statusFilter, type]);
+  }, [activeTenantId, allUsers, debouncedSearch, moduleFilter, roleFilter, statusFilter, type]);
 
   const openAddModal = () => {
-    setForm({ ...emptyForm, tenantId: schoolId || '' });
+    setForm({ ...emptyForm, tenantId: activeTenantId || schoolId || '' });
     setIsUserModalOpen(true);
   };
 
@@ -304,7 +363,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     const headers =
       'email,role,password,permissions,classId,classIds,linkedStudentIds,tenantId,displayName';
     const row =
-      'student.import1@educonnect.test,student,Test@1234,"viewOwnRecords,viewAssignments",A1,"A1,A2",,tenant-a,Imported Student 1';
+      'student.import1@educonnect.test,student,Test@123456,"viewOwnRecords,viewAssignments",A1,"A1,A2",,tenant-a,Imported Student 1';
     const blob = new Blob([`${headers}\n${row}`], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -329,7 +388,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         linkedStudentIds: u.linkedStudentIds
           ? u.linkedStudentIds.split(',').map((s: string) => s.trim())
           : [],
-        tenantId: u.tenantId || targetTenantId,
+        tenantId: u.tenantId || bulkTargetTenantId,
       }));
 
       const result = await apiClient.request<{ results: Array<{ success: boolean }> }>(
@@ -445,6 +504,37 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         />
       </div>
 
+      {type === 'all' && isAdmin && tenantOptions.length > 1 && (
+        <div className="rounded-3xl border border-blue-100 bg-blue-50/80 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm dark:bg-slate-950">
+                <School size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-cyan-300">
+                  Active tenant
+                </p>
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  User lists, role filters, and stats are scoped to this tenant.
+                </p>
+              </div>
+            </div>
+            <select
+              value={activeTenantId}
+              onChange={(event) => handleTenantChange(event.target.value)}
+              className="min-w-[220px] rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm outline-none transition focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-cyan-400/20"
+            >
+              {tenantOptions.map((tenant) => (
+                <option key={tenant.id} value={tenant.id}>
+                  {tenant.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px_180px_220px] gap-3">
         <SearchBar value={search} onChange={setSearch} placeholder="Search users..." />
         <select
@@ -491,7 +581,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
               layout
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all"
+              className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
@@ -499,7 +589,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="font-black text-slate-900 truncate">
+                    <h2 className="font-black text-slate-900 truncate dark:text-slate-100">
                       {profile.displayName || 'Unnamed User'}
                     </h2>
                     <span
@@ -513,7 +603,9 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                       {status}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 truncate">{profile.email}</p>
+                  <p className="text-sm text-slate-500 truncate dark:text-slate-400">
+                    {profile.email}
+                  </p>
                 </div>
               </div>
 
@@ -632,7 +724,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                       onChange={(event) => setForm({ ...form, tenantId: event.target.value })}
                       className={inputClass}
                     >
-                      {tenants.map((t) => (
+                      {tenantOptions.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
                         </option>
@@ -767,11 +859,11 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                       Default Target School
                     </p>
                     <select
-                      value={targetTenantId}
+                      value={bulkTargetTenantId}
                       onChange={(e) => setTargetTenantId(e.target.value)}
                       className="bg-transparent font-bold text-slate-700 outline-none w-full"
                     >
-                      {tenants.map((t) => (
+                      {tenantOptions.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
                         </option>
@@ -823,7 +915,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                               </span>
                             </td>
                             <td className="p-3 text-slate-400 text-xs">
-                              {row.tenantId || targetTenantId}
+                              {row.tenantId || bulkTargetTenantId}
                             </td>
                           </tr>
                         ))}
@@ -899,20 +991,22 @@ function Info({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3 min-w-0">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3 min-w-0 dark:border-slate-800 dark:bg-slate-950">
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1 dark:text-slate-500">
         <Icon size={12} />
         {label}
       </p>
-      <p className="text-sm font-bold text-slate-800 truncate mt-1">{value}</p>
+      <p className="text-sm font-bold text-slate-800 truncate mt-1 dark:text-slate-200">{value}</p>
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="space-y-2">
-      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{label}</span>
+    <label className="space-y-2 min-w-0">
+      <span className="text-xs font-black text-slate-400 uppercase tracking-widest dark:text-slate-500">
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -931,7 +1025,7 @@ function Checklist({
 }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+      <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 dark:text-slate-100">
         <CheckCircle2 size={16} className="text-blue-600" />
         {title}
       </h3>
@@ -945,7 +1039,7 @@ function Checklist({
               'text-left px-3 py-2 rounded-xl border text-sm font-bold transition-all',
               selected.includes(item.key)
                 ? 'bg-blue-600 border-blue-600 text-white'
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900'
             )}
           >
             {item.label}
@@ -966,25 +1060,36 @@ function Modal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4 z-[100]">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="user-management-modal-title"
+    >
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/40 backdrop-blur-md"
+        className="fixed inset-0 backdrop-blur-md"
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 16 }}
-        className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white rounded-[32px] shadow-2xl p-6 lg:p-8"
+        className="relative my-6 w-full max-w-4xl max-h-[calc(100vh-3rem)] overflow-y-auto rounded-[28px] border border-white/80 bg-white p-5 shadow-2xl sm:p-6 lg:p-8 dark:border-slate-800 dark:bg-slate-900"
       >
         <div className="flex items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl font-black text-slate-900">{title}</h2>
+          <h2
+            id="user-management-modal-title"
+            className="text-2xl font-black text-slate-900 dark:text-slate-100"
+          >
+            {title}
+          </h2>
           <button
             onClick={onClose}
-            className="w-11 h-11 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600"
+            className="w-11 h-11 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-red-950/50"
+            aria-label="Close modal"
           >
             <X size={22} />
           </button>

@@ -10,7 +10,6 @@ Demo tenant IDs:
 
 - `tenant-a`
 - `tenant-b`
-- `tenant-c`
 
 Normal users use their profile/app metadata tenant. Super admins use the selected tenant and default to `tenant-a` when available. The frontend sends the active tenant on every protected API request as `x-school-id`.
 

@@ -21,10 +21,13 @@
     background: #020617;
   }
 
-  input,
+  input:not([type='checkbox']):not([type='radio']),
   textarea,
   select {
     color: #0f172a;
+    background-color: rgba(255, 255, 255, 0.96);
+    border-color: #cbd5e1;
+    caret-color: #2563eb;
   }
 
   input::placeholder,
@@ -33,17 +36,19 @@
     opacity: 1;
   }
 
-  input:disabled,
+  input:not([type='checkbox']):not([type='radio']):disabled,
   textarea:disabled,
   select:disabled {
     color: #475569;
     opacity: 1;
   }
 
-  .dark input,
+  .dark input:not([type='checkbox']):not([type='radio']),
   .dark textarea,
   .dark select {
-    color: #f8fafc;
+    color: #f8fafc !important;
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
     caret-color: #60a5fa;
   }
 
@@ -53,11 +58,25 @@
     opacity: 1;
   }
 
-  .dark input:disabled,
+  .dark input:not([type='checkbox']):not([type='radio']):disabled,
   .dark textarea:disabled,
   .dark select:disabled {
     color: #cbd5e1;
     opacity: 0.75;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: #60a5fa;
+  }
+
+  .dark input:focus,
+  .dark textarea:focus,
+  .dark select:focus {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
   }
 
   .dark input:-webkit-autofill,
