@@ -147,9 +147,7 @@ const AnnouncementsList = ({ schoolId }: { schoolId: string | null }) => {
           <Text style={styles.syncedText}>Last synced {formatDate(dataUpdatedAt)}</Text>
         ) : null
       }
-      refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
-      }
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
       renderItem={({ item }) => (
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>

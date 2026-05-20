@@ -144,4 +144,6 @@ console.log('[verify-android-apk] OK');
 console.log(`[verify-android-apk] ${path.relative(process.cwd(), apkPath)}`);
 console.log(`[verify-android-apk] entries=${entries.length}`);
 console.log('[verify-android-apk] Hermes libraries and JS bundle are present.');
-console.log('[verify-android-apk] libhermes_executor.so is not packaged or referenced by entry name.');
+console.log(
+  '[verify-android-apk] libhermes_executor.so is not packaged or referenced by entry name.'
+);

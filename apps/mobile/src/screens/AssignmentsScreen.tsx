@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { assignmentsService } from '../lib/api-client';
 import { useAssignments } from '@educonnect/shared-api';
 import { useAuth } from '../contexts/AuthContext';
