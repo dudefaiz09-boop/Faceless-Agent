@@ -85,7 +85,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => applySession(data.session));
+    supabase.auth
+      .getSession()
+      .then(({ data }) => applySession(data.session))
+      .catch((err) => {
+        console.error(
+          '[Auth] Initial session fetch failed (likely wrong API URL or offline):',
+          err
+        );
+        setLoading(false);
+      });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       void applySession(session);
