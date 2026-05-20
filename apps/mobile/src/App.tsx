@@ -2,92 +2,138 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
   View,
 } from 'react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { useAnnouncements } from '@educonnect/shared-api';
-import { AssignmentsScreen } from './screens/AssignmentsScreen';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { canAccessModule, type ModuleKey } from '@educonnect/shared';
 import { mobileConfigIssues } from './config/env';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
-import { announcementsService } from './lib/api-client';
 import { queryClient } from './lib/query-client';
 import { supabaseConfigured } from './lib/supabase';
+import { ChatScreen } from './screens/ChatScreen';
+import {
+  AnnouncementsScreen,
+  AssignmentsModuleScreen,
+  DashboardScreen,
+  DirectoryScreen,
+} from './screens/HomeScreens';
+import {
+  AttendanceScreen,
+  FeesScreen,
+  LibraryScreen,
+  ParentPortalScreen,
+  PerformanceScreen,
+} from './screens/OperationalScreens';
+import { colors, formatDate } from './theme';
 
-type AppTab = 'dashboard' | 'announcements' | 'assignments';
-
-const lightColors = {
-  background: '#f8fafc',
-  border: '#dbe4ee',
-  card: '#ffffff',
-  danger: '#b91c1c',
-  muted: '#64748b',
-  primary: '#2563eb',
-  primarySoft: '#dbeafe',
-  success: '#15803d',
-  successSoft: '#dcfce7',
-  text: '#0f172a',
-  warning: '#b45309',
-  warningSoft: '#fef3c7',
+type ModuleDefinition = {
+  key: ModuleKey;
+  label: string;
+  shortLabel: string;
+  description: string;
+  group: 'primary' | 'academic' | 'operations' | 'admin';
 };
 
-const darkColors = {
-  background: '#111827',
-  border: '#334155',
-  card: '#1f2937',
-  danger: '#f87171',
-  muted: '#cbd5e1',
-  primary: '#60a5fa',
-  primarySoft: '#1e3a8a',
-  success: '#4ade80',
-  successSoft: '#14532d',
-  text: '#f8fafc',
-  warning: '#fbbf24',
-  warningSoft: '#78350f',
+const modules: ModuleDefinition[] = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    shortLabel: 'Home',
+    description: 'Role-specific overview and quick actions.',
+    group: 'primary',
+  },
+  {
+    key: 'announcements',
+    label: 'Announcements',
+    shortLabel: 'News',
+    description: 'School updates and targeted broadcasts.',
+    group: 'primary',
+  },
+  {
+    key: 'attendance',
+    label: 'Attendance',
+    shortLabel: 'Attend',
+    description: 'Daily records, history, and class summaries.',
+    group: 'primary',
+  },
+  {
+    key: 'assignments',
+    label: 'Assignments',
+    shortLabel: 'Work',
+    description: 'Class work, due dates, and submissions.',
+    group: 'primary',
+  },
+  {
+    key: 'chat',
+    label: 'Chat',
+    shortLabel: 'Chat',
+    description: 'Role-aware school conversations.',
+    group: 'academic',
+  },
+  {
+    key: 'library',
+    label: 'Library',
+    shortLabel: 'Library',
+    description: 'Digital resources and borrowing status.',
+    group: 'academic',
+  },
+  {
+    key: 'fees',
+    label: 'Fees',
+    shortLabel: 'Fees',
+    description: 'Fee summaries and payment status.',
+    group: 'operations',
+  },
+  {
+    key: 'performance',
+    label: 'Performance',
+    shortLabel: 'Scores',
+    description: 'Academic analytics and records.',
+    group: 'academic',
+  },
+  {
+    key: 'parentPortal',
+    label: 'Parent Portal',
+    shortLabel: 'Parent',
+    description: 'Linked child summaries.',
+    group: 'operations',
+  },
+  {
+    key: 'students',
+    label: 'Students',
+    shortLabel: 'Students',
+    description: 'Student registry and classes.',
+    group: 'admin',
+  },
+  {
+    key: 'teachers',
+    label: 'Teachers',
+    shortLabel: 'Teachers',
+    description: 'Faculty registry and assignments.',
+    group: 'admin',
+  },
+  {
+    key: 'allUsers',
+    label: 'All Users',
+    shortLabel: 'Users',
+    description: 'Roles, status, and module access.',
+    group: 'admin',
+  },
+];
+
+const moduleGroupLabels: Record<ModuleDefinition['group'], string> = {
+  primary: 'Primary',
+  academic: 'Academic',
+  operations: 'Operations',
+  admin: 'Administration',
 };
-
-function formatDate(value?: string | number | Date | null) {
-  if (!value) return 'Not synced yet';
-  return new Date(value).toLocaleString([], {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-  });
-}
-
-const SkeletonCard = ({ compact = false }: { compact?: boolean }) => (
-  <View style={[styles.card, compact && styles.compactCard]}>
-    <View style={styles.skeletonTitle} />
-    <View style={styles.skeletonLine} />
-    <View style={[styles.skeletonLine, styles.skeletonShort]} />
-  </View>
-);
-
-const EmptyState = ({ title, body }: { title: string; body: string }) => (
-  <View style={styles.emptyState}>
-    <Text style={styles.emptyTitle}>{title}</Text>
-    <Text style={styles.emptyBody}>{body}</Text>
-  </View>
-);
-
-const ErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
-  <View style={styles.emptyState}>
-    <Text style={styles.errorTitle}>Could not load data</Text>
-    <Text style={styles.emptyBody}>{message}</Text>
-    <TouchableOpacity style={styles.secondaryButton} onPress={onRetry}>
-      <Text style={styles.secondaryButtonText}>Retry</Text>
-    </TouchableOpacity>
-  </View>
-);
 
 const OfflineBanner = ({
   isOffline,
@@ -106,199 +152,35 @@ const OfflineBanner = ({
   );
 };
 
-const AnnouncementsList = ({ schoolId }: { schoolId: string | null }) => {
-  const {
-    data: announcements = [],
-    dataUpdatedAt,
-    error,
-    isError,
-    isLoading,
-    isRefetching,
-    refetch,
-  } = useAnnouncements(announcementsService, schoolId);
-
-  if (isLoading && !isRefetching) {
-    return (
-      <View>
-        <SkeletonCard />
-        <SkeletonCard compact />
-      </View>
-    );
-  }
-
-  if (isError) {
-    return (
-      <ErrorState
-        message={(error as Error)?.message || 'Announcements are temporarily unavailable.'}
-        onRetry={() => void refetch()}
-      />
-    );
-  }
-
-  return (
-    <FlatList
-      data={announcements}
-      keyExtractor={(item) => item.id}
-      ListEmptyComponent={
-        <EmptyState title="No announcements" body="New school updates will appear here." />
-      }
-      ListFooterComponent={
-        announcements.length > 0 ? (
-          <Text style={styles.syncedText}>Last synced {formatDate(dataUpdatedAt)}</Text>
-        ) : null
-      }
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
-      renderItem={({ item }) => (
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>News</Text>
-            </View>
-          </View>
-          <Text style={styles.cardContent}>{item.content}</Text>
-          <Text style={styles.cardDate}>
-            {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
+const ConfigScreen = () => (
+  <SafeAreaView style={styles.container}>
+    <View style={styles.centered}>
+      <Text style={styles.configTitle}>App Not Configured</Text>
+      <Text style={styles.configBody}>
+        This APK was built without the required public mobile configuration.
+      </Text>
+      <View style={styles.configList}>
+        {mobileConfigIssues.map((issue) => (
+          <Text key={issue.name} style={styles.configItem}>
+            {issue.name}: {issue.message}
           </Text>
-        </View>
-      )}
-    />
-  );
-};
-
-const DemoMetric = ({
-  label,
-  value,
-  tone = 'primary',
-}: {
-  label: string;
-  value: string;
-  tone?: 'primary' | 'success' | 'warning';
-}) => (
-  <View style={styles.metricCard}>
-    <Text
-      style={[
-        styles.metricValue,
-        tone === 'success'
-          ? styles.successText
-          : tone === 'warning'
-            ? styles.warningText
-            : styles.primaryText,
-      ]}
-    >
-      {value}
-    </Text>
-    <Text style={styles.metricLabel}>{label}</Text>
-  </View>
+        ))}
+      </View>
+      <Text style={styles.configBody}>
+        Add SUPABASE_URL, SUPABASE_ANON_KEY, and API_BASE_URL in apps/mobile/.env, then rebuild.
+        VITE_* aliases are also supported for migration compatibility.
+      </Text>
+    </View>
+  </SafeAreaView>
 );
 
-const Dashboard = ({
-  onOpenTab,
-  schoolId,
-}: {
-  onOpenTab: (tab: AppTab) => void;
-  schoolId: string | null;
-}) => {
-  const { roles } = useAuth();
-  const {
-    data: announcements = [],
-    dataUpdatedAt: announcementsUpdatedAt,
-    refetch: refetchAnnouncements,
-  } = useAnnouncements(announcementsService, schoolId);
-  const primaryRole = roles[0] || 'student';
-  const isParent = roles.includes('parent');
-  const isTeacher = roles.includes('teacher');
-  const latestAnnouncement = announcements[0];
-
-  const roleLabel = primaryRole.charAt(0).toUpperCase() + primaryRole.slice(1);
-
-  return (
-    <ScrollView
-      contentContainerStyle={styles.dashboardContent}
-      refreshControl={
-        <RefreshControl refreshing={false} onRefresh={() => void refetchAnnouncements()} />
-      }
-    >
-      <View style={styles.heroPanel}>
-        <View>
-          <Text style={styles.heroEyebrow}>{roleLabel} dashboard</Text>
-          <Text style={styles.heroTitle}>Today at a glance</Text>
-        </View>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusPillText}>Live</Text>
-        </View>
-      </View>
-
-      <View style={styles.metricGrid}>
-        <DemoMetric label="Announcements" value={`${announcements.length}`} />
-        <DemoMetric label="Attendance" value="Quick" tone="success" />
-        <DemoMetric label="Fees" value="Clear" tone="warning" />
-        <DemoMetric label="Library" value="Due" />
-      </View>
-
-      {isParent ? (
-        <View style={styles.switcher}>
-          <Text style={styles.switcherLabel}>Child</Text>
-          <Text style={styles.switcherValue}>All children</Text>
-        </View>
-      ) : null}
-
-      {isTeacher ? (
-        <View style={styles.switcher}>
-          <Text style={styles.switcherLabel}>Class</Text>
-          <Text style={styles.switcherValue}>Current class</Text>
-        </View>
-      ) : null}
-
-      <View style={styles.quickActionRow}>
-        <TouchableOpacity style={styles.quickAction} onPress={() => onOpenTab('assignments')}>
-          <Text style={styles.quickActionTitle}>Assignments</Text>
-          <Text style={styles.quickActionBody}>Upcoming work</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.quickAction} onPress={() => onOpenTab('announcements')}>
-          <Text style={styles.quickActionTitle}>Announcements</Text>
-          <Text style={styles.quickActionBody}>Recent updates</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recent announcement</Text>
-        <Text style={styles.cardContent}>
-          {latestAnnouncement?.title || 'No recent announcement available.'}
-        </Text>
-        <Text style={styles.syncedText}>Last synced {formatDate(announcementsUpdatedAt)}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Performance snapshot</Text>
-        <Text style={styles.cardContent}>
-          Attendance, assignment, library, and fee signals are ready for role-specific modules.
-        </Text>
-      </View>
-    </ScrollView>
-  );
-};
-
-const AppContent = () => {
-  const colorScheme = useColorScheme();
-  const { user, loading, login, logout, roles, schoolId } = useAuth();
+const LoginScreen = () => {
+  const { login } = useAuth();
   const { isOffline, lastCheckedAt } = useNetworkStatus();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
-
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const themedStyles = useMemo(
-    () => ({
-      container: { backgroundColor: colors.background },
-      text: { color: colors.text },
-      muted: { color: colors.muted },
-      card: { backgroundColor: colors.card, borderColor: colors.border },
-    }),
-    [colors]
-  );
 
   const handleLogin = async () => {
     setError('');
@@ -312,67 +194,34 @@ const AppContent = () => {
     }
   };
 
-  const handleLogout = () => {
-    void logout();
-  };
-
-  if (!supabaseConfigured) {
-    return (
-      <SafeAreaView style={[styles.container, themedStyles.container]}>
-        <View style={styles.centered}>
-          <Text style={styles.configTitle}>App Not Configured</Text>
-          <Text style={[styles.configBody, themedStyles.muted]}>
-            This APK was built without the required public mobile configuration.
-          </Text>
-          <View style={[styles.configList, themedStyles.card]}>
-            {mobileConfigIssues.map((issue) => (
-              <Text key={issue.name} style={styles.configItem}>
-                {issue.name}: {issue.message}
-              </Text>
-            ))}
-          </View>
-          <Text style={[styles.configBody, themedStyles.muted]}>
-            Add SUPABASE_URL, SUPABASE_ANON_KEY, and API_BASE_URL, then rebuild.
-          </Text>
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.loginContainer}>
+        <View style={styles.brandBadge}>
+          <Text style={styles.brandBadgeText}>AI ERP</Text>
         </View>
-      </SafeAreaView>
-    );
-  }
+        <Text style={styles.title}>EduConnect</Text>
+        <Text style={styles.subtitle}>
+          School operations, learning, and communication in one mobile workspace.
+        </Text>
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, themedStyles.container]}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, themedStyles.muted]}>Opening EduConnect</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!user) {
-    return (
-      <SafeAreaView style={[styles.container, themedStyles.container]}>
-        <View style={styles.loginContainer}>
-          <Text style={[styles.title, themedStyles.text]}>EduConnect</Text>
-          <Text style={[styles.subtitle, themedStyles.muted]}>Mobile Portal</Text>
-
+        <View style={styles.loginPanel}>
           <TextInput
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
             onChangeText={setEmail}
             placeholder="Email"
-            placeholderTextColor="#94a3b8"
-            style={[styles.input, themedStyles.card, themedStyles.text]}
+            placeholderTextColor={colors.muted}
+            style={styles.input}
             value={email}
           />
           <TextInput
             onChangeText={setPassword}
             placeholder="Password"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={colors.muted}
             secureTextEntry
-            style={[styles.input, themedStyles.card, themedStyles.text]}
+            style={styles.input}
             value={password}
           />
 
@@ -385,64 +234,210 @@ const AppContent = () => {
             style={[styles.button, (submitting || isOffline) && styles.disabledButton]}
           >
             {submitting ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.buttonText}>Login</Text>
+              <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+const MoreScreen = ({
+  modulesForUser,
+  onOpenModule,
+}: {
+  modulesForUser: ModuleDefinition[];
+  onOpenModule: (module: ModuleKey) => void;
+}) => {
+  const grouped = useMemo(
+    () =>
+      (['primary', 'academic', 'operations', 'admin'] as ModuleDefinition['group'][]).map(
+        (group) => ({
+          group,
+          items: modulesForUser.filter((item) => item.group === group),
+        })
+      ),
+    [modulesForUser]
+  );
+
+  return (
+    <ScrollView contentContainerStyle={styles.moreContent}>
+      <Text style={styles.sectionTitle}>More</Text>
+      <Text style={styles.sectionSubtitle}>All modules available to your role.</Text>
+      {grouped
+        .filter((section) => section.items.length > 0)
+        .map((section) => (
+          <View key={section.group} style={styles.moduleGroup}>
+            <Text style={styles.groupLabel}>{moduleGroupLabels[section.group]}</Text>
+            {section.items.map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => onOpenModule(item.key)}
+                style={styles.moduleRow}
+              >
+                <View style={styles.moduleIcon}>
+                  <Text style={styles.moduleIconText}>{item.shortLabel.slice(0, 1)}</Text>
+                </View>
+                <View style={styles.moduleRowText}>
+                  <Text style={styles.moduleTitle}>{item.label}</Text>
+                  <Text style={styles.moduleDescription}>{item.description}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+    </ScrollView>
+  );
+};
+
+const ModuleContent = ({
+  activeModule,
+  onOpenModule,
+  modulesForUser,
+}: {
+  activeModule: ModuleKey | 'more';
+  onOpenModule: (module: ModuleKey) => void;
+  modulesForUser: ModuleDefinition[];
+}) => {
+  switch (activeModule) {
+    case 'dashboard':
+      return <DashboardScreen onOpenModule={onOpenModule} />;
+    case 'announcements':
+      return <AnnouncementsScreen />;
+    case 'attendance':
+      return <AttendanceScreen />;
+    case 'assignments':
+      return <AssignmentsModuleScreen />;
+    case 'chat':
+      return <ChatScreen />;
+    case 'library':
+      return <LibraryScreen />;
+    case 'fees':
+      return <FeesScreen />;
+    case 'performance':
+      return <PerformanceScreen />;
+    case 'parentPortal':
+      return <ParentPortalScreen />;
+    case 'students':
+      return <DirectoryScreen type="student" />;
+    case 'teachers':
+      return <DirectoryScreen type="teacher" />;
+    case 'allUsers':
+      return <DirectoryScreen type="all" />;
+    case 'more':
+      return <MoreScreen modulesForUser={modulesForUser} onOpenModule={onOpenModule} />;
+    default:
+      return <DashboardScreen onOpenModule={onOpenModule} />;
+  }
+};
+
+const AppContent = () => {
+  const { user, loading, logout, role, roles, schoolId, assignedModules } = useAuth();
+  const { isOffline, lastCheckedAt } = useNetworkStatus();
+  const [activeModule, setActiveModule] = useState<ModuleKey | 'more'>('dashboard');
+  const [signingOut, setSigningOut] = useState(false);
+
+  const modulesForUser = useMemo(
+    () => modules.filter((item) => canAccessModule(role, item.key, assignedModules)),
+    [assignedModules, role]
+  );
+
+  const resolvedActiveModule =
+    activeModule === 'more' || modulesForUser.some((item) => item.key === activeModule)
+      ? activeModule
+      : modulesForUser[0]?.key || 'dashboard';
+
+  if (!supabaseConfigured) return <ConfigScreen />;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.ai} />
+          <Text style={styles.loadingText}>Opening EduConnect</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const roleLabel = roles.length ? roles.join(' / ') : 'student';
+  if (!user) return <LoginScreen />;
+
+  const primaryTabs = modulesForUser
+    .filter((item) =>
+      ['dashboard', 'announcements', 'attendance', 'assignments'].includes(item.key)
+    )
+    .slice(0, 4);
+  const bottomTabs: Array<ModuleDefinition | { key: 'more'; shortLabel: string; label: string }> = [
+    ...primaryTabs,
+    { key: 'more', shortLabel: 'More', label: 'More' },
+  ];
+
+  const handleLogout = async () => {
+    setSigningOut(true);
+    try {
+      await logout();
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   return (
-    <SafeAreaView style={[styles.container, themedStyles.container]}>
+    <SafeAreaView style={styles.container}>
       <OfflineBanner isOffline={isOffline} lastCheckedAt={lastCheckedAt} />
-      <View style={[styles.header, themedStyles.card]}>
-        <View>
-          <Text style={[styles.welcome, themedStyles.muted]}>Hello,</Text>
-          <Text style={[styles.userName, themedStyles.text]}>{user.displayName || user.email}</Text>
-          <Text style={styles.roleText}>{roleLabel}</Text>
+      <View style={styles.topBar}>
+        <View style={styles.brandBlock}>
+          <Text style={styles.brandTitle}>EduConnect</Text>
+          <Text style={styles.brandSubtitle}>
+            {schoolId ? `School ${schoolId}` : 'AI ERP'} - {role}
+          </Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.userPill}>
+          <View style={styles.userTextBlock}>
+            <Text style={styles.userName}>{user.displayName || user.email}</Text>
+            <Text style={styles.roleText}>{roles.length ? roles.join(' / ') : role}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleLogout}
+            disabled={signingOut}
+            style={styles.logoutButton}
+          >
+            <Text style={styles.logoutText}>{signingOut ? '...' : 'Sign out'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.content}>
-        {activeTab === 'dashboard' ? (
-          <Dashboard onOpenTab={setActiveTab} schoolId={schoolId} />
-        ) : activeTab === 'announcements' ? (
-          <>
-            <Text style={[styles.sectionTitle, themedStyles.text]}>Latest Announcements</Text>
-            <AnnouncementsList schoolId={schoolId} />
-          </>
-        ) : (
-          <>
-            <Text style={[styles.sectionTitle, themedStyles.text]}>My Assignments</Text>
-            <AssignmentsScreen />
-          </>
-        )}
+        <ModuleContent
+          activeModule={resolvedActiveModule}
+          onOpenModule={setActiveModule}
+          modulesForUser={modulesForUser}
+        />
       </View>
 
-      <View style={[styles.bottomTabs, themedStyles.card]}>
-        {[
-          ['dashboard', 'Home'],
-          ['announcements', 'News'],
-          ['assignments', 'Work'],
-        ].map(([key, label]) => (
-          <TouchableOpacity
-            key={key}
-            onPress={() => setActiveTab(key as AppTab)}
-            style={[styles.bottomTab, activeTab === key && styles.activeBottomTab]}
-          >
-            <Text style={[styles.bottomTabText, activeTab === key && styles.activeBottomTabText]}>
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.bottomTabs}>
+        <FlatList
+          horizontal
+          data={bottomTabs}
+          keyExtractor={(item) => item.key}
+          contentContainerStyle={styles.bottomTabList}
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const isActive = resolvedActiveModule === item.key;
+            return (
+              <TouchableOpacity
+                onPress={() => setActiveModule(item.key as ModuleKey | 'more')}
+                style={[styles.bottomTab, isActive && styles.activeBottomTab]}
+              >
+                <Text style={[styles.bottomTabText, isActive && styles.activeBottomTabText]}>
+                  {item.shortLabel}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
       </View>
     </SafeAreaView>
   );
@@ -458,405 +453,306 @@ const App = () => (
 
 const styles = StyleSheet.create({
   activeBottomTab: {
-    backgroundColor: lightColors.primarySoft,
+    backgroundColor: colors.primary,
   },
   activeBottomTabText: {
-    color: lightColors.primary,
-  },
-  badge: {
-    backgroundColor: lightColors.primarySoft,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  badgeText: {
-    color: lightColors.primary,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    color: colors.text,
   },
   bottomTab: {
     alignItems: 'center',
-    borderRadius: 8,
-    flex: 1,
-    minHeight: 48,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
     justifyContent: 'center',
+    marginRight: 8,
+    minHeight: 46,
+    minWidth: 82,
+    paddingHorizontal: 12,
+  },
+  bottomTabList: {
+    paddingHorizontal: 14,
   },
   bottomTabText: {
-    color: lightColors.muted,
-    fontSize: 13,
-    fontWeight: '700',
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900',
   },
   bottomTabs: {
-    borderTopColor: lightColors.border,
+    backgroundColor: '#07101f',
+    borderTopColor: colors.line,
     borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    padding: 10,
+    paddingVertical: 10,
+  },
+  brandBadge: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.primarySoft,
+    borderColor: '#29418a',
+    borderRadius: 999,
+    borderWidth: 1,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  brandBadgeText: {
+    color: colors.ai,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  brandBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  brandSubtitle: {
+    color: '#4f8cff',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  brandTitle: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: '900',
   },
   button: {
     alignItems: 'center',
-    backgroundColor: lightColors.primary,
-    borderRadius: 8,
-    marginTop: 10,
-    minHeight: 52,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
     justifyContent: 'center',
-    padding: 16,
+    marginTop: 12,
+    minHeight: 54,
+    paddingHorizontal: 20,
   },
   buttonText: {
-    color: 'white',
+    color: colors.text,
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  card: {
-    backgroundColor: lightColors.card,
-    borderColor: lightColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    elevation: 1,
-    marginBottom: 14,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { height: 1, width: 0 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  cardContent: {
-    color: lightColors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  cardDate: {
-    color: '#94a3b8',
-    fontSize: 11,
-    marginTop: 10,
-    textAlign: 'right',
-  },
-  cardHeaderRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  cardTitle: {
-    color: lightColors.text,
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 8,
+    fontWeight: '900',
   },
   centered: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    padding: 32,
-  },
-  compactCard: {
-    opacity: 0.75,
+    padding: 28,
   },
   configBody: {
-    color: lightColors.muted,
-    fontSize: 16,
+    color: colors.muted,
+    fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
   },
   configItem: {
-    color: '#991b1b',
+    color: '#fecaca',
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 8,
   },
   configList: {
     alignSelf: 'stretch',
-    backgroundColor: 'white',
-    borderColor: '#fecaca',
-    borderRadius: 8,
+    backgroundColor: colors.dangerSoft,
+    borderColor: '#7f1d1d',
+    borderRadius: 18,
     borderWidth: 1,
     marginVertical: 18,
     padding: 16,
   },
   configTitle: {
-    color: lightColors.danger,
+    color: colors.danger,
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '900',
     marginBottom: 12,
     textAlign: 'center',
   },
   container: {
-    backgroundColor: lightColors.background,
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-  },
-  dashboardContent: {
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
   disabledButton: {
     opacity: 0.55,
   },
-  emptyBody: {
-    color: lightColors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: 28,
-  },
-  emptyTitle: {
-    color: lightColors.text,
-    fontSize: 16,
-    fontWeight: '800',
-  },
   error: {
-    color: lightColors.danger,
-    marginBottom: 10,
+    color: colors.danger,
+    marginTop: 10,
     textAlign: 'center',
   },
-  errorTitle: {
-    color: lightColors.danger,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  header: {
-    alignItems: 'center',
-    backgroundColor: lightColors.card,
-    borderBottomColor: lightColors.border,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-  },
-  heroEyebrow: {
-    color: lightColors.muted,
-    fontSize: 12,
-    fontWeight: '800',
+  groupLabel: {
+    color: colors.ai,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    marginBottom: 8,
     textTransform: 'uppercase',
   },
-  heroPanel: {
-    alignItems: 'center',
-    backgroundColor: lightColors.card,
-    borderColor: lightColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    padding: 18,
-  },
-  heroTitle: {
-    color: lightColors.text,
-    fontSize: 24,
-    fontWeight: '900',
-    marginTop: 4,
-  },
   input: {
-    backgroundColor: 'white',
-    borderColor: lightColors.border,
-    borderRadius: 8,
+    backgroundColor: '#091226',
+    borderColor: colors.border,
+    borderRadius: 16,
     borderWidth: 1,
+    color: colors.text,
     fontSize: 16,
     marginBottom: 14,
-    minHeight: 52,
-    padding: 15,
+    minHeight: 54,
+    paddingHorizontal: 16,
   },
   loadingText: {
-    color: lightColors.muted,
+    color: colors.muted,
     marginTop: 12,
   },
   loginContainer: {
     flex: 1,
     justifyContent: 'center',
-    padding: 32,
+    padding: 24,
+  },
+  loginPanel: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 28,
+    borderWidth: 1,
+    marginTop: 22,
+    padding: 20,
   },
   logoutButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
   logoutText: {
-    color: lightColors.danger,
-    fontWeight: '700',
-  },
-  metricCard: {
-    backgroundColor: lightColors.card,
-    borderColor: lightColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    minWidth: '47%',
-    padding: 14,
-  },
-  metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 14,
-  },
-  metricLabel: {
-    color: lightColors.muted,
+    color: '#fda4af',
     fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  metricValue: {
-    fontSize: 20,
     fontWeight: '900',
   },
+  moduleDescription: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  moduleGroup: {
+    marginTop: 22,
+  },
+  moduleIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+    borderRadius: 16,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  moduleIconText: {
+    color: colors.ai,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  moduleRow: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+    padding: 14,
+  },
+  moduleRowText: {
+    flex: 1,
+  },
+  moduleTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  moreContent: {
+    paddingBottom: 30,
+  },
   offlineBanner: {
-    backgroundColor: lightColors.warningSoft,
-    borderBottomColor: '#f59e0b',
+    backgroundColor: colors.warningSoft,
+    borderBottomColor: '#7c5a12',
     borderBottomWidth: 1,
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
   offlineBody: {
-    color: lightColors.warning,
+    color: colors.warning,
     fontSize: 12,
   },
   offlineTitle: {
-    color: lightColors.warning,
+    color: colors.warning,
     fontSize: 13,
     fontWeight: '900',
   },
-  primaryText: {
-    color: lightColors.primary,
-  },
-  quickAction: {
-    backgroundColor: lightColors.card,
-    borderColor: lightColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 74,
-    justifyContent: 'center',
-    padding: 14,
-  },
-  quickActionBody: {
-    color: lightColors.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  quickActionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
-  },
-  quickActionTitle: {
-    color: lightColors.text,
-    fontSize: 15,
-    fontWeight: '900',
-  },
   roleText: {
-    color: lightColors.primary,
-    fontSize: 12,
+    color: colors.ai,
+    fontSize: 10,
     fontWeight: '800',
     marginTop: 3,
     textTransform: 'capitalize',
   },
-  secondaryButton: {
-    borderColor: lightColors.primary,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 14,
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  secondaryButtonText: {
-    color: lightColors.primary,
-    fontWeight: '800',
+  sectionSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+    marginTop: 4,
   },
   sectionTitle: {
-    color: lightColors.text,
-    fontSize: 20,
-    fontWeight: '900',
-    marginBottom: 16,
-  },
-  skeletonLine: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 8,
-    height: 12,
-    marginTop: 12,
-    width: '92%',
-  },
-  skeletonShort: {
-    width: '64%',
-  },
-  skeletonTitle: {
-    backgroundColor: '#cbd5e1',
-    borderRadius: 8,
-    height: 18,
-    width: '52%',
-  },
-  statusPill: {
-    backgroundColor: lightColors.successSoft,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  statusPillText: {
-    color: lightColors.success,
-    fontSize: 12,
+    color: colors.text,
+    fontSize: 28,
     fontWeight: '900',
   },
   subtitle: {
-    color: lightColors.muted,
-    fontSize: 18,
-    marginBottom: 40,
+    color: colors.muted,
+    fontSize: 16,
+    lineHeight: 24,
     textAlign: 'center',
-  },
-  successText: {
-    color: lightColors.success,
-  },
-  switcher: {
-    alignItems: 'center',
-    backgroundColor: lightColors.primarySoft,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    minHeight: 48,
-    paddingHorizontal: 14,
-  },
-  switcherLabel: {
-    color: lightColors.primary,
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  switcherValue: {
-    color: lightColors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  syncedText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    marginTop: 10,
   },
   title: {
-    color: lightColors.text,
-    fontSize: 34,
+    color: colors.text,
+    fontSize: 38,
     fontWeight: '900',
+    marginBottom: 10,
     textAlign: 'center',
   },
+  topBar: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
   userName: {
-    color: lightColors.text,
-    fontSize: 18,
+    color: colors.text,
+    fontSize: 13,
     fontWeight: '900',
   },
-  warningText: {
-    color: lightColors.warning,
+  userPill: {
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    maxWidth: '58%',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
   },
-  welcome: {
-    color: lightColors.muted,
-    fontSize: 14,
+  userTextBlock: {
+    flexShrink: 1,
   },
 });
 

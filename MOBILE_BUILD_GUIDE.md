@@ -30,6 +30,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:PATH = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:PATH"
+$env:NODE_OPTIONS = "--max-old-space-size=4096 --max-semi-space-size=256"
 ```
 
 ## Required Public Mobile Env
@@ -42,12 +43,56 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+For local Windows builds, create `apps/mobile/.env` from `apps/mobile/.env.example`:
+
+```powershell
+cd "D:\Educonnect-Migration\EduConnect-App-supabase-migration"
+notepad .\apps\mobile\.env
+```
+
+The React Native bundle also accepts the existing migration aliases:
+
+```bash
+VITE_API_BASE_URL=https://your-api-project.vercel.app/api
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
 Rules:
 
 - `API_BASE_URL` must be HTTPS for GitHub/downloadable APK artifacts.
 - Do not use `localhost`, `127.0.0.1`, or `10.0.2.2` in packaged APK artifacts.
 - Never add `SUPABASE_SERVICE_ROLE_KEY` to mobile env, GitHub mobile workflow env, or frontend/mobile code.
 - If required public config is missing, the app shows a readable configuration screen instead of starting auth/API calls.
+- Missing config is also logged during release/debug bundle creation; do not publish an APK that shows `App Not Configured`.
+
+## Mobile Feature Coverage
+
+The Android app is a real React Native app, not a WebView. It mirrors the website's major modules with role-aware visibility from `@educonnect/shared`:
+
+- Dashboard
+- Announcements
+- Attendance
+- Assignments
+- Chat
+- Library
+- Fees
+- Performance
+- Parent Portal
+- Students
+- Teachers
+- All Users
+
+Mobile uses bottom tabs for primary work and a More screen for secondary/admin modules. Inaccessible modules are hidden with the same `canAccessModule` rules used by the web app.
+
+Some web-only write workflows remain intentionally read-only on mobile unless the backend exposes a safe mobile contract:
+
+- Fee CSV import/export and online payment launch
+- Library file upload/edit/delete
+- Performance CSV import/export
+- User/student/teacher creation, bulk import, deactivation, and audit modal workflows
+
+Those screens still use live Supabase documents or API routes and show loading, empty, retry, and forbidden/error states instead of fake production data.
 
 ## Local APK Build
 
@@ -68,6 +113,22 @@ $env:API_BASE_URL = "https://your-api-project.vercel.app/api"
 $env:SUPABASE_URL = "https://your-project.supabase.co"
 $env:SUPABASE_ANON_KEY = "your_supabase_anon_key"
 pnpm --filter mobile build:android
+```
+
+PowerShell full debug APK rebuild:
+
+```powershell
+cd "D:\Educonnect-Migration\EduConnect-App-supabase-migration"
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+$env:NODE_OPTIONS = "--max-old-space-size=4096 --max-semi-space-size=256"
+pnpm install
+pnpm --filter mobile lint
+pnpm --filter mobile test
+pnpm --filter mobile build:android:debug
+cd .\apps\mobile\android
+.\gradlew clean
+.\gradlew assembleDebug
 ```
 
 For local development against an emulator API, explicitly set a local `API_BASE_URL` before `pnpm --filter mobile android`. Do not use local URLs for APK artifacts uploaded to GitHub Actions.

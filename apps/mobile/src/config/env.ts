@@ -18,16 +18,16 @@ export interface MobileConfigIssue {
 }
 
 const PRODUCTION_CONFIG: EnvConfig = {
-  API_BASE_URL: process.env.API_BASE_URL || '',
-  SUPABASE_URL: process.env.SUPABASE_URL || '',
-  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
+  API_BASE_URL: process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || '',
+  SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
   IS_PRODUCTION: true,
 };
 
 const DEV_CONFIG: EnvConfig = {
-  API_BASE_URL: process.env.API_BASE_URL || '',
-  SUPABASE_URL: process.env.SUPABASE_URL || '',
-  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
+  API_BASE_URL: process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || '',
+  SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
   IS_PRODUCTION: false,
 };
 

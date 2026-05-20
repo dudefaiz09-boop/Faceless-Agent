@@ -1,18 +1,17 @@
-import { ROLES } from './constants/index.js';
 type PermissionUser = {
   roles?: readonly string[];
   isAdmin?: boolean;
   permissions?: Record<string, boolean>;
 };
 export declare const ALL_ROLES: readonly [
-  typeof ROLES.ADMIN,
-  typeof ROLES.PRINCIPAL,
-  typeof ROLES.TEACHER,
-  typeof ROLES.STUDENT,
-  typeof ROLES.PARENT,
-  typeof ROLES.LIBRARIAN,
-  typeof ROLES.ACCOUNTANT,
-  typeof ROLES.STAFF,
+  'admin',
+  'principal',
+  'teacher',
+  'student',
+  'parent',
+  'librarian',
+  'accountant',
+  'staff',
 ];
 export type Role = (typeof ALL_ROLES)[number];
 export declare const ROLE_LABELS: Record<Role, string>;

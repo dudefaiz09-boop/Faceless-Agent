@@ -1,6 +1,10 @@
+/**
+ * SHARED DOCUMENT QUERY SERVICE
+ * Centralized query definitions to ensure Web and Mobile use identical data access patterns.
+ */
 export declare const DocumentQueries: {
   getLatestAnnouncements: (limitCount?: number) => {
-    collection: string;
+    collection: 'announcements';
     orderByField: string;
     orderDirection: 'desc';
     limit: number;
@@ -9,7 +13,7 @@ export declare const DocumentQueries: {
     classId: string | null,
     limitCount?: number
   ) => {
-    collection: string;
+    collection: 'announcements';
     whereConditions: {
       field: string;
       operator: 'array-contains-any';
@@ -23,7 +27,7 @@ export declare const DocumentQueries: {
     classId: string,
     date: string
   ) => {
-    collection: string;
+    collection: 'attendance';
     whereConditions: {
       field: string;
       operator: '==';

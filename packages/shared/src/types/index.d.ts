@@ -1,12 +1,21 @@
-import { UserRole } from '../constants/index.js';
+import type { ModuleKey, PermissionKey, Role } from '../roles.js';
 export interface UserContext {
   uid: string;
   email?: string;
   displayName?: string;
-  roles: UserRole[];
+  role?: Role;
+  roles: Role[];
   isAdmin: boolean;
   classId: string | null;
+  classIds?: string[];
+  subjectIds?: string[];
+  sectionIds?: string[];
+  linkedStudentIds?: string[];
+  assignedModules?: ModuleKey[];
   permissions: Record<string, boolean>;
+  permissionKeys?: PermissionKey[];
+  schoolId?: string | null;
+  status?: 'active' | 'inactive';
 }
 export interface Announcement {
   id: string;
