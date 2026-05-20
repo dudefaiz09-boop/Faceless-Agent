@@ -20,9 +20,9 @@ interface EnvConfig {
 }
 
 const PRODUCTION_CONFIG: EnvConfig = {
-  API_BASE_URL: 'https://your-api.example.com/api',
-  SUPABASE_URL: process?.env?.SUPABASE_URL || 'https://your-project.supabase.co',
-  SUPABASE_ANON_KEY: process?.env?.SUPABASE_ANON_KEY || 'your_supabase_anon_key',
+  API_BASE_URL: process.env.API_BASE_URL || 'https://your-api.example.com/api',
+  SUPABASE_URL: process.env.SUPABASE_URL || 'https://your-project.supabase.co',
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || 'your_supabase_anon_key',
   IS_PRODUCTION: true,
 };
 
@@ -33,8 +33,8 @@ const DEV_CONFIG: EnvConfig = {
     ios: 'http://localhost:8080/api',
     default: 'http://localhost:8080/api',
   })!,
-  SUPABASE_URL: process?.env?.SUPABASE_URL || 'https://your-project.supabase.co',
-  SUPABASE_ANON_KEY: process?.env?.SUPABASE_ANON_KEY || 'your_supabase_anon_key',
+  SUPABASE_URL: process.env.SUPABASE_URL || 'https://your-project.supabase.co',
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || 'your_supabase_anon_key',
   IS_PRODUCTION: false,
 };
 
