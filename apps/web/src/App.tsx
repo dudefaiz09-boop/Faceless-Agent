@@ -21,7 +21,6 @@ import {
   LogOut,
   Menu,
   GraduationCap,
-  Bot,
   Baby,
   Shield,
 } from 'lucide-react';
@@ -34,6 +33,8 @@ import { canAccessModule, type ModuleKey } from '@educonnect/shared';
 import { CommandPalette } from './components/saas/CommandPalette';
 import { NotificationDropdown } from './components/saas/NotificationDropdown';
 import { ThemeToggle } from './components/saas/ThemeToggle';
+import { GlobalChatbot } from './components/saas/GlobalChatbot';
+import { ProfileModal } from './components/saas/ProfileModal';
 import { DashboardPage } from './pages/Dashboard';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -64,7 +65,6 @@ const FeesPage = lazy(() => import('./pages/Fees').then((m) => ({ default: m.Fee
 const PerformancePage = lazy(() =>
   import('./pages/Performance').then((m) => ({ default: m.PerformancePage }))
 );
-const ChatbotPage = lazy(() => import('./pages/Chatbot').then((m) => ({ default: m.ChatbotPage })));
 const ParentPortal = lazy(() =>
   import('./pages/ParentPortal').then((m) => ({ default: m.ParentPortal }))
 );
@@ -104,6 +104,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const menuItems: Array<{
     to: string;
@@ -116,12 +117,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       icon: LayoutDashboard,
       label: 'Dashboard',
       module: 'dashboard',
-    },
-    {
-      to: '/chatbot',
-      icon: Bot,
-      label: 'AI Assistant',
-      module: 'aiAssistant',
     },
     {
       to: '/announcements',
@@ -268,13 +263,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               </p>
               <p className="text-xs text-slate-500 capitalize dark:text-slate-400">{role}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-slate-100">
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden ring-2 ring-slate-100 hover:ring-blue-400 dark:ring-slate-800 transition-all cursor-pointer"
+            >
               <img
                 src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}`}
                 alt="Profile"
                 className="w-full h-full object-cover"
               />
-            </div>
+            </button>
           </div>
         </header>
 
@@ -282,6 +280,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           {children}
         </div>
       </main>
+      <GlobalChatbot />
+      <ProfileModal open={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </div>
   );
 };
@@ -342,14 +342,7 @@ const AppContent = () => {
               </ModuleGuard>
             }
           />
-          <Route
-            path="/chatbot"
-            element={
-              <ModuleGuard module="aiAssistant">
-                <ChatbotPage />
-              </ModuleGuard>
-            }
-          />
+
           <Route
             path="/announcements"
             element={
