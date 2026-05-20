@@ -5,6 +5,7 @@ export const chatbotQuerySchema = z.object({
     .object({
       query: z.string().min(1).max(2000),
       mode: z.enum(['chat', 'lesson', 'quiz', 'report', 'announcement']).optional(),
+      modules: z.array(z.string()).optional(),
     })
     .strict(),
 });
