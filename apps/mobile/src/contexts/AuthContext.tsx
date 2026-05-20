@@ -89,7 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .getSession()
       .then(({ data }) => applySession(data.session))
       .catch((err) => {
-        console.error('[Auth] Initial session fetch failed (likely wrong API URL or offline):', err);
+        console.error(
+          '[Auth] Initial session fetch failed (likely wrong API URL or offline):',
+          err
+        );
         setLoading(false);
       });
 

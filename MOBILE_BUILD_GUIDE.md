@@ -56,12 +56,14 @@ adb logcat | Select-String -Pattern "educonnect|crash|fatal|error" # Windows Pow
 ```
 
 ### GitHub Actions Build
+
 The workflow `android-distribute.yml` automatically builds the app and uploads the APK.
 To ensure the correct backend endpoints are compiled into the app, you MUST configure these three GitHub Repository Secrets:
+
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `API_BASE_URL`
-You can download the generated `android-apk` from the Artifacts tab of the latest successful GitHub Action run.
+  You can download the generated `android-apk` from the Artifacts tab of the latest successful GitHub Action run.
 
 ### Troubleshooting
 
