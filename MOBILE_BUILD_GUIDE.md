@@ -9,7 +9,10 @@ It is not Capacitor, Cordova, Expo, or a packaged WebView/PWA APK.
 - Android applicationId: `com.educonnect.app`
 - Main activity: `com.educonnect.app.MainActivity`
 - Debug APK output: `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`
-- GitHub Actions artifact: `android-apk`
+- Release APK output: `apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk` unless release signing is configured
+- Release AAB output: `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`
+- GitHub Actions artifacts: `android-apk`, `android-release-apk`, `android-release-aab`
+- Hermes is enabled and `MainApplication.java` initializes SoLoader with `OpenSourceMergedSoMapping.INSTANCE`.
 
 ## Android Prerequisites
 
@@ -55,6 +58,7 @@ corepack enable
 pnpm install
 pnpm --filter mobile lint
 pnpm --filter mobile build:android
+pnpm --filter mobile verify:android-apk
 ```
 
 PowerShell with env:
@@ -69,6 +73,24 @@ pnpm --filter mobile build:android
 For local development against an emulator API, explicitly set a local `API_BASE_URL` before `pnpm --filter mobile android`. Do not use local URLs for APK artifacts uploaded to GitHub Actions.
 
 The debug build is intentionally bundled with fresh JS, even though it is a debug APK, because GitHub Actions publishes that APK as the downloadable artifact. The build must not rely on Metro or a checked-in `index.android.bundle`.
+
+The APK verifier checks that the downloadable APK contains:
+
+- `lib/arm64-v8a/libhermes.so`
+- `lib/arm64-v8a/libhermestooling.so`
+- `assets/index.android.bundle`
+
+It also fails if the packaged bundle contains localhost API URLs, `10.0.2.2`, `127.0.0.1`, or service-role-key markers. It confirms `libhermes_executor.so` is not packaged as an APK entry; React Native 0.76 with `OpenSourceMergedSoMapping` should not try to load that legacy library at startup.
+
+## Local Release Build
+
+Unsigned release outputs can be built without committing signing secrets:
+
+```bash
+pnpm --filter mobile build:android:release
+```
+
+Signed release outputs require the `MYAPP_RELEASE_*` Gradle properties described below. Keep the keystore outside git, or provide it through a secure CI secret/materialization step.
 
 ## Install And Capture Logs
 
@@ -107,10 +129,13 @@ Required GitHub Repository Secrets or Variables:
 
 Artifact:
 
-- Name: `android-apk`
-- Path uploaded: `apps/mobile/android/app/build/outputs/apk/debug/*.apk`
+- `android-apk`: `apps/mobile/android/app/build/outputs/apk/debug/*.apk`
+- `android-release-apk`: `apps/mobile/android/app/build/outputs/apk/release/*.apk`
+- `android-release-aab`: `apps/mobile/android/app/build/outputs/bundle/release/*.aab`
 
 Download it from the latest successful `Android Build` workflow run under the run's Artifacts section.
+
+The workflow validates public mobile env before building. It rejects missing values, non-HTTPS `API_BASE_URL`, localhost-style `API_BASE_URL`, and any `SUPABASE_ANON_KEY` that appears to be a service-role key. `SUPABASE_SERVICE_ROLE_KEY` may exist for backend workflows, but it is not passed to the mobile build.
 
 ## Android 16 Notes
 
@@ -127,6 +152,16 @@ Current native config:
 
 Android 16 can run apps targeting SDK 34, but you should still test on Android 16 and inspect logcat. Official Android 16 behavior changes include ART/runtime compatibility work and target-SDK-36-only behavior changes; this app does not currently target SDK 36, so target-36 behavior changes do not apply yet.
 
+Safe targetSdk 35 plan:
+
+1. Upgrade Android SDK Platform 35 and Build Tools locally/CI.
+2. Change `compileSdkVersion` and `targetSdkVersion` to `35` in `apps/mobile/android/build.gradle`.
+3. Run `pnpm --filter mobile lint`, `pnpm --filter mobile build:android`, `pnpm --filter mobile verify:android-apk`, `./gradlew clean assembleDebug`, and `./gradlew assembleRelease bundleRelease`.
+4. Install on Android 15 and Android 16 devices/emulators and inspect logcat for startup, auth, networking, window inset, and notification/runtime permission regressions.
+5. Keep React Native `0.76.3` unless a dependency requires a paired upgrade; do not bump SDK and RN together without isolating failures.
+
+This repo intentionally stays on targetSdk 34 until those checks pass.
+
 ## Release Signing
 
 Debug APKs install and launch without release signing. Release builds require signing properties and a keystore supplied outside the repo:
@@ -137,3 +172,39 @@ Debug APKs install and launch without release signing. Release builds require si
 - `MYAPP_RELEASE_KEY_PASSWORD`
 
 Do not commit keystores or signing secrets.
+
+In GitHub Actions, expose these as secrets or variables only to the Android workflow:
+
+```text
+MYAPP_RELEASE_STORE_FILE
+MYAPP_RELEASE_STORE_PASSWORD
+MYAPP_RELEASE_KEY_ALIAS
+MYAPP_RELEASE_KEY_PASSWORD
+```
+
+`MYAPP_RELEASE_STORE_FILE` must point to a keystore file available during the workflow. If the keystore is stored as a base64 secret, materialize it in a CI step outside the repository and set this value to that temporary path.
+
+## Crash Reporting
+
+Firebase/Google Services is optional. Local and CI builds skip it when `apps/mobile/android/app/google-services.json` is absent.
+
+Firebase Crashlytics path:
+
+1. Add Firebase Android app `com.educonnect.app`.
+2. Download `google-services.json`.
+3. Place it locally at `apps/mobile/android/app/google-services.json`, or create it securely in CI from a secret.
+4. Add React Native Firebase Crashlytics packages in a dedicated dependency-change PR, then verify debug and release startup.
+
+Sentry fallback:
+
+1. Add `@sentry/react-native`.
+2. Initialize Sentry only when a public DSN env var is present.
+3. Keep DSN and upload tokens out of source control.
+
+Do not block local builds when crash-reporting config is missing.
+
+## Runtime Reliability Notes
+
+The mobile app uses React Query with a five-minute stale window, 30-minute in-memory cache retention, bounded retry/backoff, and refetch-on-app-focus. Announcements and assignments include pull-to-refresh, loading skeletons, empty/error states, and last-synced timestamps.
+
+Offline handling currently provides API reachability detection and an offline banner. Durable offline queues for attendance, assignments, announcements, fees, performance, and library should be backed by persistent storage such as AsyncStorage before accepting real offline submissions. Until that storage is added, avoid optimistic updates unless rollback is implemented for that mutation.

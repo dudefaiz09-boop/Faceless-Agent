@@ -74,6 +74,11 @@ jobs:
               ;;
           esac
 
+          if echo "$SUPABASE_ANON_KEY" | grep -Eiq 'service[_-]?role'; then
+            echo "::error::SUPABASE_ANON_KEY appears to contain a service role key marker"
+            missing=1
+          fi
+
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
@@ -88,8 +93,36 @@ jobs:
           API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
         run: pnpm --filter mobile build:android
 
+      - name: Verify Android debug APK contents
+        run: pnpm --filter mobile verify:android-apk
+
+      - name: Build Android (Release APK/AAB)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
+          ORG_GRADLE_PROJECT_MYAPP_RELEASE_STORE_FILE: ${{ secrets.MYAPP_RELEASE_STORE_FILE }}
+          ORG_GRADLE_PROJECT_MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.MYAPP_RELEASE_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.MYAPP_RELEASE_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.MYAPP_RELEASE_KEY_PASSWORD }}
+        run: pnpm --filter mobile build:android:release
+
       - name: Upload APK to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
+
+      - name: Upload release APK to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+
+      - name: Upload release AAB to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn

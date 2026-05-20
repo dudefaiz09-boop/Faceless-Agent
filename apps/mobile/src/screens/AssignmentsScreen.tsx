@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
@@ -16,6 +15,9 @@ export const AssignmentsScreen = () => {
   const { schoolId } = useAuth();
   const {
     data: assignments = [],
+    dataUpdatedAt,
+    error,
+    isError,
     isLoading,
     refetch,
     isRefetching,
@@ -27,8 +29,30 @@ export const AssignmentsScreen = () => {
 
   if (isLoading && !isRefetching) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={styles.container}>
+        <View style={styles.skeletonCard}>
+          <View style={styles.skeletonTitle} />
+          <View style={styles.skeletonLine} />
+          <View style={styles.skeletonShort} />
+        </View>
+        <View style={styles.skeletonCard}>
+          <View style={styles.skeletonTitle} />
+          <View style={styles.skeletonLine} />
+        </View>
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.errorTitle}>Assignments unavailable</Text>
+        <Text style={styles.emptyText}>
+          {(error as Error)?.message || 'Please check your connection and try again.'}
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => void refetch()}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -38,6 +62,9 @@ export const AssignmentsScreen = () => {
       <FlatList
         data={assignments}
         keyExtractor={(item) => item.id!}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card}>
@@ -61,6 +88,21 @@ export const AssignmentsScreen = () => {
             <Text style={styles.emptyText}>No assignments found.</Text>
           </View>
         }
+        ListFooterComponent={
+          assignments.length > 0 ? (
+            <Text style={styles.syncedText}>
+              Last synced{' '}
+              {dataUpdatedAt
+                ? new Date(dataUpdatedAt).toLocaleString([], {
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    month: 'short',
+                  })
+                : 'Not synced yet'}
+            </Text>
+          ) : null
+        }
       />
     </View>
   );
@@ -71,14 +113,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   card: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
@@ -106,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eff6ff',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   badgeText: {
     fontSize: 10,
@@ -143,5 +180,60 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#94a3b8',
     fontSize: 16,
+    textAlign: 'center',
+  },
+  errorTitle: {
+    color: '#b91c1c',
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  retryButton: {
+    borderColor: '#2563eb',
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 18,
+  },
+  retryButtonText: {
+    color: '#2563eb',
+    fontWeight: '800',
+  },
+  skeletonCard: {
+    backgroundColor: 'white',
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 16,
+  },
+  skeletonLine: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 8,
+    height: 12,
+    marginTop: 12,
+    width: '90%',
+  },
+  skeletonShort: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 8,
+    height: 12,
+    marginTop: 12,
+    width: '52%',
+  },
+  skeletonTitle: {
+    backgroundColor: '#cbd5e1',
+    borderRadius: 8,
+    height: 18,
+    width: '58%',
+  },
+  syncedText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginBottom: 12,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });

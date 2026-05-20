@@ -4,29 +4,19 @@ plugins {
 }
 
 def enableHermes = true
+def releaseSigningProperties = [
+    "MYAPP_RELEASE_STORE_FILE",
+    "MYAPP_RELEASE_STORE_PASSWORD",
+    "MYAPP_RELEASE_KEY_ALIAS",
+    "MYAPP_RELEASE_KEY_PASSWORD"
+]
+def hasReleaseSigning = releaseSigningProperties.every { project.hasProperty(it) && project.property(it) }
 
-/**
- * This is the configuration block to customize your React Native Android app.
- * By default you don't need to apply any configuration, it is all handled by the CLI.
- */
 react {
-    /* Folders */
-    // The root of the React Native mobile app, where apps/mobile/package.json lives.
     root = file("../../")
-
-    // pnpm installs the mobile app's direct React Native dependencies under apps/mobile/node_modules.
-    // Do not point these at the repository root node_modules, because CI may not hoist react-native there.
     reactNativeDir = file("../../node_modules/react-native")
     codegenDir = file("../../node_modules/@react-native/codegen")
-
-    // Trigger autolinking
-    autolinkLibrariesWithApp()
-
-    // GitHub Actions distributes the debug APK as the downloadable artifact.
-    // Bundle JS for debug too so the APK launches without Metro and never falls
-    // back to a checked-in/stale index.android.bundle.
     debuggableVariants = []
-
     hermesEnabled = enableHermes
 }
 
@@ -40,11 +30,12 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        manifestPlaceholders = [usesCleartextTraffic: "true"]
     }
 
     signingConfigs {
         release {
-            if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
+            if (hasReleaseSigning) {
                 storeFile file(MYAPP_RELEASE_STORE_FILE)
                 storePassword MYAPP_RELEASE_STORE_PASSWORD
                 keyAlias MYAPP_RELEASE_KEY_ALIAS
@@ -54,8 +45,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders = [usesCleartextTraffic: "true"]
+        }
         release {
-            signingConfig signingConfigs.release
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+            manifestPlaceholders = [usesCleartextTraffic: "false"]
             minifyEnabled false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
@@ -72,13 +69,7 @@ dependencies {
     }
 }
 
-// Firebase/Google Services is optional for this app. CI and local debug builds should not fail
-// when google-services.json is absent. Add apps/mobile/android/app/google-services.json locally
-// or through CI secrets, then the plugin will be applied automatically.
 def googleServicesFile = file("google-services.json")
 if (googleServicesFile.exists()) {
     apply plugin: "com.google.gms.google-services"
-    logger.lifecycle("Google Services plugin enabled using ${googleServicesFile}")
-} else {
-    logger.lifecycle("Google Services plugin skipped: ${googleServicesFile} not found")
 }

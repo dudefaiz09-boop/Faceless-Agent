@@ -9,5 +9,10 @@ coverage/
 !.env.example
 firebase-applet-config.json
 EduConnect-App/mobile/android/app/google-services.json
+apps/mobile/android/app/google-services.json
+apps/mobile/android/app/*.jks
+apps/mobile/android/app/*.keystore
+apps/mobile/android/.idea/
+apps/mobile/android/gradle/gradle-daemon-jvm.properties
 apps/mobile/android/app/src/main/assets/index.android.bundle
 .turbo

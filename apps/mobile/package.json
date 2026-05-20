@@ -15,7 +15,8 @@
     "prebuild:android": "pnpm --dir ../.. --filter @educonnect/shared-api... build",
     "build:android": "node scripts/run-gradle.mjs assembleDebug",
     "build:android:debug": "node scripts/run-gradle.mjs assembleDebug",
-    "build:android:release": "node scripts/run-gradle.mjs assembleRelease"
+    "build:android:release": "node scripts/run-gradle.mjs assembleRelease bundleRelease",
+    "verify:android-apk": "node scripts/verify-android-apk.mjs"
   },
   "dependencies": {
     "@educonnect/shared": "workspace:*",
