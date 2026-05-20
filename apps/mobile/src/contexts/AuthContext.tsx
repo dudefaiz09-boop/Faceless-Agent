@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { setMobileTenantId } from '../lib/api-client';
 import { supabase } from '../lib/supabase';
 
 interface MobileUser {
@@ -53,6 +54,8 @@ async function getProfile(uid: string) {
     schoolId?: string;
     roles?: string[];
     permissions?: Record<string, boolean>;
+    disabled?: boolean;
+    status?: string;
   };
 }
 
@@ -67,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!session?.user) {
       setUser(null);
       setSchoolId(null);
+      setMobileTenantId(null);
       setRoles([]);
       setPermissions({});
       setLoading(false);
@@ -78,11 +82,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const profile = await getProfile(session.user.id);
       const appMetadata = session.user.app_metadata || {};
-      setSchoolId(profile.schoolId || appMetadata.schoolId || null);
+
+      if (profile.disabled || profile.status === 'disabled' || appMetadata.disabled === true) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setSchoolId(null);
+        setMobileTenantId(null);
+        setRoles([]);
+        setPermissions({});
+        return;
+      }
+
+      const nextSchoolId = profile.schoolId || appMetadata.schoolId || null;
+      setSchoolId(nextSchoolId);
+      setMobileTenantId(nextSchoolId);
       setRoles(profile.roles || appMetadata.roles || []);
       setPermissions(profile.permissions || appMetadata.permissions || {});
     } catch (error) {
-      console.error('[Auth] Failed to fetch Supabase profile:', error);
+      console.error('[Auth] Failed to fetch Supabase profile:', (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -95,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .catch((err) => {
         console.error(
           '[Auth] Initial session fetch failed (likely wrong API URL or offline):',
-          err
+          (err as Error).message
         );
         setLoading(false);
       });
