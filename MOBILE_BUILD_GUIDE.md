@@ -29,6 +29,10 @@ Environment variables (typical):
 ### Common Commands
 
 ```bash
+# Setup Environment (required for valid backend connection)
+# Copy the example and edit the variables with your Supabase URL, Anon Key, and API URL
+cp apps/mobile/.env.mobile.example apps/mobile/.env
+
 # JS-only checks
 pnpm --filter mobile lint
 pnpm --filter mobile test
@@ -42,7 +46,22 @@ pnpm --filter mobile build:android:debug
 
 # Build an APK (Release) - requires signing config
 pnpm --filter mobile build:android:release
+
+# Install the built APK onto an attached device via ADB
+adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+# View logs for crashes or debugging
+adb logcat | Select-String -Pattern "educonnect|crash|fatal|error" # Windows PowerShell
+# adb logcat | grep -i -E "educonnect|crash|fatal|error" # Linux/Mac
 ```
+
+### GitHub Actions Build
+The workflow `android-distribute.yml` automatically builds the app and uploads the APK.
+To ensure the correct backend endpoints are compiled into the app, you MUST configure these three GitHub Repository Secrets:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `API_BASE_URL`
+You can download the generated `android-apk` from the Artifacts tab of the latest successful GitHub Action run.
 
 ### Troubleshooting
 
