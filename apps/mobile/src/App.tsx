@@ -15,6 +15,8 @@ import { useAnnouncements } from '@educonnect/shared-api';
 import { announcementsService } from './lib/api-client';
 import { AssignmentsScreen } from './screens/AssignmentsScreen';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { supabaseConfigured } from './lib/supabase';
+import { mobileConfigIssues } from './config/env';
 
 const AnnouncementsList = () => {
   const { data: announcements = [], isLoading } = useAnnouncements(announcementsService);
@@ -60,6 +62,29 @@ const AppContent = () => {
   const handleLogout = () => {
     logout();
   };
+
+  if (!supabaseConfigured) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.configTitle}>App Not Configured</Text>
+          <Text style={styles.configBody}>
+            This APK was built without the required public mobile configuration.
+          </Text>
+          <View style={styles.configList}>
+            {mobileConfigIssues.map((issue) => (
+              <Text key={issue.name} style={styles.configItem}>
+                {issue.name}: {issue.message}
+              </Text>
+            ))}
+          </View>
+          <Text style={styles.configBody}>
+            Add SUPABASE_URL, SUPABASE_ANON_KEY, and API_BASE_URL, then rebuild.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (loading) {
     return (
@@ -166,6 +191,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
   },
   loginContainer: {
     flex: 1,
@@ -183,6 +209,34 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     marginBottom: 40,
+  },
+  configTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#dc2626',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  configBody: {
+    fontSize: 16,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  configList: {
+    alignSelf: 'stretch',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    padding: 16,
+    marginVertical: 18,
+  },
+  configItem: {
+    color: '#991b1b',
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 8,
   },
   input: {
     backgroundColor: 'white',

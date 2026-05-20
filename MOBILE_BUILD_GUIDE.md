@@ -1,117 +1,139 @@
-# Mobile Build Guide (React Native)
+# Mobile Build Guide
 
-This repository includes a React Native app at `apps/mobile`.
+## Detected Mobile Stack
 
-## Quick Start
+EduConnect mobile is a React Native app at `apps/mobile` with a native Android wrapper at `apps/mobile/android`.
+
+It is not Capacitor, Cordova, Expo, or a packaged WebView/PWA APK.
+
+- Android applicationId: `com.educonnect.app`
+- Main activity: `com.educonnect.app.MainActivity`
+- Debug APK output: `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`
+- GitHub Actions artifact: `android-apk`
+
+## Android Prerequisites
+
+- Node.js 22 or newer
+- Corepack with pnpm
+- JDK 17 or 21. Do not build with JDK 26; Gradle fails with `Unsupported class file major version 70`.
+- Android SDK Platform 34 and Build Tools 34.0.0
+- `ANDROID_HOME` or `ANDROID_SDK_ROOT` pointing to the Android SDK
+- A physical Android device or Android 16 emulator for launch/logcat verification
+
+PowerShell example:
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$env:PATH = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:PATH"
+```
+
+## Required Public Mobile Env
+
+Set these before building any downloadable APK:
+
+```bash
+API_BASE_URL=https://your-api-project.vercel.app/api
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Rules:
+
+- `API_BASE_URL` must be HTTPS for GitHub/downloadable APK artifacts.
+- Do not use `localhost`, `127.0.0.1`, or `10.0.2.2` in packaged APK artifacts.
+- Never add `SUPABASE_SERVICE_ROLE_KEY` to mobile env, GitHub mobile workflow env, or frontend/mobile code.
+- If required public config is missing, the app shows a readable configuration screen instead of starting auth/API calls.
+
+## Local APK Build
 
 From the repo root:
 
 ```bash
 corepack enable
 pnpm install
-pnpm verify
+pnpm --filter mobile lint
+pnpm --filter mobile build:android
 ```
 
-## Android
+PowerShell with env:
 
-### Prerequisites
+```powershell
+$env:API_BASE_URL = "https://your-api-project.vercel.app/api"
+$env:SUPABASE_URL = "https://your-project.supabase.co"
+$env:SUPABASE_ANON_KEY = "your_supabase_anon_key"
+pnpm --filter mobile build:android
+```
 
-- Node.js (repo expects Node `>=22`)
-- `corepack` + `pnpm`
-- JDK 17
-- Android Studio + Android SDK
-- An emulator or physical device
+For local development against an emulator API, explicitly set a local `API_BASE_URL` before `pnpm --filter mobile android`. Do not use local URLs for APK artifacts uploaded to GitHub Actions.
 
-Environment variables (typical):
+The debug build is intentionally bundled with fresh JS, even though it is a debug APK, because GitHub Actions publishes that APK as the downloadable artifact. The build must not rely on Metro or a checked-in `index.android.bundle`.
 
-- `ANDROID_HOME` or `ANDROID_SDK_ROOT` pointing to your Android SDK install
-
-### Common Commands
+## Install And Capture Logs
 
 ```bash
-# Setup Environment (required for valid backend connection)
-# Copy the example and edit the variables with your Supabase URL, Anon Key, and API URL
-cp apps/mobile/.env.mobile.example apps/mobile/.env
-
-# JS-only checks
-pnpm --filter mobile lint
-pnpm --filter mobile test
-
-# Run the app on a device/emulator (requires Android SDK)
-pnpm --filter mobile android
-
-# Build an APK (Debug)
-pnpm --filter mobile build:android
-pnpm --filter mobile build:android:debug
-
-# Build an APK (Release) - requires signing config
-pnpm --filter mobile build:android:release
-
-# Install the built APK onto an attached device via ADB
+adb devices
 adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
-
-# View logs for crashes or debugging
-adb logcat | Select-String -Pattern "educonnect|crash|fatal|error" # Windows PowerShell
-# adb logcat | grep -i -E "educonnect|crash|fatal|error" # Linux/Mac
+adb logcat -c
+adb shell monkey -p com.educonnect.app 1
+adb logcat -d > android-crash-log.txt
 ```
 
-### GitHub Actions Build
+Filtered logcat:
 
-The workflow `android-distribute.yml` automatically builds the app and uploads the APK.
-To ensure the correct backend endpoints are compiled into the app, you MUST configure these three GitHub Repository Secrets:
+```bash
+adb logcat | grep -i -E "educonnect|reactnative|androidruntime|fatal|exception|crash|hermes"
+```
+
+PowerShell:
+
+```powershell
+adb logcat | Select-String -Pattern "educonnect|reactnative|androidruntime|fatal|exception|crash|hermes"
+adb logcat -d | Select-String -Pattern "AndroidRuntime|FATAL EXCEPTION|educonnect|reactnative|hermes"
+```
+
+Look for `AndroidRuntime FATAL EXCEPTION`, Hermes/React Native JS exceptions, missing native classes/resources, or startup config errors.
+
+## GitHub Actions APK Download
+
+Workflow: `.github/workflows/android-distribute.yml`
+
+Required GitHub Repository Secrets or Variables:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `API_BASE_URL`
-  You can download the generated `android-apk` from the Artifacts tab of the latest successful GitHub Action run.
 
-### Troubleshooting
+Artifact:
 
-- **`Permission denied` running Gradle wrapper**
-  - On Linux/macOS/WSL/Git Bash, run: `chmod +x apps/mobile/android/gradlew`
-- **Android SDK not found**
-  - Ensure `ANDROID_HOME` / `ANDROID_SDK_ROOT` is set and Android Studio SDK Manager has installed a platform + build-tools.
-- **Missing `local.properties`**
-  - Android Studio usually generates this automatically.
-  - If you need it manually, create `apps/mobile/android/local.properties`:
-    - `sdk.dir=/absolute/path/to/Android/Sdk`
-- **`Unsupported class file major version 70` (or similar)**
-  - Your JDK is too new for the current Gradle/Android toolchain.
-  - Use JDK 17 and ensure `JAVA_HOME` points to the JDK root (not the `bin/` directory).
-- **Release build fails due to signing**
-  - This repo does not commit signing keys.
-  - Use `pnpm --filter mobile build:android` (Debug) for local verification unless you have release signing configured.
+- Name: `android-apk`
+- Path uploaded: `apps/mobile/android/app/build/outputs/apk/debug/*.apk`
 
-## iOS
+Download it from the latest successful `Android Build` workflow run under the run's Artifacts section.
 
-### Current Status
+## Android 16 Notes
 
-The `apps/mobile/ios` directory has been **restored**. You can now compile the iOS version of the app.
+Current native config:
 
-### GitHub Actions Build (macOS Runner)
+- React Native `0.76.3`
+- Android Gradle Plugin `8.7.2`
+- Gradle `8.10.2`
+- compileSdk `34`
+- targetSdk `34`
+- minSdk `24`
+- Hermes enabled
+- INTERNET permission present
 
-Since macOS is required to build iOS apps, we have provided a GitHub Actions workflow (`ios-distribute.yml`).
-This workflow automatically provisions a Mac runner, installs Xcode dependencies, and compiles the app.
+Android 16 can run apps targeting SDK 34, but you should still test on Android 16 and inspect logcat. Official Android 16 behavior changes include ART/runtime compatibility work and target-SDK-36-only behavior changes; this app does not currently target SDK 36, so target-36 behavior changes do not apply yet.
 
-**Important Note for Windows Users:**
-The GitHub Action compiles an **unsigned Simulator Build (`.app` file zipped)**. It does not produce an `.ipa` for physical devices because building a release `.ipa` requires a paid Apple Developer Account and valid signing certificates injected into the CI pipeline.
-You can download the generated `ios-simulator-app` from the Artifacts tab of the latest successful GitHub Action run.
+## Release Signing
 
-### Prerequisites (for local Mac builds)
+Debug APKs install and launch without release signing. Release builds require signing properties and a keystore supplied outside the repo:
 
-- macOS
-- Xcode
-- CocoaPods (`pod`)
+- `MYAPP_RELEASE_STORE_FILE`
+- `MYAPP_RELEASE_STORE_PASSWORD`
+- `MYAPP_RELEASE_KEY_ALIAS`
+- `MYAPP_RELEASE_KEY_PASSWORD`
 
-### Commands (for local Mac builds)
-
-```bash
-pnpm --filter mobile ios
-```
-
-### Troubleshooting
-
-- **`ios/Podfile` missing**
-  - Make sure you are on the latest branch where the iOS project was restored.
-- **CocoaPods not installed**
-  - Install CocoaPods on macOS, then run `pod install` inside `apps/mobile/ios`.
+Do not commit keystores or signing secrets.

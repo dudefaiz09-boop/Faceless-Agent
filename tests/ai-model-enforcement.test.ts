@@ -73,6 +73,7 @@ describe('AI Model Enforcement', () => {
 
     it('reports offline-fallback mode when key is missing', () => {
       delete process.env.OPENROUTER_API_KEY;
+      delete process.env.GEMINI_API_KEY;
       const status = getAiRuntimeStatus();
       expect(status.mode).toBe('offline-fallback');
       expect(status.enabled).toBe(false);

@@ -71,7 +71,7 @@ function runtimeOrigin() {
     return window.location.origin;
   }
 
-  return 'http://localhost';
+  return 'https://example.invalid';
 }
 
 function baseEndsWithApi(baseUrl: string) {

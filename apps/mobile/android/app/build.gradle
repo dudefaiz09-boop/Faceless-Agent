@@ -22,6 +22,11 @@ react {
     // Trigger autolinking
     autolinkLibrariesWithApp()
 
+    // GitHub Actions distributes the debug APK as the downloadable artifact.
+    // Bundle JS for debug too so the APK launches without Metro and never falls
+    // back to a checked-in/stale index.android.bundle.
+    debuggableVariants = []
+
     hermesEnabled = enableHermes
 }
 

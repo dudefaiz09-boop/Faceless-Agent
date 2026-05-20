@@ -39,15 +39,57 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate Android public env
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
+        run: |
+          missing=0
+          for name in SUPABASE_URL SUPABASE_ANON_KEY API_BASE_URL; do
+            value="${!name}"
+            if [ -z "$value" ]; then
+              echo "::error::$name is required for the Android APK artifact"
+              missing=1
+            fi
+          done
+
+          case "$API_BASE_URL" in
+            http://localhost*|http://127.*|http://10.0.2.2*)
+              echo "::error::API_BASE_URL must not be a localhost URL for the APK artifact"
+              missing=1
+              ;;
+            https://*) ;;
+            *)
+              echo "::error::API_BASE_URL must be an HTTPS URL for the APK artifact"
+              missing=1
+              ;;
+          esac
+
+          case "$SUPABASE_URL" in
+            https://*) ;;
+            *)
+              echo "::error::SUPABASE_URL must be an HTTPS URL"
+              missing=1
+              ;;
+          esac
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Lint mobile
+        run: pnpm --filter mobile lint
+
       - name: Build Android (Debug)
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
         run: pnpm --filter mobile build:android
 
       - name: Upload APK to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/*.apk

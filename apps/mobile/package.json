@@ -12,6 +12,7 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "prebuild:android": "pnpm --dir ../.. --filter @educonnect/shared-api... build",
     "build:android": "node scripts/run-gradle.mjs assembleDebug",
     "build:android:debug": "node scripts/run-gradle.mjs assembleDebug",
     "build:android:release": "node scripts/run-gradle.mjs assembleRelease"

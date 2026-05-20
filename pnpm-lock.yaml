@@ -417,6 +417,9 @@ importers:
       '@educonnect/shared':
         specifier: workspace:*
         version: link:../shared
+      '@educonnect/shared-education':
+        specifier: workspace:*
+        version: link:../shared-education
       '@tanstack/react-query':
         specifier: ^5.100.9
         version: 5.100.9(react@18.3.1)

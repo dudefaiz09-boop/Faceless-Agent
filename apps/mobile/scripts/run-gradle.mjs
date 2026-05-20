@@ -8,6 +8,10 @@ if (tasks.length === 0) {
   process.exit(1);
 }
 
+if (!tasks.some((task) => task === '--daemon' || task === '--no-daemon')) {
+  tasks.push('--no-daemon');
+}
+
 const androidDir = path.resolve(process.cwd(), 'android');
 if (!fs.existsSync(androidDir)) {
   console.error('Android native project is missing: apps/mobile/android');
