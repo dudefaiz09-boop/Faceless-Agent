@@ -13,6 +13,8 @@ export declare enum ErrorCode {
 export interface AppError {
   code: ErrorCode;
   message: string;
+  status?: number;
   details?: any;
+  data?: any;
 }
 export declare function formatError(error: any): AppError;

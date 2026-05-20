@@ -15,7 +15,7 @@ A comprehensive education management system connecting students, parents, and te
 This project is a monorepo managed by **pnpm** and **TurboRepo**:
 
 - `apps/web`: React + Vite frontend.
-- `apps/mobile`: React Native mobile app.
+- `apps/mobile`: React Native mobile app with Android modules matching the web dashboard, announcements, attendance, assignments, chat, library, fees, performance, parent portal, students, teachers, and all-users surfaces.
 - `apps/functions`: Standalone Express API for free-tier Node hosting.
 - `packages/*`: Shared logic, types, and analytics.
 
@@ -40,6 +40,8 @@ pnpm install
 3. Configure environment variables. Use `.env.example` in the repository root and each app as templates.
 
 For the web app, `apps/web/src/lib/env.ts` validates required Vite variables at startup. The app fails fast if `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` is missing instead of creating an unsafe empty Supabase client.
+
+For Android, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `API_BASE_URL`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` before building. The mobile app also accepts the `VITE_*` aliases used by the web migration, but it must never receive `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### Development
 

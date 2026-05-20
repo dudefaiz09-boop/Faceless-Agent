@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { ROLES, getUserRole, hasPermission, type ModuleKey, type Role } from '@educonnect/shared';
 import { setMobileTenantId } from '../lib/api-client';
 import { supabase } from '../lib/supabase';
 
@@ -14,8 +15,24 @@ interface AuthContextType {
   user: MobileUser | null;
   loading: boolean;
   schoolId: string | null;
+  classId: string | null;
+  classIds: string[];
+  subjectIds: string[];
+  sectionIds: string[];
+  linkedStudentIds: string[];
+  assignedModules: string[];
+  role: Role;
   roles: string[];
   permissions: Record<string, boolean>;
+  isAdmin: boolean;
+  isTeacher: boolean;
+  isStudent: boolean;
+  isParent: boolean;
+  canManageAttendance: boolean;
+  canManageAssignments: boolean;
+  canManageLibrary: boolean;
+  canManageFees: boolean;
+  canManagePerformance: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -24,8 +41,24 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   schoolId: null,
+  classId: null,
+  classIds: [],
+  subjectIds: [],
+  sectionIds: [],
+  linkedStudentIds: [],
+  assignedModules: [],
+  role: ROLES.STUDENT,
   roles: [],
   permissions: {},
+  isAdmin: false,
+  isTeacher: false,
+  isStudent: false,
+  isParent: false,
+  canManageAttendance: false,
+  canManageAssignments: false,
+  canManageLibrary: false,
+  canManageFees: false,
+  canManagePerformance: false,
   login: async () => {},
   logout: async () => {},
 });
@@ -52,7 +85,16 @@ async function getProfile(uid: string) {
   if (error) throw error;
   return (data?.data || {}) as {
     schoolId?: string;
+    tenantId?: string;
+    defaultTenantId?: string;
+    classId?: string | null;
+    classIds?: string[];
+    subjectIds?: string[];
+    sectionIds?: string[];
+    linkedStudentIds?: string[];
+    assignedModules?: ModuleKey[] | string[];
     roles?: string[];
+    role?: string;
     permissions?: Record<string, boolean>;
     disabled?: boolean;
     status?: string;
@@ -63,16 +105,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<MobileUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [schoolId, setSchoolId] = useState<string | null>(null);
+  const [classId, setClassId] = useState<string | null>(null);
+  const [classIds, setClassIds] = useState<string[]>([]);
+  const [subjectIds, setSubjectIds] = useState<string[]>([]);
+  const [sectionIds, setSectionIds] = useState<string[]>([]);
+  const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
+  const [assignedModules, setAssignedModules] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+
+  const clearProfileState = () => {
+    setSchoolId(null);
+    setMobileTenantId(null);
+    setClassId(null);
+    setClassIds([]);
+    setSubjectIds([]);
+    setSectionIds([]);
+    setLinkedStudentIds([]);
+    setAssignedModules([]);
+    setRoles([]);
+    setPermissions({});
+  };
 
   const applySession = async (session: Session | null) => {
     if (!session?.user) {
       setUser(null);
-      setSchoolId(null);
-      setMobileTenantId(null);
-      setRoles([]);
-      setPermissions({});
+      clearProfileState();
       setLoading(false);
       return;
     }
@@ -86,17 +144,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profile.disabled || profile.status === 'disabled' || appMetadata.disabled === true) {
         await supabase.auth.signOut();
         setUser(null);
-        setSchoolId(null);
-        setMobileTenantId(null);
-        setRoles([]);
-        setPermissions({});
+        clearProfileState();
         return;
       }
 
-      const nextSchoolId = profile.schoolId || appMetadata.schoolId || null;
+      const nextSchoolId =
+        profile.schoolId ||
+        profile.tenantId ||
+        appMetadata.schoolId ||
+        appMetadata.tenantId ||
+        profile.defaultTenantId ||
+        appMetadata.defaultTenantId ||
+        null;
+      const nextRoles = profile.roles || appMetadata.roles || (profile.role ? [profile.role] : []);
+      const nextClassId = profile.classId || appMetadata.classId || null;
+      const nextClassIds =
+        profile.classIds || appMetadata.classIds || (nextClassId ? [nextClassId] : []);
       setSchoolId(nextSchoolId);
       setMobileTenantId(nextSchoolId);
-      setRoles(profile.roles || appMetadata.roles || []);
+      setClassId(nextClassId);
+      setClassIds(nextClassIds);
+      setSubjectIds(profile.subjectIds || appMetadata.subjectIds || []);
+      setSectionIds(profile.sectionIds || appMetadata.sectionIds || []);
+      setLinkedStudentIds(profile.linkedStudentIds || appMetadata.linkedStudentIds || []);
+      setAssignedModules(profile.assignedModules || appMetadata.assignedModules || []);
+      setRoles(nextRoles);
       setPermissions(profile.permissions || appMetadata.permissions || {});
     } catch (error) {
       console.error('[Auth] Failed to fetch Supabase profile:', (error as Error).message);
@@ -124,6 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       data.subscription.unsubscribe();
     };
+    // applySession is intentionally scoped to this provider's current state setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -135,8 +209,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
   };
 
+  const role = getUserRole(roles);
+  const permissionUser = {
+    roles: role ? [role] : [],
+    isAdmin: roles.includes(ROLES.ADMIN),
+    permissions,
+  };
+  const isAdmin = roles.includes(ROLES.ADMIN);
+  const isTeacher = roles.includes(ROLES.TEACHER);
+  const isStudent = roles.includes(ROLES.STUDENT);
+  const isParent = roles.includes(ROLES.PARENT);
+
   return (
-    <AuthContext.Provider value={{ user, loading, schoolId, roles, permissions, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        schoolId,
+        classId,
+        classIds,
+        subjectIds,
+        sectionIds,
+        linkedStudentIds,
+        assignedModules,
+        role,
+        roles,
+        permissions,
+        isAdmin,
+        isTeacher,
+        isStudent,
+        isParent,
+        canManageAttendance: hasPermission(permissionUser, 'markAttendance'),
+        canManageAssignments: Boolean(permissions.manageAssignments || isTeacher || isAdmin),
+        canManageLibrary: hasPermission(permissionUser, 'manageLibrary'),
+        canManageFees: hasPermission(permissionUser, 'manageFees'),
+        canManagePerformance: hasPermission(permissionUser, 'viewReports'),
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,8 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { assignmentsService } from '../lib/api-client';
 import { useAssignments } from '@educonnect/shared-api';
 import { useAuth } from '../contexts/AuthContext';
+import { assignmentsService } from '../lib/api-client';
+
+const colors = {
+  background: '#020617',
+  border: '#24324a',
+  card: '#0f172a',
+  cardSoft: '#111c33',
+  danger: '#f87171',
+  muted: '#94a3b8',
+  primary: '#2563eb',
+  primarySoft: '#172554',
+  text: '#f8fafc',
+};
 
 export const AssignmentsScreen = () => {
   const { schoolId } = useAuth();
@@ -15,10 +27,6 @@ export const AssignmentsScreen = () => {
     refetch,
     isRefetching,
   } = useAssignments(assignmentsService, schoolId);
-
-  const onRefresh = () => {
-    refetch();
-  };
 
   if (isLoading && !isRefetching) {
     return (
@@ -38,7 +46,7 @@ export const AssignmentsScreen = () => {
 
   if (isError) {
     return (
-      <View style={styles.empty}>
+      <View style={styles.emptyCard}>
         <Text style={styles.errorTitle}>Assignments unavailable</Text>
         <Text style={styles.emptyText}>
           {(error as Error)?.message || 'Please check your connection and try again.'}
@@ -51,139 +59,129 @@ export const AssignmentsScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={assignments}
-        keyExtractor={(item) => item.id!}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
-        windowSize={5}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.title}>{item.title}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.status}</Text>
-              </View>
+    <FlatList
+      data={assignments}
+      keyExtractor={(item) => item.id!}
+      contentContainerStyle={styles.container}
+      initialNumToRender={8}
+      maxToRenderPerBatch={8}
+      windowSize={5}
+      refreshControl={
+        <RefreshControl
+          tintColor="#67e8f9"
+          refreshing={isRefetching}
+          onRefresh={() => void refetch()}
+        />
+      }
+      renderItem={({ item }) => (
+        <TouchableOpacity style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.statusPill}>
+              <Text style={styles.statusPillText}>{item.status}</Text>
             </View>
-            <Text style={styles.description} numberOfLines={2}>
-              {item.description}
-            </Text>
-            <View style={styles.footer}>
-              <Text style={styles.dueDate}>Due: {new Date(item.dueDate).toLocaleDateString()}</Text>
-              <Text style={styles.points}>{item.pointsPossible} pts</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No assignments found.</Text>
+            <Text style={styles.title}>{item.title}</Text>
           </View>
-        }
-        ListFooterComponent={
-          assignments.length > 0 ? (
-            <Text style={styles.syncedText}>
-              Last synced{' '}
-              {dataUpdatedAt
-                ? new Date(dataUpdatedAt).toLocaleString([], {
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    month: 'short',
-                  })
-                : 'Not synced yet'}
-            </Text>
-          ) : null
-        }
-      />
-    </View>
+          <Text style={styles.description} numberOfLines={3}>
+            {item.description}
+          </Text>
+          <View style={styles.footer}>
+            <Text style={styles.dueDate}>Due {new Date(item.dueDate).toLocaleDateString()}</Text>
+            <Text style={styles.points}>{item.pointsPossible} pts</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+      ListEmptyComponent={
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No assignments found</Text>
+          <Text style={styles.emptyText}>New class work will show up here when available.</Text>
+        </View>
+      }
+      ListFooterComponent={
+        assignments.length > 0 ? (
+          <Text style={styles.syncedText}>
+            Last synced{' '}
+            {dataUpdatedAt
+              ? new Date(dataUpdatedAt).toLocaleString([], {
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  month: 'short',
+                })
+              : 'Not synced yet'}
+          </Text>
+        ) : null
+      }
+    />
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
   card: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 12,
+    padding: 16,
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    flex: 1,
-    marginRight: 8,
-  },
-  badge: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2563eb',
-    textTransform: 'uppercase',
+  container: {
+    paddingBottom: 12,
   },
   description: {
+    color: colors.muted,
     fontSize: 14,
-    color: '#64748b',
-    marginBottom: 12,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    paddingTop: 12,
+    lineHeight: 21,
   },
   dueDate: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  points: {
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
-    color: '#2563eb',
   },
-  empty: {
-    padding: 40,
+  emptyCard: {
     alignItems: 'center',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 26,
   },
   emptyText: {
-    color: '#94a3b8',
-    fontSize: 16,
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
     textAlign: 'center',
   },
-  errorTitle: {
-    color: '#b91c1c',
+  emptyTitle: {
+    color: colors.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
+  },
+  errorTitle: {
+    color: colors.danger,
+    fontSize: 16,
+    fontWeight: '900',
     marginBottom: 6,
   },
+  footer: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 12,
+  },
+  points: {
+    color: '#8bb7ff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
   retryButton: {
-    borderColor: '#2563eb',
-    borderRadius: 8,
+    borderColor: '#4f8cff',
+    borderRadius: 12,
     borderWidth: 1,
     justifyContent: 'center',
     marginTop: 16,
@@ -191,42 +189,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   retryButtonText: {
-    color: '#2563eb',
-    fontWeight: '800',
+    color: '#8bb7ff',
+    fontWeight: '900',
   },
   skeletonCard: {
-    backgroundColor: 'white',
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 20,
     borderWidth: 1,
     marginBottom: 12,
     padding: 16,
   },
   skeletonLine: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#1c2842',
     borderRadius: 8,
     height: 12,
     marginTop: 12,
     width: '90%',
   },
   skeletonShort: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#1c2842',
     borderRadius: 8,
     height: 12,
     marginTop: 12,
     width: '52%',
   },
   skeletonTitle: {
-    backgroundColor: '#cbd5e1',
+    backgroundColor: '#31415f',
     borderRadius: 8,
     height: 18,
     width: '58%',
   },
+  statusPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    marginBottom: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  statusPillText: {
+    color: '#67e8f9',
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
   syncedText: {
-    color: '#94a3b8',
+    color: colors.muted,
     fontSize: 11,
     marginBottom: 12,
     marginTop: 4,
     textAlign: 'center',
+  },
+  title: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '900',
   },
 });
