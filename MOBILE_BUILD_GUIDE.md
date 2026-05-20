@@ -86,19 +86,24 @@ To ensure the correct backend endpoints are compiled into the app, you MUST conf
 
 ### Current Status
 
-`apps/mobile/ios` is **not present** on `main` right now, so iOS native builds cannot run yet.
+The `apps/mobile/ios` directory has been **restored**. You can now compile the iOS version of the app.
 
-The `pnpm --filter mobile ios` script will fail fast with:
+### GitHub Actions Build (macOS Runner)
 
-> iOS native project is missing. Restore/generate apps/mobile/ios before iOS builds can run.
+Since macOS is required to build iOS apps, we have provided a GitHub Actions workflow (`ios-distribute.yml`).
+This workflow automatically provisions a Mac runner, installs Xcode dependencies, and compiles the app.
 
-### Prerequisites (once `apps/mobile/ios` exists)
+**Important Note for Windows Users:** 
+The GitHub Action compiles an **unsigned Simulator Build (`.app` file zipped)**. It does not produce an `.ipa` for physical devices because building a release `.ipa` requires a paid Apple Developer Account and valid signing certificates injected into the CI pipeline.
+You can download the generated `ios-simulator-app` from the Artifacts tab of the latest successful GitHub Action run.
 
-- macOS (iOS builds cannot run on Windows/Linux)
+### Prerequisites (for local Mac builds)
+
+- macOS
 - Xcode
 - CocoaPods (`pod`)
 
-### Commands (once `apps/mobile/ios` exists)
+### Commands (for local Mac builds)
 
 ```bash
 pnpm --filter mobile ios
@@ -107,6 +112,6 @@ pnpm --filter mobile ios
 ### Troubleshooting
 
 - **`ios/Podfile` missing**
-  - iOS native project is missing or incomplete. Restore/generate `apps/mobile/ios` first.
+  - Make sure you are on the latest branch where the iOS project was restored.
 - **CocoaPods not installed**
   - Install CocoaPods on macOS, then run `pod install` inside `apps/mobile/ios`.

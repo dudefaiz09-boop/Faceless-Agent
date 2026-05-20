@@ -1,0 +1,64 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - '.github/workflows/ios-distribute.yml'
+  workflow_dispatch: {}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install CocoaPods dependencies
+        working-directory: apps/mobile/ios
+        run: pod install
+
+      - name: Build iOS App (Simulator Build)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        working-directory: apps/mobile/ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace EduConnect.xcworkspace \
+            -scheme EduConnect \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            build | xcpretty
+
+      - name: Zip the .app for Upload
+        working-directory: apps/mobile/ios
+        run: |
+          cd build/Build/Products/Debug-iphonesimulator
+          zip -r EduConnect-iOS-Simulator.zip EduConnect.app
+
+      - name: Upload iOS App to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: apps/mobile/ios/build/Build/Products/Debug-iphonesimulator/EduConnect-iOS-Simulator.zip
