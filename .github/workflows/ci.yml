@@ -45,10 +45,16 @@ jobs:
         run: pnpm lint
       - name: Test
         run: pnpm test
+      - name: Build shared
+        run: pnpm turbo build --filter @educonnect/shared
+      - name: Build shared-api
+        run: pnpm turbo build --filter @educonnect/shared-api
+      - name: Build shared-education
+        run: pnpm turbo build --filter @educonnect/shared-education
       - name: Build API
-        run: pnpm --filter @educonnect/functions build
+        run: pnpm turbo build --filter @educonnect/functions
       - name: Build Web
-        run: pnpm --filter @educonnect/web build
+        run: pnpm turbo build --filter @educonnect/web
 
   android-build:
     runs-on: ubuntu-latest

@@ -12,6 +12,7 @@ const envSchema = z.object({
     .default(DEFAULT_API_BASE_URL),
   VITE_ENABLE_AI_FEATURES: z.string().default('true'),
   VITE_ENVIRONMENT: z.string().default('development'),
+  VITE_DEMO_MODE: z.string().default('false'),
 });
 
 export type WebEnv = z.infer<typeof envSchema>;
@@ -59,6 +60,17 @@ function validateApiBaseUrlForRuntime(env: WebEnv): WebEnv {
 
   if (!apiBaseUrl) {
     throw new Error('Invalid web environment configuration:\nVITE_API_BASE_URL is required');
+  }
+
+  if (
+    import.meta.env.PROD &&
+    !rawApiBaseUrl &&
+    env.VITE_ENVIRONMENT !== 'preview' &&
+    env.VITE_DEMO_MODE !== 'true'
+  ) {
+    throw new Error(
+      'Invalid web environment configuration:\nVITE_API_BASE_URL must be explicitly configured for production builds.'
+    );
   }
 
   if (shouldWarnAboutRelativeApiBaseUrl(apiBaseUrl)) {

@@ -2,7 +2,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { UserRole, ROLES, getUserRole, hasPermission } from '@educonnect/shared';
 import { supabase } from '../lib/supabase';
-import { clearStoredTenantId, resolveActiveTenantId, setStoredTenantId } from '../lib/tenant';
+import {
+  clearStoredTenantId,
+  isValidTenantId,
+  resolveActiveTenantId,
+  setStoredTenantId,
+} from '../lib/tenant';
 import { getAuthErrorMessage } from '../lib/auth-errors';
 import { useToast } from '../components/saas/ToastProvider';
 
@@ -83,6 +88,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  switchTenant: (tenantId: string) => Promise<void>;
 }
 
 type UserProfileData = {
@@ -134,6 +141,8 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   sendPasswordReset: async () => {},
   updatePassword: async () => {},
+  refreshProfile: async () => {},
+  switchTenant: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -241,7 +250,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isSuperAdmin: nextIsSuperAdmin,
         managedTenantIds: nextManagedTenantIds,
         profileTenantId,
-        defaultTenantId: profile.defaultTenantId || appMetadata.defaultTenantId || 'tenant-a',
+        defaultTenantId: profile.defaultTenantId || appMetadata.defaultTenantId || null,
       });
 
       setRoles(nextRoles);
@@ -362,6 +371,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const refreshProfile = async () => {
+    const { data } = await supabase.auth.getSession();
+    await applySession(data.session);
+  };
+
+  const switchTenant = async (tenantId: string) => {
+    if (!isSuperAdmin || !isValidTenantId(tenantId, managedTenantIds)) {
+      throw new Error('You do not have access to this tenant.');
+    }
+
+    setStoredTenantId(tenantId);
+    setSchoolId(tenantId);
+    toast({
+      tone: 'success',
+      title: 'Tenant switched',
+      description: 'The active school context was updated.',
+    });
+  };
+
   const role = getUserRole(roles);
   const permissionUser = {
     uid: user?.uid || '',
@@ -404,6 +432,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     sendPasswordReset,
     updatePassword,
+    refreshProfile,
+    switchTenant,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

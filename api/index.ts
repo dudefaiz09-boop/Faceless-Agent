@@ -10,7 +10,7 @@ let appPromise: Promise<ExpressApp> | null = null;
 let lastStartupError: unknown = null;
 
 const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
-const allowedHeaders = 'Authorization,Content-Type,x-school-id,x-correlation-id';
+const allowedHeaders = 'Authorization,Content-Type,x-school-id,x-correlation-id,x-idempotency-key';
 const protectedPrefixes = [
   '/api/notifications',
   '/api/announcements',
@@ -23,6 +23,7 @@ const protectedPrefixes = [
   '/api/chat',
   '/api/users',
   '/api/students',
+  '/api/roles',
 ];
 
 function isAllowedOrigin(origin: string) {
@@ -57,6 +58,21 @@ function sendJson(res: ServerResponse, statusCode: number, body: Record<string, 
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(body));
+}
+
+function errorBody(
+  code: string,
+  message: string,
+  correlationId: string | undefined,
+  details: Record<string, unknown> = {}
+) {
+  return {
+    status: 'error',
+    code,
+    message,
+    details,
+    correlationId: correlationId || null,
+  };
 }
 
 function getPath(req: IncomingMessage) {
@@ -142,21 +158,31 @@ function handleFallback(req: IncomingMessage, res: ServerResponse) {
   if (protectedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
     const authHeader = req.headers.authorization;
     if (typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
-      return sendJson(res, 401, {
-        error: 'Unauthorized',
-        message: 'Authentication required',
-        startupError,
-      });
+      return sendJson(
+        res,
+        401,
+        errorBody(
+          'AUTH_MISSING',
+          'Authentication required',
+          req.headers['x-correlation-id'] as string,
+          {
+            startupError,
+          }
+        )
+      );
     }
   }
 
-  return sendJson(res, 503, {
-    status: 'not_ready',
-    error: 'API_STARTUP_FAILED',
-    message: 'The API app could not be loaded. Check Vercel function logs.',
-    startupError,
-    timestamp: new Date().toISOString(),
-  });
+  return sendJson(
+    res,
+    503,
+    errorBody(
+      'API_STARTUP_FAILED',
+      'The API app could not be loaded. Check Vercel function logs.',
+      req.headers['x-correlation-id'] as string,
+      { startupError, timestamp: new Date().toISOString() }
+    )
+  );
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {

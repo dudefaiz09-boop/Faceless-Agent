@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getSupabaseAdmin, type DocumentData } from './supabase.js';
+import { getSupabaseAdmin, type DocumentData, withSupabaseRetry } from './supabase.js';
 import { tryGetTenantId } from './context.js';
 import { AppError } from '../middleware/error.js';
 
@@ -251,12 +251,40 @@ class SupabaseCollectionReference {
   async get() {
     const supabaseAdmin = getSupabaseAdmin();
     const tenantId = ensureTenantId();
+    const maxRows = this.maxRows ?? 500;
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('documents')
       .select('id,data')
       .eq('collection', this.collectionName)
-      .eq('data->>tenantId', tenantId);
+      .eq('data->>tenantId', tenantId)
+      .limit(maxRows);
+
+    for (const filter of this.filters) {
+      if (filter.field === 'tenantId' || filter.field === 'schoolId') continue;
+      if (filter.op === '==' && ['string', 'number', 'boolean'].includes(typeof filter.value)) {
+        query = query.eq(`data->>${filter.field}`, String(filter.value));
+      }
+      if (filter.op === 'array-contains') {
+        query = query.contains(`data->${filter.field}`, [filter.value]);
+      }
+      if (filter.op === 'in' && Array.isArray(filter.value)) {
+        query = query.in(
+          `data->>${filter.field}`,
+          filter.value.map((value) => String(value))
+        );
+      }
+    }
+
+    if (this.order && !this.order.field.includes('.')) {
+      query = query.order(`data->>${this.order.field}`, {
+        ascending: this.order.direction === 'asc',
+      });
+    }
+
+    const { data, error } = await withSupabaseRetry(() => query, {
+      label: `documents.${this.collectionName}.get`,
+    });
 
     if (error) throw error;
 

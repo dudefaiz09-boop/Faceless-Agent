@@ -90,7 +90,7 @@ describe('Vercel Entrypoint Verification', () => {
         hasSupabaseUrl: false,
         hasServiceRoleKey: false,
         hasCorsOrigins: false,
-        supabaseDocumentsReachable: false,
+        expressAppLoaded: true,
       });
       expect(res.body.missing).toEqual(
         expect.arrayContaining(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CORS_ORIGINS'])
@@ -118,12 +118,12 @@ describe('Vercel Entrypoint Verification', () => {
   it('GET /api/notifications without auth should return 401', async () => {
     const res = await request(app).get('/api/notifications');
     expect(res.status).toBe(401);
-    expect(res.body).toHaveProperty('error', 'Unauthorized');
+    expect(res.body).toHaveProperty('code', 'AUTH_MISSING');
   });
 
   it('GET /api/announcements without auth should return 401', async () => {
     const res = await request(app).get('/api/announcements');
     expect(res.status).toBe(401);
-    expect(res.body).toHaveProperty('error', 'Unauthorized');
+    expect(res.body).toHaveProperty('code', 'AUTH_MISSING');
   });
 });

@@ -1,4 +1,15 @@
-import { ApiClient, AnnouncementsService, AssignmentsService } from '@educonnect/shared-api';
+import {
+  ApiClient,
+  AnnouncementsService,
+  AssignmentsService,
+  AttendanceService,
+  FeesService,
+  LibraryService,
+  NotificationsService,
+  ParentPortalService,
+  PerformanceService,
+  StudentsService,
+} from '@educonnect/shared-api';
 import { getSupabaseAccessToken, supabase } from './supabase';
 import { ENV } from '../config/env';
 
@@ -19,3 +30,10 @@ export const apiClient = new ApiClient({
 
 export const announcementsService = new AnnouncementsService(apiClient);
 export const assignmentsService = new AssignmentsService(apiClient);
+export const attendanceService = new AttendanceService(apiClient);
+export const feesService = new FeesService(apiClient);
+export const libraryService = new LibraryService(apiClient);
+export const notificationsService = new NotificationsService(apiClient);
+export const parentPortalService = new ParentPortalService(apiClient);
+export const performanceService = new PerformanceService(apiClient);
+export const studentsService = new StudentsService(apiClient);

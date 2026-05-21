@@ -30,10 +30,10 @@ import {
   School,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../lib/api-client';
+import { usersService } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { listDocuments, useDocuments } from '../lib/documents';
-import { DEMO_TENANTS, getStoredTenantId, setStoredTenantId } from '../lib/tenant';
+import { DEMO_TENANTS, getStoredTenantId, isDemoMode, setStoredTenantId } from '../lib/tenant';
 import { cn } from '../lib/utils';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
@@ -137,6 +137,10 @@ function toForm(profile: UserProfile) {
   };
 }
 
+function createIdempotencyKey(prefix: string) {
+  return `${prefix}-${Date.now()}`;
+}
+
 export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => {
   const { isAdmin, isSuperAdmin, managedTenantIds, schoolId } = useAuth();
   const { toast } = useToast();
@@ -171,7 +175,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
   const tenantOptions = useMemo(() => {
     const tenantById = new Map<string, Tenant>();
-    DEMO_TENANTS.forEach((tenant) => tenantById.set(tenant.id, tenant));
+    if (isDemoMode()) DEMO_TENANTS.forEach((tenant) => tenantById.set(tenant.id, tenant));
     tenants.forEach((tenant) => tenantById.set(tenant.id, tenant));
 
     const allowedIds =
@@ -179,7 +183,9 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         ? managedTenantIds
         : schoolId
           ? [schoolId]
-          : DEMO_TENANTS.map((tenant) => tenant.id);
+          : isDemoMode()
+            ? DEMO_TENANTS.map((tenant) => tenant.id)
+            : [];
 
     return allowedIds.map(
       (id) => tenantById.get(id) || { id, name: id.replaceAll('-', ' '), slug: id }
@@ -288,15 +294,9 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     setSaving(true);
     try {
       if (form.uid) {
-        await apiClient.request(`/api/users/${form.uid}`, {
-          method: 'PUT',
-          body: JSON.stringify(buildPayload()),
-        });
+        await usersService.update(form.uid, buildPayload());
       } else {
-        await apiClient.request('/api/users/create', {
-          method: 'POST',
-          body: JSON.stringify(buildPayload()),
-        });
+        await usersService.create(buildPayload(), createIdempotencyKey('user-create'));
       }
       setIsUserModalOpen(false);
       await reload();
@@ -322,7 +322,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     if (!window.confirm(`Deactivate ${profile.email || 'this user'}?`)) return;
 
     try {
-      await apiClient.request(`/api/users/${uid}/deactivate`, { method: 'PATCH' });
+      await usersService.deactivate(uid);
       await reload();
       toast({
         tone: 'success',
@@ -364,8 +364,8 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const downloadTemplate = () => {
     const headers =
       'email,role,password,permissions,classId,classIds,linkedStudentIds,tenantId,displayName';
-    const row =
-      'student.import1@educonnect.test,student,Test@123456,"viewOwnRecords,viewAssignments",A1,"A1,A2",,tenant-a,Imported Student 1';
+    const sampleTenantId = bulkTargetTenantId || (isDemoMode() ? 'tenant-a' : 'YOUR_TENANT_ID');
+    const row = `student.import1@educonnect.test,student,Test@123456,"viewOwnRecords,viewAssignments",A1,"A1,A2",,${sampleTenantId},Imported Student 1`;
     const blob = new Blob([`${headers}\n${row}`], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -393,13 +393,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
         tenantId: u.tenantId || bulkTargetTenantId,
       }));
 
-      const result = await apiClient.request<{ results: Array<{ success: boolean }> }>(
-        '/api/users/bulk-import',
-        {
-          method: 'POST',
-          body: JSON.stringify({ users: usersToImport }),
-        }
-      );
+      const result = (await usersService.bulkImport(
+        usersToImport,
+        createIdempotencyKey('users-import')
+      )) as { results: Array<{ success: boolean }> };
 
       const successCount = result.results.filter((r) => r.success).length;
       toast({

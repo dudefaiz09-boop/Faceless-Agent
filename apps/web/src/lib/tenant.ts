@@ -1,3 +1,5 @@
+import { env } from './env';
+
 export const SELECTED_TENANT_STORAGE_KEY = 'educonnect_selected_tenant_id';
 export const LEGACY_TENANT_STORAGE_KEY = 'educonnect_school_id';
 
@@ -11,6 +13,7 @@ export const DEMO_TENANTS = [
 ] as const;
 
 export const DEMO_TENANT_IDS = ['tenant-a', 'tenant-b'] as const;
+export const isDemoMode = () => env.VITE_DEMO_MODE === 'true';
 
 export const DEMO_CLASSES_BY_TENANT: Record<
   (typeof DEMO_TENANT_IDS)[number],
@@ -33,7 +36,7 @@ function isBrowser() {
 export function isValidTenantId(value: string | null | undefined, allowedTenantIds?: string[]) {
   if (!value) return false;
   if (allowedTenantIds?.length) return allowedTenantIds.includes(value);
-  return DEMO_TENANT_IDS.includes(value as (typeof DEMO_TENANT_IDS)[number]);
+  return isDemoMode() && DEMO_TENANT_IDS.includes(value as (typeof DEMO_TENANT_IDS)[number]);
 }
 
 export function getStoredTenantId(allowedTenantIds?: string[]) {
@@ -73,7 +76,6 @@ export function resolveActiveTenantId(options: {
   if (options.isSuperAdmin) {
     const stored = getStoredTenantId(managedTenantIds);
     if (stored) return stored;
-    if (managedTenantIds.includes('tenant-a')) return 'tenant-a';
     return managedTenantIds[0] || options.defaultTenantId || null;
   }
 
@@ -86,15 +88,17 @@ export function resolveActiveTenantId(options: {
 }
 
 export function getDefaultClassId(tenantId?: string | null) {
+  if (!isDemoMode()) return '';
   if (tenantId === 'tenant-b') return 'B1';
   return 'A1';
 }
 
 export function getDemoClassesForTenant(tenantId?: string | null) {
+  if (!isDemoMode()) return [];
   const validTenantId = isValidTenantId(tenantId) ? tenantId : 'tenant-a';
   return DEMO_CLASSES_BY_TENANT[validTenantId as (typeof DEMO_TENANT_IDS)[number]];
 }
 
 export function getActiveTenantId(defaultTenantId?: string | null) {
-  return getStoredTenantId() || defaultTenantId || 'tenant-a';
+  return getStoredTenantId() || defaultTenantId || (isDemoMode() ? 'tenant-a' : null);
 }

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../lib/api-client';
+import { feesService } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   CreditCard,
@@ -88,6 +88,10 @@ function formatCurrency(amount: number): string {
   return `${CURRENCY_SYMBOL}${amount.toLocaleString()}`;
 }
 
+function createIdempotencyKey(prefix: string, id: string) {
+  return `${prefix}-${id}-${Date.now()}`;
+}
+
 export const FeesPage = () => {
   const { user, isStudent, canManageFees, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
@@ -125,7 +129,7 @@ export const FeesPage = () => {
   const loadStudentData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiClient.request<FeeAccountResponse>(`/api/fees/${user?.uid}`);
+      const data = (await feesService.getStudentAccount(String(user?.uid))) as FeeAccountResponse;
       setFees(data.fees || []);
       setPayments(data.payments || []);
     } catch (error) {
@@ -138,7 +142,7 @@ export const FeesPage = () => {
   const loadReport = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiClient.request<FeeReport>(`/api/fees/report/${selectedClass}`);
+      const data = (await feesService.getClassReport(selectedClass)) as FeeReport;
       setReport(data);
     } catch (error) {
       console.error('Failed to load fee report:', error);
@@ -185,10 +189,7 @@ export const FeesPage = () => {
         classId: selectedClass,
       }));
 
-      await apiClient.request('/api/fees/upload', {
-        method: 'POST',
-        body: JSON.stringify({ records }),
-      });
+      await feesService.upload(records, createIdempotencyKey('fees', selectedClass));
 
       setUploadSuccess(true);
       toast({
@@ -240,10 +241,10 @@ export const FeesPage = () => {
 
   const processPayment = async (feeId: string, amount: number) => {
     try {
-      await apiClient.request('/api/fees/pay', {
-        method: 'POST',
-        body: JSON.stringify({ feeId, amount, method: 'online' }),
-      });
+      await feesService.pay(
+        { feeId, amount, method: 'online' },
+        createIdempotencyKey('payment', feeId)
+      );
       toast({
         tone: 'success',
         title: 'Payment recorded',

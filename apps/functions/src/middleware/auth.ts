@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { auth } from '../lib/documents.js';
 import { logger } from '@educonnect/logger';
 import { getUserRole, hasPermission as userHasPermission } from '@educonnect/shared';
+import { AppError } from './error.js';
+import { getCorrelationId, getContext } from '../lib/context.js';
 
 declare global {
   namespace Express {
@@ -62,10 +64,38 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       };
 
       if (req.user.status === 'inactive') {
-        return res.status(403).json({ error: 'User account is inactive' });
+        return next(
+          new AppError({
+            code: 'USER_INACTIVE',
+            message: 'User account is inactive',
+            statusCode: 403,
+          })
+        );
       }
+
+      const context = getContext();
+      context.user = req.user as any;
     } catch (error: any) {
-      logger.error({ err: error, path: req.path }, 'Error verifying token');
+      const providerStatus = Number(error?.status || error?.statusCode || 401);
+      const message = String(error?.message || '').toLowerCase();
+      const code = message.includes('expired') ? 'AUTH_EXPIRED' : 'AUTH_INVALID';
+
+      logger.warn(
+        {
+          providerStatus,
+          path: req.path,
+          correlationId: getCorrelationId(),
+        },
+        'Token verification failed'
+      );
+
+      return next(
+        new AppError({
+          code,
+          message: code === 'AUTH_EXPIRED' ? 'Authentication token expired' : 'Invalid token',
+          statusCode: 401,
+        })
+      );
     }
   }
   next();
@@ -73,10 +103,13 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Authentication required',
-    });
+    return next(
+      new AppError({
+        code: 'AUTH_MISSING',
+        message: 'Authentication required',
+        statusCode: 401,
+      })
+    );
   }
   return next();
 };
@@ -84,24 +117,56 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 export const checkPermission =
   (perm: string) => (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!user) {
+      return next(
+        new AppError({
+          code: 'AUTH_MISSING',
+          message: 'Authentication required',
+          statusCode: 401,
+        })
+      );
+    }
     if (userHasPermission(user, perm)) {
       return next();
     }
 
-    logger.warn({ uid: user.uid, roles: user.roles, perm, path: req.path }, 'Permission denied');
-    res.status(403).json({
-      error: 'Forbidden',
-      message: `Missing required permission: ${perm}`,
-      userRole: user.roles,
-    });
+    logger.warn(
+      { uid: user.uid, roles: user.roles, perm, path: req.path, correlationId: getCorrelationId() },
+      'Permission denied'
+    );
+    return next(
+      new AppError({
+        code: 'PERMISSION_DENIED',
+        message: `Missing required permission: ${perm}`,
+        statusCode: 403,
+        details: { permission: perm, roles: user.roles },
+      })
+    );
   };
 
 export const checkAdmin = (req: Request, res: Response, next: NextFunction) => {
   const user = req.user;
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!user) {
+    return next(
+      new AppError({
+        code: 'AUTH_MISSING',
+        message: 'Authentication required',
+        statusCode: 401,
+      })
+    );
+  }
   if (user.isAdmin || user.role === 'admin' || user.roles.includes('admin')) return next();
 
-  logger.warn({ uid: user.uid, roles: user.roles, path: req.path }, 'Admin access denied');
-  return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
+  logger.warn(
+    { uid: user.uid, roles: user.roles, path: req.path, correlationId: getCorrelationId() },
+    'Admin access denied'
+  );
+  return next(
+    new AppError({
+      code: 'PERMISSION_DENIED',
+      message: 'Admin access required',
+      statusCode: 403,
+      details: { role: 'admin' },
+    })
+  );
 };

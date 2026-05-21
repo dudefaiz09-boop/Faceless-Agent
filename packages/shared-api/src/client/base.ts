@@ -26,7 +26,9 @@ export type ApiErrorKind = 'network' | 'auth' | 'tenant' | 'validation' | 'serve
 
 export class ApiRequestError extends Error {
   readonly kind: ApiErrorKind;
+  readonly code?: string;
   readonly status?: number;
+  readonly correlationId?: string;
   readonly endpoint: string;
   readonly method: string;
   readonly data?: any;
@@ -34,7 +36,9 @@ export class ApiRequestError extends Error {
   constructor(args: {
     kind: ApiErrorKind;
     message: string;
+    code?: string;
     status?: number;
+    correlationId?: string;
     endpoint: string;
     method: string;
     data?: any;
@@ -42,7 +46,9 @@ export class ApiRequestError extends Error {
     super(args.message);
     this.name = `Api${args.kind.charAt(0).toUpperCase()}${args.kind.slice(1)}Error`;
     this.kind = args.kind;
+    this.code = args.code;
     this.status = args.status;
+    this.correlationId = args.correlationId;
     this.endpoint = args.endpoint;
     this.method = args.method;
     this.data = args.data;
@@ -50,7 +56,7 @@ export class ApiRequestError extends Error {
 }
 
 function classifyResponse(status: number, body: any): ApiErrorKind {
-  const message = `${body?.error || ''} ${body?.message || ''}`.toLowerCase();
+  const message = `${body?.code || ''} ${body?.error || ''} ${body?.message || ''}`.toLowerCase();
   if (status === 401) return 'auth';
   if (status === 403) return message.includes('tenant') ? 'tenant' : 'auth';
   if (status === 400 && message.includes('tenant')) return 'tenant';
@@ -64,6 +70,12 @@ function userSafeMessage(kind: ApiErrorKind, fallback: string) {
   if (kind === 'tenant') return 'Tenant context missing or denied. Select a school and retry.';
   if (kind === 'validation') return fallback || 'The request contains invalid data.';
   return fallback || 'Server error, please try again.';
+}
+
+function makeCorrelationId() {
+  const cryptoApi = globalThis.crypto as Crypto | undefined;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+  return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
 
 function runtimeOrigin() {
@@ -180,6 +192,9 @@ export class ApiClient {
         if (!headers.has('Content-Type')) {
           headers.set('Content-Type', 'application/json');
         }
+        if (!headers.has('x-correlation-id')) {
+          headers.set('x-correlation-id', makeCorrelationId());
+        }
 
         if (this.config.debug) {
           console.debug('[ApiClient] request', {
@@ -209,7 +224,9 @@ export class ApiClient {
           const kind = classifyResponse(response.status, errorBody);
           throw new ApiRequestError({
             kind,
+            code: errorBody.code || errorBody.error,
             status: response.status,
+            correlationId: response.headers.get('x-correlation-id') || errorBody.correlationId,
             message: userSafeMessage(kind, errorBody.message || response.statusText),
             endpoint: url.pathname,
             method,
@@ -239,8 +256,11 @@ export class ApiClient {
           });
         }
 
-        // Retry logic for 5xx or network failures
-        if (attempt < (retry ?? 0) && (error.status >= 500 || !error.status)) {
+        const requestMethod = (fetchConfig.method || 'GET').toUpperCase();
+        const retryableMethod = requestMethod === 'GET' || requestMethod === 'HEAD';
+
+        // Retry only safe reads for 5xx or network failures.
+        if (retryableMethod && attempt < (retry ?? 0) && (error.status >= 500 || !error.status)) {
           await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt)));
           return execute(attempt + 1);
         }

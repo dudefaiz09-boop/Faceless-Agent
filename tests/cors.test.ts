@@ -73,6 +73,21 @@ describe('CORS Integration Tests', () => {
       expect(res.header['access-control-allow-origin']).toBeUndefined();
     });
 
+    it('should reject unauthorized preflight origins with structured JSON', async () => {
+      const res = await request(app)
+        .options('/api/assignments')
+        .set('Origin', 'https://malicious-site.com')
+        .set('Access-Control-Request-Method', 'GET');
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual(
+        expect.objectContaining({
+          status: 'error',
+          code: 'CORS_ORIGIN_DENIED',
+        })
+      );
+    });
+
     it('should allow wildcard vercel subdomains', async () => {
       const vercelOrigin = 'https://app-name-git-branch-user.vercel.app';
       const res = await request(app).get('/api/health').set('Origin', vercelOrigin);

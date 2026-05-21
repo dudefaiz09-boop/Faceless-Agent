@@ -69,6 +69,23 @@ const ParentPortal = lazy(() =>
   import('./pages/ParentPortal').then((m) => ({ default: m.ParentPortal }))
 );
 
+const NotFoundPage = () => (
+  <div className="flex min-h-[60vh] items-center justify-center p-6">
+    <div className="max-w-md text-center">
+      <h1 className="text-4xl font-black text-slate-950 dark:text-white">404</h1>
+      <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        This EduConnect module or page does not exist.
+      </p>
+      <Link
+        to="/"
+        className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+      >
+        Go to dashboard
+      </Link>
+    </div>
+  </div>
+);
+
 // --- Components ---
 
 const SidebarLink = ({
@@ -323,118 +340,121 @@ const AppContent = () => {
 
   return (
     <Layout>
-      <Suspense
-        fallback={
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-400 font-black uppercase tracking-widest text-xs">
-              Loading Module...
-            </p>
-          </div>
-        }
-      >
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <ModuleGuard module="dashboard">
-                <DashboardPage />
-              </ModuleGuard>
-            }
-          />
+      <ModuleErrorBoundary>
+        <Suspense
+          fallback={
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-slate-400 font-black uppercase tracking-widest text-xs">
+                Loading Module...
+              </p>
+            </div>
+          }
+        >
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <ModuleGuard module="dashboard">
+                  <DashboardPage />
+                </ModuleGuard>
+              }
+            />
 
-          <Route
-            path="/announcements"
-            element={
-              <ModuleGuard module="announcements">
-                <AnnouncementsPage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/attendance"
-            element={
-              <ModuleGuard module="attendance">
-                <AttendancePage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/assignments"
-            element={
-              <ModuleGuard module="assignments">
-                <ModuleErrorBoundary>
-                  <AssignmentsPage />
-                </ModuleErrorBoundary>
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <ModuleGuard module="chat">
-                <ChatPage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/library"
-            element={
-              <ModuleGuard module="library">
-                <LibraryPage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/fees"
-            element={
-              <ModuleGuard module="fees">
-                <FeesPage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/performance"
-            element={
-              <ModuleGuard module="performance">
-                <PerformancePage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/parent-portal"
-            element={
-              <ModuleGuard module="parentPortal">
-                <ParentPortal />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/students"
-            element={
-              <ModuleGuard module="students">
-                <StudentsPage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/teachers"
-            element={
-              <ModuleGuard module="teachers">
-                <TeachersPage />
-              </ModuleGuard>
-            }
-          />
-          <Route
-            path="/all-users"
-            element={
-              <ModuleGuard module="allUsers">
-                <UsersPage type="all" />
-              </ModuleGuard>
-            }
-          />
-        </Routes>
-      </Suspense>
+            <Route
+              path="/announcements"
+              element={
+                <ModuleGuard module="announcements">
+                  <AnnouncementsPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/attendance"
+              element={
+                <ModuleGuard module="attendance">
+                  <AttendancePage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/assignments"
+              element={
+                <ModuleGuard module="assignments">
+                  <ModuleErrorBoundary>
+                    <AssignmentsPage />
+                  </ModuleErrorBoundary>
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ModuleGuard module="chat">
+                  <ChatPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <ModuleGuard module="library">
+                  <LibraryPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/fees"
+              element={
+                <ModuleGuard module="fees">
+                  <FeesPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/performance"
+              element={
+                <ModuleGuard module="performance">
+                  <PerformancePage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/parent-portal"
+              element={
+                <ModuleGuard module="parentPortal">
+                  <ParentPortal />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/students"
+              element={
+                <ModuleGuard module="students">
+                  <StudentsPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/teachers"
+              element={
+                <ModuleGuard module="teachers">
+                  <TeachersPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="/all-users"
+              element={
+                <ModuleGuard module="allUsers">
+                  <UsersPage type="all" />
+                </ModuleGuard>
+              }
+            />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+      </ModuleErrorBoundary>
     </Layout>
   );
 };

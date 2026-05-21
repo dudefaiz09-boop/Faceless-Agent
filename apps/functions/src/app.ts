@@ -2,7 +2,6 @@ import express, { Express } from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import cors from 'cors';
 import { pinoHttp } from 'pino-http';
 import { logger } from '@educonnect/logger';
 
@@ -10,6 +9,9 @@ import { logger } from '@educonnect/logger';
 import { authMiddleware, requireAuth } from './middleware/auth.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { globalErrorHandler } from './middleware/error.js';
+import { enterpriseCorsMiddleware } from './middleware/cors.js';
+import { idempotencyMiddleware } from './middleware/idempotency.js';
+import { getCorrelationId, requestContextMiddleware } from './lib/context.js';
 import { getAiRuntimeStatus } from './lib/ai.js';
 
 // Initialize background consumers
@@ -19,7 +21,6 @@ import './features/notifications/attendance.consumer.js';
 import studentRoutes from './features/students/student.routes.js';
 import aiRoutes from './features/ai/ai.routes.js';
 import { AiController } from './features/ai/ai.controller.js';
-import { getSupabaseAdmin } from './lib/supabase.js';
 
 // Legacy Routes (Pending Refactor)
 import announcementsRouter from './routes/announcements.js';
@@ -37,70 +38,14 @@ import notificationsRouter from './routes/notifications.js';
 const app: Express = express();
 app.set('trust proxy', 1);
 
-const configuredOrigins = (process.env.CORS_ORIGINS || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-function isAllowedOrigin(origin: string) {
-  if (configuredOrigins.includes(origin)) return true;
-  if (/^http:\/\/localhost:\d+$/.test(origin)) return true;
-  if (/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) return true;
-  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return true;
-  return false;
-}
-
-const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
-const defaultAllowedHeaders = 'Authorization,Content-Type,x-school-id,x-correlation-id';
-
-function getAllowedOrigin(origin?: string) {
-  if (!origin) return null;
-  if (isAllowedOrigin(origin)) return origin;
-  return null;
-}
-
-function applyCorsHeaders(req: express.Request, res: express.Response) {
-  const origin = req.headers.origin;
-  const allowedOrigin = getAllowedOrigin(origin as string);
-
-  if (allowedOrigin) {
-    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', allowedMethods);
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      String(req.headers['access-control-request-headers'] || defaultAllowedHeaders)
-    );
-    res.setHeader('Access-Control-Expose-Headers', 'x-correlation-id');
-  }
-}
-
 // 1. Security & Observability
-app.use((req, res, next) => {
-  applyCorsHeaders(req, res);
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-  return next();
-});
-
-app.use(pinoHttp({ logger: logger as any }));
-
-const corsOptions = {
-  credentials: true,
-  origin(origin: any, callback: any) {
-    if (!origin || isAllowedOrigin(origin)) return callback(null, true);
-    return callback(null, false);
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type', 'x-school-id', 'x-correlation-id'],
-  exposedHeaders: ['x-correlation-id'],
-  optionsSuccessStatus: 204,
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use(requestContextMiddleware);
+app.use(enterpriseCorsMiddleware);
+app.use(
+  pinoHttp({
+    customProps: () => ({ correlationId: getCorrelationId() }),
+  })
+);
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -148,16 +93,23 @@ app.use(
 );
 
 app.use(compression());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // 2. Rate Limiting - General
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // 100 requests per window
-  message: { error: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.method === 'OPTIONS',
+  handler: (_req, res) =>
+    res.status(429).json({
+      status: 'error',
+      code: 'RATE_LIMITED',
+      message: 'Too many requests from this IP, please try again later.',
+      details: { retryAfter: res.getHeader('Retry-After') },
+      correlationId: getCorrelationId(),
+    }),
 });
 app.use('/api/', limiter);
 
@@ -208,23 +160,10 @@ publicRouter.get('/ready', async (req, res) => {
     hasCorsOrigins: !!process.env.CORS_ORIGINS,
     hasOpenRouterKey: !!process.env.OPENROUTER_API_KEY,
     hasOpenRouterModel: !!process.env.OPENROUTER_MODEL,
-    supabaseDocumentsReachable: false,
+    expressAppLoaded: true,
   };
 
-  if (checks.hasSupabaseUrl && checks.hasServiceRoleKey) {
-    try {
-      const supabaseAdmin = getSupabaseAdmin();
-      const { error } = await supabaseAdmin
-        .from('documents')
-        .select('id', { head: true, count: 'exact' })
-        .limit(1);
-      checks.supabaseDocumentsReachable = !error;
-    } catch (err) {
-      logger.warn({ err }, 'Supabase connectivity check failed inside /ready');
-    }
-  }
-
-  const isReady = missing.length === 0 && checks.supabaseDocumentsReachable;
+  const isReady = missing.length === 0;
 
   return res.status(isReady ? 200 : 503).json({
     status: isReady ? 'ready' : 'not_ready',
@@ -247,15 +186,23 @@ const protectedRouter = express.Router();
 protectedRouter.use(authMiddleware);
 protectedRouter.use(requireAuth);
 protectedRouter.use(tenantMiddleware);
+protectedRouter.use(idempotencyMiddleware);
 
 // 4b. Rate Limiting - Stricter for sensitive operations (inside protected router)
 const sensitiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30, // 30 requests per window for sensitive ops
-  message: { error: 'Too many upload requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.method === 'OPTIONS',
+  handler: (_req, res) =>
+    res.status(429).json({
+      status: 'error',
+      code: 'RATE_LIMITED',
+      message: 'Too many upload requests, please try again later.',
+      details: { retryAfter: res.getHeader('Retry-After') },
+      correlationId: getCorrelationId(),
+    }),
 });
 
 protectedRouter.use('/fees/upload', sensitiveLimiter);

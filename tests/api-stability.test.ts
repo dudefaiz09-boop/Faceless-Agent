@@ -49,10 +49,13 @@ describe('API Stability and Middleware Flow', () => {
         expect(res.status).toBe(401);
         expect(res.body).toEqual(
           expect.objectContaining({
-            error: 'Unauthorized',
+            status: 'error',
+            code: 'AUTH_MISSING',
             message: 'Authentication required',
+            correlationId: expect.any(String),
           })
         );
+        expect(res.header['x-correlation-id']).toBeTruthy();
       });
     });
   });

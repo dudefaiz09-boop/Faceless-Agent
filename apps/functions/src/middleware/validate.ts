@@ -17,10 +17,18 @@ export const validate =
       return next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const details = error.issues
-          .map((err: any) => `${err.path.join('.')}: ${err.message}`)
-          .join(', ');
-        return next(new AppError(`Validation failed: ${details}`, 400));
+        return next(
+          new AppError({
+            code: 'VALIDATION_ERROR',
+            message: 'The request contains invalid data.',
+            statusCode: 400,
+            details: error.issues.map((err: any) => ({
+              path: err.path.join('.'),
+              message: err.message,
+              code: err.code,
+            })),
+          })
+        );
       }
       return next(error);
     }

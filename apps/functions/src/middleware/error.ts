@@ -1,58 +1,151 @@
-/**
- * Centralized AppError class for operational errors.
- */
-export class AppError extends Error {
-  public readonly statusCode: number;
-  public readonly isOperational: boolean;
+import { Request, Response, NextFunction } from 'express';
+import { logger } from '@educonnect/logger';
+import { ZodError } from 'zod';
+import { getCorrelationId } from '../lib/context.js';
 
-  constructor(message: string, statusCode: number) {
-    super(message);
-    this.statusCode = statusCode;
-    this.isOperational = true;
+export type ErrorDetails = Record<string, unknown> | Array<Record<string, unknown>>;
+
+export class AppError extends Error {
+  public readonly code: string;
+  public readonly statusCode: number;
+  public readonly details: ErrorDetails;
+  public readonly isOperational: boolean;
+  public readonly expose: boolean;
+
+  constructor(args: {
+    code: string;
+    message: string;
+    statusCode: number;
+    details?: ErrorDetails;
+    isOperational?: boolean;
+    expose?: boolean;
+  });
+  constructor(message: string, statusCode: number);
+  constructor(
+    args:
+      | {
+          code: string;
+          message: string;
+          statusCode: number;
+          details?: ErrorDetails;
+          isOperational?: boolean;
+          expose?: boolean;
+        }
+      | string,
+    legacyStatusCode?: number
+  ) {
+    const normalized =
+      typeof args === 'string'
+        ? {
+            code: legacyStatusCode && legacyStatusCode < 500 ? 'REQUEST_ERROR' : 'INTERNAL_ERROR',
+            message: args,
+            statusCode: legacyStatusCode || 500,
+            details: {},
+            isOperational: true,
+            expose: (legacyStatusCode || 500) < 500,
+          }
+        : {
+            details: {},
+            isOperational: true,
+            expose: args.statusCode < 500,
+            ...args,
+          };
+
+    super(normalized.message);
+    this.name = 'AppError';
+    this.code = normalized.code;
+    this.statusCode = normalized.statusCode;
+    this.details = normalized.details;
+    this.isOperational = normalized.isOperational;
+    this.expose = normalized.expose;
 
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
-/**
- * Global Error Handler Middleware
- * IMPORTANT: Must have exactly 4 parameters for Express to recognize as error handler
- */
-import { Request, Response, NextFunction } from 'express';
-import { logger } from '@educonnect/logger';
+function normalizeError(err: any) {
+  if (err instanceof AppError) return err;
+
+  if (err instanceof ZodError) {
+    return new AppError({
+      code: 'VALIDATION_ERROR',
+      message: 'The request contains invalid data.',
+      statusCode: 400,
+      details: err.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+        code: issue.code,
+      })),
+    });
+  }
+
+  if (err?.name === 'SyntaxError' && 'body' in err) {
+    return new AppError({
+      code: 'INVALID_JSON',
+      message: 'Request body must be valid JSON.',
+      statusCode: 400,
+    });
+  }
+
+  if (err?.code || err?.message?.includes?.('Supabase')) {
+    return new AppError({
+      code: 'SUPABASE_ERROR',
+      message: 'The data service could not complete the request.',
+      statusCode: Number(err.statusCode || err.status || 500),
+      details: {
+        providerCode: err.code,
+      },
+      expose: Number(err.statusCode || err.status || 500) < 500,
+    });
+  }
+
+  return new AppError({
+    code: 'INTERNAL_ERROR',
+    message: 'Internal Server Error',
+    statusCode: 500,
+    details: {},
+    isOperational: false,
+    expose: false,
+  });
+}
 
 export const globalErrorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
-  const status = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
-
-  // Log the error with correlation ID if available
+  const normalized = normalizeError(err);
+  const status = normalized.statusCode;
   const correlationId =
-    (req.headers['x-correlation-id'] as string) || Math.random().toString(36).substring(2, 15);
+    getCorrelationId() ||
+    (req.headers['x-correlation-id'] as string) ||
+    Math.random().toString(36).substring(2, 15);
+
+  const safeMessage =
+    normalized.expose || process.env.NODE_ENV !== 'production'
+      ? normalized.message
+      : 'Internal Server Error';
 
   logger.error(
     {
       err,
       status,
-      message,
+      code: normalized.code,
+      message: normalized.message,
       path: req.path,
       method: req.method,
       userId: (req as any).user?.uid || 'anonymous',
+      tenantId: (req as any).tenantId,
       correlationId,
     },
     'Request failed'
   );
 
-  // Security: Don't leak stack traces in production
   const response = {
     status: 'error',
-    error: err.name || 'InternalError',
-    message,
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    code: normalized.code,
+    message: safeMessage,
+    details: normalized.details || {},
     correlationId,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
   };
 
-  // Add correlation ID to response headers
   res.setHeader('x-correlation-id', correlationId);
-
   res.status(status).json(response);
 };

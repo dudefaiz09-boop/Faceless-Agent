@@ -6,6 +6,7 @@ import {
   writeAuditLog,
   type ManagedUserPayload,
 } from '../lib/user-management.js';
+import { auth, db } from '../lib/documents.js';
 
 const router: Router = Router();
 

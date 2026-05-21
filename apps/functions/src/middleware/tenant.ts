@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '@educonnect/logger';
-import { contextStorage } from '../lib/context.js';
+import { bindRequestTenantAndUser, getCorrelationId } from '../lib/context.js';
+import { AppError } from './error.js';
+import { getSupabaseAdmin } from '../lib/supabase.js';
 
 declare global {
   namespace Express {
@@ -15,65 +17,154 @@ declare global {
  * Ensures all API calls are strictly scoped to a specific school (tenant).
  */
 export const tenantMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  // 1. Authentication is required (enforced by requireAuth middleware)
-  if (!req.user) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Authentication required for tenant resolution',
-    });
+  void resolveTenant(req, next);
+};
+
+const tenantCache = new Map<string, { active: boolean; expiresAt: number }>();
+const TENANT_CACHE_TTL_MS = 60_000;
+
+async function tenantExistsAndActive(tenantId: string) {
+  const cached = tenantCache.get(tenantId);
+  if (cached && cached.expiresAt > Date.now()) return cached.active;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from('documents')
+    .select('data')
+    .eq('collection', 'tenants')
+    .eq('id', tenantId)
+    .maybeSingle<{ data: Record<string, unknown> | null }>();
+
+  if (error) throw error;
+
+  if (!data?.data) {
+    if (process.env.NODE_ENV !== 'production') {
+      logger.warn(
+        { tenantId, correlationId: getCorrelationId() },
+        'Tenant record missing; allowing in non-production for migration compatibility'
+      );
+      return true;
+    }
+    return null;
   }
 
-  // 2. Try to extract from custom headers
-  const headerTenantId = String(req.headers['x-school-id'] || '').trim();
+  const active = data.data.status !== 'inactive' && data.data.active !== false;
+  tenantCache.set(tenantId, { active, expiresAt: Date.now() + TENANT_CACHE_TTL_MS });
+  return active;
+}
 
-  // 3. Resolve from user's primary school
+async function resolveTenant(req: Request, next: NextFunction) {
+  if (!req.user) {
+    return next(
+      new AppError({
+        code: 'AUTH_MISSING',
+        message: 'Authentication required for tenant resolution',
+        statusCode: 401,
+      })
+    );
+  }
+
+  const headerTenantId = String(req.headers['x-school-id'] || '').trim();
   const userTenantId = req.user.schoolId;
   const isSuperAdmin = req.user.isSuperAdmin;
   const managedTenantIds = req.user.managedTenantIds || [];
 
   let resolvedTenantId: string | null = null;
 
-  // Super admin can switch to any tenant they manage via header
   if (isSuperAdmin && headerTenantId) {
-    if (managedTenantIds.includes(headerTenantId) || headerTenantId === 'tenant-a') {
+    if (managedTenantIds.includes(headerTenantId)) {
       resolvedTenantId = headerTenantId;
+      if (headerTenantId !== userTenantId) {
+        logger.info(
+          {
+            uid: req.user.uid,
+            requested: headerTenantId,
+            correlationId: getCorrelationId(),
+          },
+          'Super admin tenant switch'
+        );
+      }
+    } else {
+      logger.warn(
+        {
+          uid: req.user.uid,
+          requested: headerTenantId,
+          managedTenantIds,
+          correlationId: getCorrelationId(),
+        },
+        'Super admin tenant override denied'
+      );
+      return next(
+        new AppError({
+          code: 'TENANT_DENIED',
+          message: 'Tenant Access Denied',
+          statusCode: 403,
+          details: { requestedTenantId: headerTenantId },
+        })
+      );
     }
   }
 
-  // If not resolved by super admin override, use user's assigned school
   if (!resolvedTenantId) {
     if (headerTenantId && userTenantId && headerTenantId !== userTenantId) {
-      // Normal users cannot override their assigned tenant
       logger.warn(
-        { uid: req.user.uid, requested: headerTenantId, actual: userTenantId },
+        {
+          uid: req.user.uid,
+          requested: headerTenantId,
+          actual: userTenantId,
+          correlationId: getCorrelationId(),
+        },
         'Tenant override attempt denied'
       );
-      return res.status(403).json({
-        error: 'Tenant Access Denied',
-        message: 'You do not have access to the requested tenant.',
-      });
+      return next(
+        new AppError({
+          code: 'TENANT_MISMATCH',
+          message: 'Tenant Access Denied',
+          statusCode: 403,
+          details: { requestedTenantId: headerTenantId, assignedTenantId: userTenantId },
+        })
+      );
     }
     resolvedTenantId = userTenantId;
   }
 
   if (!resolvedTenantId) {
-    logger.warn({ path: req.path, uid: req.user.uid }, 'Missing Tenant ID');
-    return res.status(400).json({
-      error: 'Tenant Context Required',
-      message:
-        'x-school-id header or valid school-linked user token is required for protected API calls.',
-    });
+    logger.warn(
+      { path: req.path, uid: req.user.uid, correlationId: getCorrelationId() },
+      'Missing Tenant ID'
+    );
+    return next(
+      new AppError({
+        code: 'TENANT_REQUIRED',
+        message: 'Tenant Context Required',
+        statusCode: 400,
+      })
+    );
   }
 
-  // Attach to request context
-  req.tenantId = resolvedTenantId;
+  const tenantStatus = await tenantExistsAndActive(resolvedTenantId);
+  if (tenantStatus === null) {
+    return next(
+      new AppError({
+        code: 'TENANT_NOT_FOUND',
+        message: 'Tenant not found',
+        statusCode: 403,
+        details: { tenantId: resolvedTenantId },
+      })
+    );
+  }
+  if (tenantStatus === false) {
+    return next(
+      new AppError({
+        code: 'TENANT_INACTIVE',
+        message: 'Tenant is inactive',
+        statusCode: 403,
+        details: { tenantId: resolvedTenantId },
+      })
+    );
+  }
 
-  // Initialize App Context exactly once
-  contextStorage.run(
-    {
-      tenantId: resolvedTenantId,
-      user: req.user as any,
-    },
-    next
-  );
-};
+  req.tenantId = resolvedTenantId;
+  bindRequestTenantAndUser(resolvedTenantId, req.user as any);
+  return next();
+}
