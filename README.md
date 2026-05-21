@@ -26,7 +26,7 @@ This project is a monorepo managed by **pnpm** and **TurboRepo**:
 - Node.js v22+
 - pnpm v11+
 - Supabase CLI
-- Mobile builds: see [MOBILE_BUILD_GUIDE.md](./MOBILE_BUILD_GUIDE.md) (Android supported; iOS requires macOS + an `apps/mobile/ios` native project)
+- Mobile builds: see [MOBILE_BUILD_GUIDE.md](./MOBILE_BUILD_GUIDE.md) (Android and iOS native projects are under `apps/mobile/android` and `apps/mobile/ios`; iOS builds require macOS + Xcode)
 
 ### Installation
 
@@ -41,7 +41,28 @@ pnpm install
 
 For the web app, `apps/web/src/lib/env.ts` validates required Vite variables at startup. The app fails fast if `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` is missing instead of creating an unsafe empty Supabase client.
 
-For Android, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `API_BASE_URL`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` before building. The mobile app also accepts the `VITE_*` aliases used by the web migration, but it must never receive `SUPABASE_SERVICE_ROLE_KEY`.
+For mobile, copy `apps/mobile/.env.example` to `apps/mobile/.env` and set `API_BASE_URL`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` before building. The mobile app also accepts the `VITE_*` aliases used by the web migration, but it must never receive `SUPABASE_SERVICE_ROLE_KEY`. After changing `.env`, rebuild and reinstall the app because React Native env values are bundled at build time.
+
+Windows Android build:
+
+```powershell
+cd "D:\Educonnect-Migration\EduConnect-App-supabase-migration"
+notepad .\apps\mobile\.env
+cd .\apps\mobile\android
+.\gradlew clean
+.\gradlew assembleDebug
+```
+
+macOS iOS build:
+
+```bash
+cd apps/mobile
+pnpm install
+cd ios
+pod install
+cd ..
+pnpm ios
+```
 
 ### Development
 

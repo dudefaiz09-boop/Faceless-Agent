@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { Component, useEffect, useMemo, useState, type ErrorInfo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -16,7 +17,7 @@ import { mobileConfigIssues } from './config/env';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { queryClient } from './lib/query-client';
-import { supabaseConfigured } from './lib/supabase';
+import { supabase, supabaseConfigured } from './lib/supabase';
 import { ChatScreen } from './screens/ChatScreen';
 import {
   AnnouncementsScreen,
@@ -61,7 +62,7 @@ const modules: ModuleDefinition[] = [
     label: 'Attendance',
     shortLabel: 'Attend',
     description: 'Daily records, history, and class summaries.',
-    group: 'primary',
+    group: 'operations',
   },
   {
     key: 'assignments',
@@ -75,7 +76,7 @@ const modules: ModuleDefinition[] = [
     label: 'Chat',
     shortLabel: 'Chat',
     description: 'Role-aware school conversations.',
-    group: 'academic',
+    group: 'primary',
   },
   {
     key: 'library',
@@ -135,6 +136,51 @@ const moduleGroupLabels: Record<ModuleDefinition['group'], string> = {
   admin: 'Administration',
 };
 
+type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
+
+function parseAuthLink(url: string) {
+  const [base, fragment = ''] = url.split('#');
+  const query = base.split('?')[1] || '';
+  const params = new URLSearchParams(fragment || query);
+  return {
+    isReset: url.includes('/auth/reset-password') || url.includes('type=recovery'),
+    accessToken: params.get('access_token'),
+    refreshToken: params.get('refresh_token'),
+  };
+}
+
+class MobileErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    if (__DEV__) {
+      console.error('[MobileErrorBoundary]', error, info.componentStack);
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.configTitle}>Something went wrong</Text>
+          <Text style={styles.configBody}>
+            EduConnect recovered from an unexpected screen error. Restart the app or sign in again.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+}
+
 const OfflineBanner = ({
   isOffline,
   lastCheckedAt,
@@ -174,19 +220,86 @@ const ConfigScreen = () => (
   </SafeAreaView>
 );
 
-const LoginScreen = () => {
-  const { login } = useAuth();
+const AuthScreen = ({
+  mode,
+  onModeChange,
+}: {
+  mode: AuthMode;
+  onModeChange: (mode: AuthMode) => void;
+}) => {
+  const { login, register, sendPasswordReset, updatePassword } = useAuth();
   const { isOffline, lastCheckedAt } = useNetworkStatus();
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = async () => {
+  const titles: Record<AuthMode, { title: string; subtitle: string; action: string }> = {
+    login: {
+      title: 'Welcome Back',
+      subtitle: 'Sign in to access your EduConnect workspace.',
+      action: 'Sign In',
+    },
+    register: {
+      title: 'Create Account',
+      subtitle: 'Register with your school-provided email address.',
+      action: 'Create Account',
+    },
+    forgot: {
+      title: 'Reset Password',
+      subtitle: 'Enter your account email and we will send a secure reset link.',
+      action: 'Send Reset Link',
+    },
+    reset: {
+      title: 'Set New Password',
+      subtitle: 'Choose a new password for this EduConnect account.',
+      action: 'Update Password',
+    },
+  };
+
+  const validate = () => {
+    if (mode !== 'reset' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return 'Enter a valid email address.';
+    }
+    if (mode === 'register' && displayName.trim().length < 2) {
+      return 'Enter your full name.';
+    }
+    if (mode !== 'forgot' && password.length < 6) {
+      return 'Password must be at least 6 characters.';
+    }
+    if ((mode === 'register' || mode === 'reset') && password !== confirmPassword) {
+      return 'Passwords do not match.';
+    }
+    return '';
+  };
+
+  const handleSubmit = async () => {
     setError('');
+    setMessage('');
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      if (mode === 'login') {
+        await login(email.trim(), password);
+      } else if (mode === 'register') {
+        await register({ displayName: displayName.trim(), email: email.trim(), password });
+        setMessage('Account created. Check your inbox if your school requires email confirmation.');
+        onModeChange('login');
+      } else if (mode === 'forgot') {
+        await sendPasswordReset(email.trim());
+        setMessage('Reset email sent. Open the link on this device to continue.');
+      } else {
+        await updatePassword(password);
+        setMessage('Password updated. You can continue using EduConnect.');
+        onModeChange('login');
+      }
     } catch (err: unknown) {
       setError((err as Error).message || 'Unable to sign in.');
     } finally {
@@ -200,45 +313,87 @@ const LoginScreen = () => {
         <View style={styles.brandBadge}>
           <Text style={styles.brandBadgeText}>AI ERP</Text>
         </View>
-        <Text style={styles.title}>EduConnect</Text>
-        <Text style={styles.subtitle}>
-          School operations, learning, and communication in one mobile workspace.
-        </Text>
+        <Text style={styles.title}>{titles[mode].title}</Text>
+        <Text style={styles.subtitle}>{titles[mode].subtitle}</Text>
 
         <View style={styles.loginPanel}>
-          <TextInput
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            placeholder="Email"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            value={email}
-          />
-          <TextInput
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor={colors.muted}
-            secureTextEntry
-            style={styles.input}
-            value={password}
-          />
+          {mode === 'register' && (
+            <TextInput
+              autoComplete="name"
+              onChangeText={setDisplayName}
+              placeholder="Full name"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={displayName}
+            />
+          )}
+          {mode !== 'reset' && (
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={email}
+            />
+          )}
+          {mode !== 'forgot' && (
+            <TextInput
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              onChangeText={setPassword}
+              placeholder={mode === 'reset' ? 'New password' : 'Password'}
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              style={styles.input}
+              value={password}
+            />
+          )}
+          {(mode === 'register' || mode === 'reset') && (
+            <TextInput
+              autoComplete="new-password"
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm password"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              style={styles.input}
+              value={confirmPassword}
+            />
+          )}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
+          {message ? <Text style={styles.successText}>{message}</Text> : null}
           <OfflineBanner isOffline={isOffline} lastCheckedAt={lastCheckedAt} />
 
           <TouchableOpacity
             disabled={submitting || isOffline}
-            onPress={handleLogin}
+            onPress={handleSubmit}
             style={[styles.button, (submitting || isOffline) && styles.disabledButton]}
           >
             {submitting ? (
               <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text style={styles.buttonText}>{titles[mode].action}</Text>
             )}
           </TouchableOpacity>
+          <View style={styles.authLinks}>
+            {mode !== 'login' && (
+              <TouchableOpacity onPress={() => onModeChange('login')}>
+                <Text style={styles.authLinkText}>Back to sign in</Text>
+              </TouchableOpacity>
+            )}
+            {mode === 'login' && (
+              <>
+                <TouchableOpacity onPress={() => onModeChange('forgot')}>
+                  <Text style={styles.authLinkText}>Forgot password?</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => onModeChange('register')}>
+                  <Text style={styles.authLinkText}>Create account</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -248,9 +403,17 @@ const LoginScreen = () => {
 const MoreScreen = ({
   modulesForUser,
   onOpenModule,
+  onOpenProfile,
+  onOpenSettings,
+  onSignOut,
+  signingOut,
 }: {
   modulesForUser: ModuleDefinition[];
   onOpenModule: (module: ModuleKey) => void;
+  onOpenProfile: () => void;
+  onOpenSettings: () => void;
+  onSignOut: () => void;
+  signingOut: boolean;
 }) => {
   const grouped = useMemo(
     () =>
@@ -289,18 +452,136 @@ const MoreScreen = ({
             ))}
           </View>
         ))}
+      <View style={styles.moduleGroup}>
+        <Text style={styles.groupLabel}>Account</Text>
+        <TouchableOpacity onPress={onOpenProfile} style={styles.moduleRow}>
+          <View style={styles.moduleIcon}>
+            <Text style={styles.moduleIconText}>P</Text>
+          </View>
+          <View style={styles.moduleRowText}>
+            <Text style={styles.moduleTitle}>Profile</Text>
+            <Text style={styles.moduleDescription}>Your role, school, and contact details.</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onOpenSettings} style={styles.moduleRow}>
+          <View style={styles.moduleIcon}>
+            <Text style={styles.moduleIconText}>S</Text>
+          </View>
+          <View style={styles.moduleRowText}>
+            <Text style={styles.moduleTitle}>Settings</Text>
+            <Text style={styles.moduleDescription}>
+              Theme preference and app build information.
+            </Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onSignOut} disabled={signingOut} style={styles.moduleRow}>
+          <View style={[styles.moduleIcon, styles.signOutIcon]}>
+            <Text style={styles.signOutIconText}>X</Text>
+          </View>
+          <View style={styles.moduleRowText}>
+            <Text style={styles.moduleTitle}>{signingOut ? 'Signing out...' : 'Sign out'}</Text>
+            <Text style={styles.moduleDescription}>End this session on the device.</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
+
+const ProfileScreen = () => {
+  const { user, role, roles, schoolId, classId, linkedStudentIds, assignedModules } = useAuth();
+
+  return (
+    <ScrollView contentContainerStyle={styles.moreContent}>
+      <Text style={styles.sectionTitle}>Profile</Text>
+      <Text style={styles.sectionSubtitle}>Account and tenant context currently loaded.</Text>
+      <View style={styles.profileAvatar}>
+        <Text style={styles.profileAvatarText}>
+          {(user?.displayName || user?.email || 'EduConnect').slice(0, 2).toUpperCase()}
+        </Text>
+      </View>
+      <View style={styles.profilePanel}>
+        <Text style={styles.profileName}>{user?.displayName || 'EduConnect user'}</Text>
+        <Text style={styles.profileEmail}>{user?.email || 'No email on profile'}</Text>
+        <View style={styles.metaGrid}>
+          <View style={styles.metaBox}>
+            <Text style={styles.metaLabel}>Role</Text>
+            <Text style={styles.metaValue}>{role}</Text>
+          </View>
+          <View style={styles.metaBox}>
+            <Text style={styles.metaLabel}>School</Text>
+            <Text style={styles.metaValue}>{schoolId || 'Not selected'}</Text>
+          </View>
+        </View>
+        <View style={styles.metaGrid}>
+          <View style={styles.metaBox}>
+            <Text style={styles.metaLabel}>Class</Text>
+            <Text style={styles.metaValue}>{classId || 'N/A'}</Text>
+          </View>
+          <View style={styles.metaBox}>
+            <Text style={styles.metaLabel}>Children</Text>
+            <Text style={styles.metaValue}>{linkedStudentIds.length}</Text>
+          </View>
+        </View>
+        <Text style={styles.profileCaption}>
+          Roles: {roles.length ? roles.join(', ') : 'Default'} | Modules:{' '}
+          {assignedModules.length ? assignedModules.length : 'Default'}
+        </Text>
+      </View>
+    </ScrollView>
+  );
+};
+
+const SettingsScreen = () => (
+  <ScrollView contentContainerStyle={styles.moreContent}>
+    <Text style={styles.sectionTitle}>Settings</Text>
+    <Text style={styles.sectionSubtitle}>Device-ready app preferences and build details.</Text>
+    <View style={styles.profilePanel}>
+      <View style={styles.settingsRow}>
+        <View>
+          <Text style={styles.moduleTitle}>Theme</Text>
+          <Text style={styles.moduleDescription}>
+            Follows the current EduConnect dark interface.
+          </Text>
+        </View>
+        <View style={styles.settingsBadge}>
+          <Text style={styles.settingsBadgeText}>Dark</Text>
+        </View>
+      </View>
+      <View style={styles.settingsRow}>
+        <View>
+          <Text style={styles.moduleTitle}>App version</Text>
+          <Text style={styles.moduleDescription}>EduConnect 1.0</Text>
+        </View>
+      </View>
+      <View style={styles.settingsRow}>
+        <View>
+          <Text style={styles.moduleTitle}>Environment</Text>
+          <Text style={styles.moduleDescription}>
+            API and Supabase public config are baked into each native build.
+          </Text>
+        </View>
+      </View>
+    </View>
+  </ScrollView>
+);
 
 const ModuleContent = ({
   activeModule,
   onOpenModule,
   modulesForUser,
+  onOpenProfile,
+  onOpenSettings,
+  onSignOut,
+  signingOut,
 }: {
-  activeModule: ModuleKey | 'more';
+  activeModule: ModuleKey | 'more' | 'profile' | 'settings';
   onOpenModule: (module: ModuleKey) => void;
   modulesForUser: ModuleDefinition[];
+  onOpenProfile: () => void;
+  onOpenSettings: () => void;
+  onSignOut: () => void;
+  signingOut: boolean;
 }) => {
   switch (activeModule) {
     case 'dashboard':
@@ -327,8 +608,21 @@ const ModuleContent = ({
       return <DirectoryScreen type="teacher" />;
     case 'allUsers':
       return <DirectoryScreen type="all" />;
+    case 'profile':
+      return <ProfileScreen />;
+    case 'settings':
+      return <SettingsScreen />;
     case 'more':
-      return <MoreScreen modulesForUser={modulesForUser} onOpenModule={onOpenModule} />;
+      return (
+        <MoreScreen
+          modulesForUser={modulesForUser}
+          onOpenModule={onOpenModule}
+          onOpenProfile={onOpenProfile}
+          onOpenSettings={onOpenSettings}
+          onSignOut={onSignOut}
+          signingOut={signingOut}
+        />
+      );
     default:
       return <DashboardScreen onOpenModule={onOpenModule} />;
   }
@@ -337,8 +631,31 @@ const ModuleContent = ({
 const AppContent = () => {
   const { user, loading, logout, role, roles, schoolId, assignedModules } = useAuth();
   const { isOffline, lastCheckedAt } = useNetworkStatus();
-  const [activeModule, setActiveModule] = useState<ModuleKey | 'more'>('dashboard');
+  const [activeModule, setActiveModule] = useState<ModuleKey | 'more' | 'profile' | 'settings'>(
+    'dashboard'
+  );
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    const handleUrl = (url: string | null) => {
+      if (!url) return;
+      const link = parseAuthLink(url);
+      if (link.accessToken && link.refreshToken) {
+        void supabase.auth.setSession({
+          access_token: link.accessToken,
+          refresh_token: link.refreshToken,
+        });
+      }
+      if (link.isReset) setAuthMode('reset');
+    };
+
+    Linking.getInitialURL()
+      .then(handleUrl)
+      .catch(() => undefined);
+    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => subscription.remove();
+  }, []);
 
   const modulesForUser = useMemo(
     () => modules.filter((item) => canAccessModule(role, item.key, assignedModules)),
@@ -346,7 +663,10 @@ const AppContent = () => {
   );
 
   const resolvedActiveModule =
-    activeModule === 'more' || modulesForUser.some((item) => item.key === activeModule)
+    activeModule === 'more' ||
+    activeModule === 'profile' ||
+    activeModule === 'settings' ||
+    modulesForUser.some((item) => item.key === activeModule)
       ? activeModule
       : modulesForUser[0]?.key || 'dashboard';
 
@@ -363,13 +683,12 @@ const AppContent = () => {
     );
   }
 
-  if (!user) return <LoginScreen />;
+  if (!user) return <AuthScreen mode={authMode} onModeChange={setAuthMode} />;
 
-  const primaryTabs = modulesForUser
-    .filter((item) =>
-      ['dashboard', 'announcements', 'attendance', 'assignments'].includes(item.key)
-    )
-    .slice(0, 4);
+  const primaryTabOrder: ModuleKey[] = ['dashboard', 'announcements', 'assignments', 'chat'];
+  const primaryTabs = primaryTabOrder
+    .map((key) => modulesForUser.find((item) => item.key === key))
+    .filter((item): item is ModuleDefinition => Boolean(item));
   const bottomTabs: Array<ModuleDefinition | { key: 'more'; shortLabel: string; label: string }> = [
     ...primaryTabs,
     { key: 'more', shortLabel: 'More', label: 'More' },
@@ -414,6 +733,10 @@ const AppContent = () => {
           activeModule={resolvedActiveModule}
           onOpenModule={setActiveModule}
           modulesForUser={modulesForUser}
+          onOpenProfile={() => setActiveModule('profile')}
+          onOpenSettings={() => setActiveModule('settings')}
+          onSignOut={handleLogout}
+          signingOut={signingOut}
         />
       </View>
 
@@ -444,11 +767,13 @@ const AppContent = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  </QueryClientProvider>
+  <MobileErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </QueryClientProvider>
+  </MobileErrorBoundary>
 );
 
 const styles = StyleSheet.create({
@@ -583,6 +908,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
   },
+  authLinks: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  authLinkText: {
+    color: '#8bb7ff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
   groupLabel: {
     color: colors.ai,
     fontSize: 11,
@@ -673,6 +1011,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
+  metaBox: {
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    padding: 12,
+  },
+  metaGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  metaLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  metaValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
+  },
   moreContent: {
     paddingBottom: 30,
   },
@@ -710,6 +1073,79 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 28,
     fontWeight: '900',
+  },
+  profileAvatar: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    borderRadius: 28,
+    height: 56,
+    justifyContent: 'center',
+    marginTop: 18,
+    width: 56,
+  },
+  profileAvatarText: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  profileCaption: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 16,
+  },
+  profileEmail: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  profileName: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  profilePanel: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 16,
+  },
+  settingsBadge: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  settingsBadgeText: {
+    color: colors.ai,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  settingsRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  signOutIcon: {
+    backgroundColor: colors.dangerSoft,
+  },
+  signOutIconText: {
+    color: colors.danger,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  successText: {
+    color: colors.success,
+    marginTop: 10,
+    textAlign: 'center',
   },
   subtitle: {
     color: colors.muted,

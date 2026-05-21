@@ -62,4 +62,19 @@ Never add `SUPABASE_SERVICE_ROLE_KEY` to the web project.
 
 ## Mobile
 
-The Android workflow builds and uploads an APK artifact to GitHub Actions. Store mobile Supabase values through your React Native env strategy before production signing.
+The Android workflow builds and uploads APK/AAB artifacts to GitHub Actions, and the iOS workflow verifies a simulator build on macOS.
+
+Required public mobile build values:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `API_BASE_URL`
+
+Android signing placeholders:
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Never pass `SUPABASE_SERVICE_ROLE_KEY` to mobile builds. Configure Supabase Auth redirect URLs `educonnect://auth/callback` and `educonnect://auth/reset-password` before shipping register/reset flows.

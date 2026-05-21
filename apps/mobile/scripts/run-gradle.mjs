@@ -49,6 +49,20 @@ if (isWindows && typeof env.JAVA_HOME === 'string') {
   }
 }
 
+if (isWindows) {
+  const androidStudioJbr = 'C:\\Program Files\\Android\\Android Studio\\jbr';
+  const javaHome = typeof env.JAVA_HOME === 'string' ? env.JAVA_HOME : '';
+  const pointsAtJdk26 = /\\jdk-26(?:\.|\\|$)/i.test(javaHome.replace(/\//g, '\\'));
+  if (
+    (!javaHome || pointsAtJdk26) &&
+    fs.existsSync(path.join(androidStudioJbr, 'bin', 'java.exe'))
+  ) {
+    env.JAVA_HOME = androidStudioJbr;
+    const pathKey = Object.keys(env).find((key) => key.toLowerCase() === 'path') || 'Path';
+    env[pathKey] = `${path.join(androidStudioJbr, 'bin')}${path.delimiter}${env[pathKey] || ''}`;
+  }
+}
+
 const result = spawnSync(command, tasks, {
   cwd: androidDir,
   stdio: 'inherit',

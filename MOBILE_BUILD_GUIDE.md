@@ -2,16 +2,18 @@
 
 ## Detected Mobile Stack
 
-EduConnect mobile is a React Native app at `apps/mobile` with a native Android wrapper at `apps/mobile/android`.
+EduConnect mobile is a React Native CLI app at `apps/mobile` with native Android and iOS projects.
 
 It is not Capacitor, Cordova, Expo, or a packaged WebView/PWA APK.
 
 - Android applicationId: `com.educonnect.app`
+- iOS bundle identifier: `com.educonnect.app`
+- iOS display name: `EduConnect`
 - Main activity: `com.educonnect.app.MainActivity`
 - Debug APK output: `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`
 - Release APK output: `apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk` unless release signing is configured
 - Release AAB output: `apps/mobile/android/app/build/outputs/bundle/release/app-release.aab`
-- GitHub Actions artifacts: `android-apk`, `android-release-apk`, `android-release-aab`
+- GitHub Actions artifacts: `android-apk`, `android-release-apk`, `android-release-aab`, `ios-simulator-app`
 - Hermes is enabled and `MainApplication.java` initializes SoLoader with `OpenSourceMergedSoMapping.INSTANCE`.
 
 ## Android Prerequisites
@@ -40,7 +42,7 @@ Set these before building any downloadable APK:
 ```bash
 API_BASE_URL=https://your-api-project.vercel.app/api
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_ANON_KEY=your_supabase_anon_or_publishable_key
 ```
 
 For local Windows builds, create `apps/mobile/.env` from `apps/mobile/.env.example`:
@@ -48,6 +50,9 @@ For local Windows builds, create `apps/mobile/.env` from `apps/mobile/.env.examp
 ```powershell
 cd "D:\Educonnect-Migration\EduConnect-App-supabase-migration"
 notepad .\apps\mobile\.env
+cd .\apps\mobile\android
+.\gradlew clean
+.\gradlew assembleDebug
 ```
 
 The React Native bundle also accepts the existing migration aliases:
@@ -65,6 +70,8 @@ Rules:
 - Never add `SUPABASE_SERVICE_ROLE_KEY` to mobile env, GitHub mobile workflow env, or frontend/mobile code.
 - If required public config is missing, the app shows a readable configuration screen instead of starting auth/API calls.
 - Missing config is also logged during release/debug bundle creation; do not publish an APK that shows `App Not Configured`.
+- After changing `apps/mobile/.env`, rebuild and reinstall the app. React Native env values are bundled at build time.
+- Add `educonnect://auth/callback` and `educonnect://auth/reset-password` to Supabase Auth redirect URLs for mobile email confirmation and password reset.
 
 ## Mobile Feature Coverage
 
@@ -83,7 +90,7 @@ The Android app is a real React Native app, not a WebView. It mirrors the websit
 - Teachers
 - All Users
 
-Mobile uses bottom tabs for primary work and a More screen for secondary/admin modules. Inaccessible modules are hidden with the same `canAccessModule` rules used by the web app.
+Mobile uses bottom tabs for primary work and a More screen for secondary/admin modules. Inaccessible modules are hidden with the same `canAccessModule` rules used by the web app. The primary tabs are Home, Announcements, Assignments, Chat, and More. Attendance, Library, Fees, Performance, Parent Portal, Students, Teachers, All Users, Profile, Settings, and Sign out live under More when permitted by role.
 
 Some web-only write workflows remain intentionally read-only on mobile unless the backend exposes a safe mobile contract:
 
@@ -143,6 +150,28 @@ The APK verifier checks that the downloadable APK contains:
 
 It also fails if the packaged bundle contains localhost API URLs, `10.0.2.2`, `127.0.0.1`, or service-role-key markers. It confirms `libhermes_executor.so` is not packaged as an APK entry; React Native 0.76 with `OpenSourceMergedSoMapping` should not try to load that legacy library at startup.
 
+## iOS Simulator Build
+
+iOS builds require macOS, Xcode, CocoaPods, and the iOS simulator runtime. From macOS:
+
+```bash
+cd apps/mobile
+pnpm install
+cd ios
+pod install
+cd ..
+pnpm ios
+```
+
+Or build directly with Xcode:
+
+```bash
+cd apps/mobile/ios
+xcodebuild -workspace EduConnect.xcworkspace -scheme EduConnect -configuration Debug -sdk iphonesimulator
+```
+
+Physical iPhone `.ipa` release requires macOS, Xcode, an Apple Developer account, certificates, and provisioning profiles. Do not store Apple credentials or signing certificates in this repository.
+
 ## Local Release Build
 
 Unsigned release outputs can be built without committing signing secrets:
@@ -151,7 +180,7 @@ Unsigned release outputs can be built without committing signing secrets:
 pnpm --filter mobile build:android:release
 ```
 
-Signed release outputs require the `MYAPP_RELEASE_*` Gradle properties described below. Keep the keystore outside git, or provide it through a secure CI secret/materialization step.
+Signed release outputs require the `ANDROID_*` Gradle properties described below. Keep the keystore outside git, or provide it through a secure CI secret/materialization step.
 
 ## Install And Capture Logs
 
@@ -227,23 +256,23 @@ This repo intentionally stays on targetSdk 34 until those checks pass.
 
 Debug APKs install and launch without release signing. Release builds require signing properties and a keystore supplied outside the repo:
 
-- `MYAPP_RELEASE_STORE_FILE`
-- `MYAPP_RELEASE_STORE_PASSWORD`
-- `MYAPP_RELEASE_KEY_ALIAS`
-- `MYAPP_RELEASE_KEY_PASSWORD`
+- `ANDROID_KEYSTORE_FILE`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
 
 Do not commit keystores or signing secrets.
 
 In GitHub Actions, expose these as secrets or variables only to the Android workflow:
 
 ```text
-MYAPP_RELEASE_STORE_FILE
-MYAPP_RELEASE_STORE_PASSWORD
-MYAPP_RELEASE_KEY_ALIAS
-MYAPP_RELEASE_KEY_PASSWORD
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
 ```
 
-`MYAPP_RELEASE_STORE_FILE` must point to a keystore file available during the workflow. If the keystore is stored as a base64 secret, materialize it in a CI step outside the repository and set this value to that temporary path.
+`ANDROID_KEYSTORE_BASE64` is decoded by the workflow to a temporary keystore file. Locally, set `ORG_GRADLE_PROJECT_ANDROID_KEYSTORE_FILE` to the keystore filename or path available to Gradle.
 
 ## Crash Reporting
 

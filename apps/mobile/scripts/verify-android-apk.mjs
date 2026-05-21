@@ -16,7 +16,7 @@ const requiredEntries = [
 const forbiddenEntryFragments = ['libhermes_executor.so'];
 const forbiddenBundlePatterns = [
   /SUPABASE_SERVICE_ROLE_KEY/i,
-  /service[_-]?role/i,
+  /sb_secret_[a-z0-9_-]+/i,
   /https?:\/\/localhost(?::\d+)?(?:\/|["'`]|$)/i,
   /https?:\/\/127\.\d+\.\d+\.\d+(?::\d+)?(?:\/|["'`]|$)/i,
   /https?:\/\/10\.0\.2\.2(?::\d+)?(?:\/|["'`]|$)/i,
