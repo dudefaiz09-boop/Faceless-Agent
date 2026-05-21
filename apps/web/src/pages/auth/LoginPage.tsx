@@ -2,11 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
+import { getAuthErrorMessage } from '@educonnect/shared';
 import { Button } from '../../components/ui/Button';
 import { FormError } from '../../components/ui/FormError';
 import { Input } from '../../components/ui/Input';
 import { useAuth } from '../../hooks/useAuth';
-import { getAuthErrorMessage } from '../../lib/auth-errors';
 import { loginSchema, type LoginFormData } from '../../lib/validation';
 import { AuthShell } from './AuthShell';
 

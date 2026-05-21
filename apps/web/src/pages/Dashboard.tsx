@@ -29,6 +29,7 @@ const attendanceTrend = [
   { label: 'Sat', value: 91 },
 ];
 
+// TODO: Replace with real financial data from Supabase fees collection
 const revenueTrend = [
   { label: 'Jan', value: 42 },
   { label: 'Feb', value: 56 },
@@ -46,9 +47,19 @@ const performanceTrend = [
   { label: 'Art', value: 91 },
 ];
 
+type UserRole =
+  | 'admin'
+  | 'principal'
+  | 'teacher'
+  | 'student'
+  | 'parent'
+  | 'librarian'
+  | 'accountant'
+  | 'staff';
+
 type DashboardUser = {
-  role?: string;
-  roles?: string[];
+  role?: UserRole;
+  roles?: UserRole[];
 };
 
 type DashboardAnnouncement = {
@@ -58,7 +69,7 @@ type DashboardAnnouncement = {
   createdAt?: string;
 };
 
-const roleCopy = {
+const roleCopy: Record<UserRole, { title: string; subtitle: string; insight: string }> = {
   admin: {
     title: 'School Command Center',
     subtitle: 'Live operations, revenue, attendance, and AI-backed recommendations.',
@@ -113,12 +124,17 @@ export function DashboardPage() {
     limit: 4,
   });
   const { data: users } = useDocuments<DashboardUser>('users');
-  const copy = roleCopy[role || 'student'] || roleCopy.student;
-  const students = users.filter(
-    (item) => item.role === 'student' || item.roles?.includes('student')
-  );
-  const teachers = users.filter(
-    (item) => item.role === 'teacher' || item.roles?.includes('teacher')
+  const userRole = (role as UserRole) || 'student';
+  const copy = roleCopy[userRole] || roleCopy.student;
+
+  const { studentCount, teacherCount } = React.useMemo(
+    () => ({
+      studentCount: users.filter((u) => u.role === 'student' || u.roles?.includes('student'))
+        .length,
+      teacherCount: users.filter((u) => u.role === 'teacher' || u.roles?.includes('teacher'))
+        .length,
+    }),
+    [users]
   );
 
   const stats =
@@ -187,7 +203,7 @@ export function DashboardPage() {
         : [
             {
               title: 'Students',
-              value: String(students.length || 8),
+              value: users.length > 0 ? String(studentCount) : '...',
               detail: 'Active learners',
               icon: Users,
               tone: 'blue' as const,
@@ -195,7 +211,7 @@ export function DashboardPage() {
             },
             {
               title: 'Teachers',
-              value: String(teachers.length || 3),
+              value: users.length > 0 ? String(teacherCount) : '...',
               detail: 'Faculty coverage',
               icon: GraduationCap,
               tone: 'violet' as const,

@@ -64,6 +64,10 @@ function canMessageUser(
 ): { allowed: boolean; reason?: string } {
   if (!currentRole) return { allowed: false };
 
+  // Safety defaults for potential undefined context values
+  const safeClassIds = currentClassIds || [];
+  const safeLinkedIds = currentLinkedStudentIds || [];
+
   const targetRole = targetProfile.role || targetProfile.roles?.[0] || '';
   const targetClassIds =
     targetProfile.classIds || (targetProfile.classId ? [targetProfile.classId] : []);
@@ -77,7 +81,7 @@ function canMessageUser(
   if (currentRole === 'student') {
     // Can message teachers in their class
     if (targetRole === 'teacher') {
-      const hasSharedClass = targetClassIds.some((classId) => currentClassIds.includes(classId));
+      const hasSharedClass = targetClassIds.some((classId) => safeClassIds.includes(classId));
       if (hasSharedClass) return { allowed: true, reason: 'Class Teacher' };
     }
     // Can message principal
@@ -93,7 +97,7 @@ function canMessageUser(
     if (targetRole === 'teacher') {
       // Check if teacher teaches any of the linked students' classes
       const hasLinkedStudentClass = targetClassIds.some((classId) =>
-        currentClassIds.includes(classId)
+        safeClassIds.includes(classId)
       );
       if (hasLinkedStudentClass) return { allowed: true, reason: "Child's Teacher" };
     }
@@ -108,13 +112,13 @@ function canMessageUser(
   if (currentRole === 'teacher') {
     // Can message students in assigned classes
     if (targetRole === 'student') {
-      const hasSharedClass = targetClassIds.some((classId) => currentClassIds.includes(classId));
+      const hasSharedClass = targetClassIds.some((classId) => safeClassIds.includes(classId));
       if (hasSharedClass) return { allowed: true, reason: 'Your Student' };
     }
     // Can message parents of assigned students
     if (targetRole === 'parent') {
       const hasLinkedStudent = (targetProfile.linkedStudentIds || []).some((studentId) =>
-        currentLinkedStudentIds.includes(studentId)
+        safeLinkedIds.includes(studentId)
       );
       if (hasLinkedStudent) return { allowed: true, reason: "Student's Parent" };
     }

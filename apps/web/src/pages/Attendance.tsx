@@ -50,28 +50,36 @@ type AttendanceReportEntry = {
   attendanceRate: number;
 };
 
-const statusOptions = [
-  {
-    id: 'present',
-    icon: CheckCircle2,
+// UI metadata for attendance status - move this to a shared constants file
+// to ensure the Mobile app uses the same labels and visual tones.
+export const ATTENDANCE_STATUS_UI = {
+  present: {
     label: 'Present',
+    tone: 'emerald',
+    icon: CheckCircle2,
     activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-100',
   },
-  {
-    id: 'absent',
-    icon: XCircle,
+  absent: {
     label: 'Absent',
+    tone: 'red',
+    icon: XCircle,
     activeClass: 'bg-red-600 text-white border-red-600 shadow-md shadow-red-100',
   },
-  {
-    id: 'late',
-    icon: Clock,
+  late: {
     label: 'Late',
+    tone: 'amber',
+    icon: Clock,
     activeClass: 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-100',
   },
-] as const;
+};
+
+const statusOptions = Object.entries(ATTENDANCE_STATUS_UI).map(([id, config]) => ({
+  id,
+  ...config,
+}));
 
 function exportCsv(filename: string, rows: Array<Record<string, unknown>>) {
+  if (!rows || rows.length === 0) return;
   const headers = Object.keys(rows[0] || {});
   if (!headers.length) return;
 
@@ -221,12 +229,21 @@ export const AttendancePage = () => {
   };
 
   const saveAttendance = async () => {
+    if (students.length === 0) {
+      toast({
+        tone: 'warning',
+        title: 'No students',
+        description: 'Cannot save attendance for an empty class.',
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       const records = students.map((s) => ({
         studentId: s.uid || s.id,
         studentName: s.displayName,
-        status: dailyRecords[s.uid || s.id] || 'absent',
+        status: dailyRecords[s.uid || s.id!] || 'absent',
       }));
 
       await apiClient.request('/api/attendance/mark', {

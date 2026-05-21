@@ -61,6 +61,7 @@ export const AssignmentsPage = () => {
   const [loading, setLoading] = useState(false);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
   const loadAssignments = useCallback(async () => {
     setLoading(true);
@@ -88,6 +89,11 @@ export const AssignmentsPage = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAssignments();
   }, [loadAssignments]);
+
+  // Clear selected assignment when class changes to prevent cross-class state leakage
+  useEffect(() => {
+    queueMicrotask(() => setSelectedAssignment(null));
+  }, [selectedClass]);
 
   // Guard against invalid data
   const assignments = useMemo(
@@ -125,9 +131,6 @@ export const AssignmentsPage = () => {
     );
   }, [classOptions, selectedClass]);
 
-  // Submission/Grading View State
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-
   const loadSubmissions = useCallback(async () => {
     if (!selectedAssignment?.id || !canManageAssignments) {
       setSubmissions([]);
@@ -154,11 +157,10 @@ export const AssignmentsPage = () => {
     if (selectedAssignment && assignments.length > 0) {
       const exists = assignments.find((a) => a.id === selectedAssignment.id);
       if (!exists) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedAssignment(null);
+        queueMicrotask(() => setSelectedAssignment(null));
       } else if (exists !== selectedAssignment) {
         // Refresh the selected assignment object to keep it in sync
-        setSelectedAssignment(exists);
+        queueMicrotask(() => setSelectedAssignment(exists));
       }
     }
   }, [assignments, selectedAssignment]);
@@ -301,11 +303,12 @@ export const AssignmentsPage = () => {
 
   const submittedCount = useMemo(() => Object.keys(mySubmissions).length, [mySubmissions]);
   const dueSoonCount = useMemo(() => {
+    const weekInMs = 7 * 24 * 60 * 60 * 1000;
     return assignments.filter((assignment) => {
-      if (!assignment || !assignment.dueDate) return false;
+      if (!assignment?.dueDate) return false;
       try {
         const due = new Date(assignment.dueDate).getTime();
-        return Number.isFinite(due) && due - lastSyncTime <= 7 * 86400000 && due >= lastSyncTime;
+        return Number.isFinite(due) && due - lastSyncTime <= weekInMs && due >= lastSyncTime;
       } catch {
         return false;
       }

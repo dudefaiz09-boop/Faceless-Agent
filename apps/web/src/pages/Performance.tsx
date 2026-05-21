@@ -219,16 +219,19 @@ export const PerformancePage = () => {
 
   const [randomRank] = useState(() => Math.floor(Math.random() * 100) + 1);
   const globalRank = report?.globalRank || randomRank;
-  const filteredRecords = records.filter((record) => {
-    const query = scoreSearch.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      record.studentId.toLowerCase().includes(query) ||
-      record.subject.toLowerCase().includes(query) ||
-      record.term.toLowerCase().includes(query) ||
-      record.grade.toLowerCase().includes(query)
-    );
-  });
+  const filteredRecords = records.filter(
+    (record) => {
+      const query = scoreSearch.trim().toLowerCase();
+      if (!query) return true;
+      return (
+        record.studentId.toLowerCase().includes(query) ||
+        record.subject.toLowerCase().includes(query) ||
+        record.term.toLowerCase().includes(query) ||
+        record.grade.toLowerCase().includes(query)
+      );
+    },
+    [records, scoreSearch]
+  );
 
   const exportPerformanceCsv = () => {
     if (filteredRecords.length === 0) {

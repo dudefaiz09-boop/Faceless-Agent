@@ -5,12 +5,12 @@ import { logger } from '@educonnect/logger';
 
 const router: Router = Router();
 
-function requireUser(req: Request, res: Response) {
-  if (!req.user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return null;
+function requireUser(req: Request, _res: Response) {
+  const user = req.user;
+  if (!user) {
+    throw new Error('Unauthorized');
   }
-  return req.user;
+  return user;
 }
 
 function directConversationId(left: string, right: string) {
@@ -133,8 +133,12 @@ async function canMessageUser(
 
 router.get('/rooms', async (req, res, next) => {
   try {
-    const user = requireUser(req, res);
-    if (!user) return;
+    let user;
+    try {
+      user = requireUser(req, res);
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const snapshot = await db.collection('conversations').get();
     const rooms = snapshot.docs
@@ -149,8 +153,12 @@ router.get('/rooms', async (req, res, next) => {
 
 router.post('/conversations', async (req, res, next) => {
   try {
-    const user = requireUser(req, res);
-    if (!user) return;
+    let user;
+    try {
+      user = requireUser(req, res);
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const type = req.body.type === 'group' ? 'group' : 'direct';
     const now = new Date().toISOString();
@@ -242,8 +250,12 @@ router.post('/conversations', async (req, res, next) => {
 
 router.post('/send', async (req, res, next) => {
   try {
-    const user = requireUser(req, res);
-    if (!user) return;
+    let user;
+    try {
+      user = requireUser(req, res);
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const text = String(req.body.text || '').trim();
     if (!text) return res.status(400).json({ error: 'Message text is required' });
@@ -355,8 +367,12 @@ router.post('/send', async (req, res, next) => {
 
 router.patch('/rooms/:id/read', async (req, res, next) => {
   try {
-    const user = requireUser(req, res);
-    if (!user) return;
+    let user;
+    try {
+      user = requireUser(req, res);
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const roomSnapshot = await db.collection('conversations').doc(req.params.id).get();
     if (!roomSnapshot.exists) return res.status(404).json({ error: 'Conversation not found' });
@@ -366,22 +382,26 @@ router.patch('/rooms/:id/read', async (req, res, next) => {
       return res.status(403).json({ error: 'You are not a participant in this conversation' });
     }
 
+    // Get messages that haven't been read by this user yet to avoid redundant updates
     const snapshot = await db
       .collection(`conversations/${req.params.id}/messages`)
       .orderBy('sentAt', 'desc')
       .limit(100)
       .get();
 
+    const unreadDocs = snapshot.docs.filter((doc) => {
+      const data = doc.data() || {};
+      return !data.readBy?.includes(user.uid);
+    });
+
+    const now = new Date().toISOString();
     await Promise.all(
-      snapshot.docs.map((doc) => {
-        const message = doc.data() || {};
-        return db
-          .collection(`conversations/${req.params.id}/messages`)
-          .doc(doc.id)
-          .update({
-            readBy: Array.from(new Set([...(message.readBy || []), user.uid])),
-            updatedAt: new Date().toISOString(),
-          });
+      unreadDocs.map((doc) => {
+        const currentReadBy = doc.data()?.readBy || [];
+        return doc.ref.update({
+          readBy: [...currentReadBy, user.uid],
+          updatedAt: now,
+        });
       })
     );
 
