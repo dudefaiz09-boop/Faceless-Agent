@@ -17,7 +17,8 @@ export interface MobileConfigIssue {
   message: string;
 }
 
-const IS_REACT_NATIVE_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+const IS_REACT_NATIVE_DEV =
+  typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 
 const PRODUCTION_CONFIG: EnvConfig = {
   API_BASE_URL: process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || '',

@@ -469,7 +469,9 @@ const MoreScreen = ({
           </View>
           <View style={styles.moduleRowText}>
             <Text style={styles.moduleTitle}>Settings</Text>
-            <Text style={styles.moduleDescription}>Theme preference and app build information.</Text>
+            <Text style={styles.moduleDescription}>
+              Theme preference and app build information.
+            </Text>
           </View>
         </TouchableOpacity>
         <TouchableOpacity onPress={onSignOut} disabled={signingOut} style={styles.moduleRow}>
@@ -538,7 +540,9 @@ const SettingsScreen = () => (
       <View style={styles.settingsRow}>
         <View>
           <Text style={styles.moduleTitle}>Theme</Text>
-          <Text style={styles.moduleDescription}>Follows the current EduConnect dark interface.</Text>
+          <Text style={styles.moduleDescription}>
+            Follows the current EduConnect dark interface.
+          </Text>
         </View>
         <View style={styles.settingsBadge}>
           <Text style={styles.settingsBadgeText}>Dark</Text>
@@ -646,7 +650,9 @@ const AppContent = () => {
       if (link.isReset) setAuthMode('reset');
     };
 
-    Linking.getInitialURL().then(handleUrl).catch(() => undefined);
+    Linking.getInitialURL()
+      .then(handleUrl)
+      .catch(() => undefined);
     const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
     return () => subscription.remove();
   }, []);
