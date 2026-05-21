@@ -89,6 +89,11 @@ export const AssignmentsPage = () => {
     void loadAssignments();
   }, [loadAssignments]);
 
+  // Clear selected assignment when class changes to prevent cross-class state leakage
+  useEffect(() => {
+    setSelectedAssignment(null);
+  }, [selectedClass]);
+
   // Guard against invalid data
   const assignments = useMemo(
     () => (Array.isArray(assignmentsData) ? assignmentsData.filter((a) => a && a.id) : []),
@@ -301,11 +306,12 @@ export const AssignmentsPage = () => {
 
   const submittedCount = useMemo(() => Object.keys(mySubmissions).length, [mySubmissions]);
   const dueSoonCount = useMemo(() => {
+    const weekInMs = 7 * 24 * 60 * 60 * 1000;
     return assignments.filter((assignment) => {
-      if (!assignment || !assignment.dueDate) return false;
+      if (!assignment?.dueDate) return false;
       try {
         const due = new Date(assignment.dueDate).getTime();
-        return Number.isFinite(due) && due - lastSyncTime <= 7 * 86400000 && due >= lastSyncTime;
+        return Number.isFinite(due) && due - lastSyncTime <= weekInMs && due >= lastSyncTime;
       } catch {
         return false;
       }

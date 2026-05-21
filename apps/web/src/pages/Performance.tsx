@@ -228,7 +228,7 @@ export const PerformancePage = () => {
       record.term.toLowerCase().includes(query) ||
       record.grade.toLowerCase().includes(query)
     );
-  });
+  }, [records, scoreSearch]);
 
   const exportPerformanceCsv = () => {
     if (filteredRecords.length === 0) {
