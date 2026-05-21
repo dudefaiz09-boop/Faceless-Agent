@@ -35,11 +35,33 @@ jobs:
         working-directory: apps/mobile/ios
         run: pod install
 
+      - name: Validate iOS public env
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
+        run: |
+          missing=0
+          for name in SUPABASE_URL SUPABASE_ANON_KEY API_BASE_URL; do
+            value="${!name}"
+            if [ -z "$value" ]; then
+              echo "::error::$name is required for the iOS simulator artifact"
+              missing=1
+            fi
+          done
+          case "$API_BASE_URL" in https://*) ;; *) echo "::error::API_BASE_URL must be HTTPS"; missing=1 ;; esac
+          case "$SUPABASE_URL" in https://*) ;; *) echo "::error::SUPABASE_URL must be HTTPS"; missing=1 ;; esac
+          if echo "$SUPABASE_ANON_KEY" | grep -Eiq 'service[_-]?role|sb_secret_'; then
+            echo "::error::SUPABASE_ANON_KEY must be a public anon or publishable key"
+            missing=1
+          fi
+          exit "$missing"
+
       - name: Build iOS App (Simulator Build)
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
         working-directory: apps/mobile/ios
         run: |
           set -o pipefail

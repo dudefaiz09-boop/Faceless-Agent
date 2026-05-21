@@ -1,4 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+import { AppState, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient, processLock } from '@supabase/supabase-js';
+import 'react-native-url-polyfill/auto';
 import { ENV, mobileConfigReady } from '../config/env';
 
 const FALLBACK_URL = 'https://invalid.supabase.co';
@@ -23,14 +26,27 @@ export const supabase = createClient(
   isConfigured ? ENV.SUPABASE_ANON_KEY : FALLBACK_KEY,
   {
     auth: {
+      ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
       autoRefreshToken: true,
       detectSessionInUrl: false,
-      persistSession: false,
+      lock: processLock,
+      persistSession: true,
     },
   }
 );
 
 export const supabaseConfigured = isConfigured && mobileConfigReady;
+
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', (state) => {
+    if (!isConfigured) return;
+    if (state === 'active') {
+      void supabase.auth.startAutoRefresh();
+    } else {
+      void supabase.auth.stopAutoRefresh();
+    }
+  });
+}
 
 export async function getSupabaseAccessToken() {
   if (!isConfigured) return null;

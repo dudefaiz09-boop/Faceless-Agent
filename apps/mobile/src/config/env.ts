@@ -17,6 +17,8 @@ export interface MobileConfigIssue {
   message: string;
 }
 
+const IS_REACT_NATIVE_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+
 const PRODUCTION_CONFIG: EnvConfig = {
   API_BASE_URL: process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || '',
   SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
@@ -31,17 +33,17 @@ const DEV_CONFIG: EnvConfig = {
   IS_PRODUCTION: false,
 };
 
-export const ENV = __DEV__ ? DEV_CONFIG : PRODUCTION_CONFIG;
+export const ENV = IS_REACT_NATIVE_DEV ? DEV_CONFIG : PRODUCTION_CONFIG;
 
-function isLocalhostUrl(value: string) {
+export function isLocalhostUrl(value: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?(\/|$)/i.test(value);
 }
 
-function isHttpsUrl(value: string) {
+export function isHttpsUrl(value: string) {
   return /^https:\/\/[^/]+/i.test(value);
 }
 
-function validateConfig(config: EnvConfig): MobileConfigIssue[] {
+export function validateMobileConfig(config: EnvConfig): MobileConfigIssue[] {
   const issues: MobileConfigIssue[] = [];
 
   if (!config.SUPABASE_URL) {
@@ -70,10 +72,10 @@ function validateConfig(config: EnvConfig): MobileConfigIssue[] {
   return issues;
 }
 
-export const mobileConfigIssues = validateConfig(ENV);
+export const mobileConfigIssues = validateMobileConfig(ENV);
 export const mobileConfigReady = mobileConfigIssues.length === 0;
 
-if (__DEV__) {
+if (IS_REACT_NATIVE_DEV) {
   console.log('[Mobile] ENV mode: DEV. API:', ENV.API_BASE_URL);
   console.log('[Mobile] Supabase URL:', ENV.SUPABASE_URL);
 } else if (!mobileConfigReady) {
