@@ -78,7 +78,6 @@ const statusOptions = Object.entries(ATTENDANCE_STATUS_UI).map(([id, config]) =>
   ...config,
 }));
 
-
 function exportCsv(filename: string, rows: Array<Record<string, unknown>>) {
   if (!rows || rows.length === 0) return;
   const headers = Object.keys(rows[0] || {});

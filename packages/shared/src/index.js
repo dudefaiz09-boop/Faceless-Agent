@@ -7,6 +7,7 @@ export * from './api/client.js';
 export * from './validators/documents.js';
 export * from './auth/index.js';
 export * from './services/documents.js';
+export * from './auth-errors.js';
 export * from './utils/errors.js';
 export * from './utils/offline.js';
 export * from './testing/index.js';

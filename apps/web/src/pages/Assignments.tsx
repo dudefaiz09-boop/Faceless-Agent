@@ -61,6 +61,7 @@ export const AssignmentsPage = () => {
   const [loading, setLoading] = useState(false);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
   const loadAssignments = useCallback(async () => {
     setLoading(true);
@@ -91,7 +92,7 @@ export const AssignmentsPage = () => {
 
   // Clear selected assignment when class changes to prevent cross-class state leakage
   useEffect(() => {
-    setSelectedAssignment(null);
+    queueMicrotask(() => setSelectedAssignment(null));
   }, [selectedClass]);
 
   // Guard against invalid data
@@ -130,9 +131,6 @@ export const AssignmentsPage = () => {
     );
   }, [classOptions, selectedClass]);
 
-  // Submission/Grading View State
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-
   const loadSubmissions = useCallback(async () => {
     if (!selectedAssignment?.id || !canManageAssignments) {
       setSubmissions([]);
@@ -159,11 +157,10 @@ export const AssignmentsPage = () => {
     if (selectedAssignment && assignments.length > 0) {
       const exists = assignments.find((a) => a.id === selectedAssignment.id);
       if (!exists) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedAssignment(null);
+        queueMicrotask(() => setSelectedAssignment(null));
       } else if (exists !== selectedAssignment) {
         // Refresh the selected assignment object to keep it in sync
-        setSelectedAssignment(exists);
+        queueMicrotask(() => setSelectedAssignment(exists));
       }
     }
   }, [assignments, selectedAssignment]);

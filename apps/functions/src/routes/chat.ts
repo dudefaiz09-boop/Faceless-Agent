@@ -5,7 +5,7 @@ import { logger } from '@educonnect/logger';
 
 const router: Router = Router();
 
-function requireUser(req: Request, res: Response) {
+function requireUser(req: Request, _res: Response) {
   const user = req.user;
   if (!user) {
     throw new Error('Unauthorized');
@@ -136,7 +136,7 @@ router.get('/rooms', async (req, res, next) => {
     let user;
     try {
       user = requireUser(req, res);
-    } catch (e) {
+    } catch {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -156,7 +156,7 @@ router.post('/conversations', async (req, res, next) => {
     let user;
     try {
       user = requireUser(req, res);
-    } catch (e) {
+    } catch {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -253,7 +253,7 @@ router.post('/send', async (req, res, next) => {
     let user;
     try {
       user = requireUser(req, res);
-    } catch (e) {
+    } catch {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -370,7 +370,7 @@ router.patch('/rooms/:id/read', async (req, res, next) => {
     let user;
     try {
       user = requireUser(req, res);
-    } catch (e) {
+    } catch {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -389,18 +389,19 @@ router.patch('/rooms/:id/read', async (req, res, next) => {
       .limit(100)
       .get();
 
-    const unreadDocs = snapshot.docs.filter(doc => {
+    const unreadDocs = snapshot.docs.filter((doc) => {
       const data = doc.data() || {};
       return !data.readBy?.includes(user.uid);
     });
 
+    const now = new Date().toISOString();
     await Promise.all(
       unreadDocs.map((doc) => {
         const currentReadBy = doc.data()?.readBy || [];
         return doc.ref.update({
-            readBy: [...currentReadBy, user.uid],
-            updatedAt: now,
-          });
+          readBy: [...currentReadBy, user.uid],
+          updatedAt: now,
+        });
       })
     );
 

@@ -7,15 +7,9 @@ import { getAuthErrorMessage } from '@educonnect/shared';
  * Environment variables support both native and migration aliases
  * as specified in MOBILE_BUILD_GUIDE.md
  */
-const supabaseUrl = 
-  process.env.SUPABASE_URL || 
-  process.env.VITE_SUPABASE_URL || 
-  '';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 
-const supabaseAnonKey = 
-  process.env.SUPABASE_ANON_KEY || 
-  process.env.VITE_SUPABASE_ANON_KEY || 
-  '';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   // Fail-fast logic similar to apps/web/src/lib/env.ts

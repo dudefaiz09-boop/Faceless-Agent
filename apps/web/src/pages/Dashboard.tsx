@@ -47,7 +47,15 @@ const performanceTrend = [
   { label: 'Art', value: 91 },
 ];
 
-type UserRole = 'admin' | 'principal' | 'teacher' | 'student' | 'parent' | 'librarian' | 'accountant' | 'staff';
+type UserRole =
+  | 'admin'
+  | 'principal'
+  | 'teacher'
+  | 'student'
+  | 'parent'
+  | 'librarian'
+  | 'accountant'
+  | 'staff';
 
 type DashboardUser = {
   role?: UserRole;
@@ -119,11 +127,15 @@ export function DashboardPage() {
   const userRole = (role as UserRole) || 'student';
   const copy = roleCopy[userRole] || roleCopy.student;
 
-  const { studentCount, teacherCount } = React.useMemo(() => ({
-    studentCount: users.filter(u => u.role === 'student' || u.roles?.includes('student')).length,
-    teacherCount: users.filter(u => u.role === 'teacher' || u.roles?.includes('teacher')).length,
-  }), [users]);
-
+  const { studentCount, teacherCount } = React.useMemo(
+    () => ({
+      studentCount: users.filter((u) => u.role === 'student' || u.roles?.includes('student'))
+        .length,
+      teacherCount: users.filter((u) => u.role === 'teacher' || u.roles?.includes('teacher'))
+        .length,
+    }),
+    [users]
+  );
 
   const stats =
     role === 'teacher'
