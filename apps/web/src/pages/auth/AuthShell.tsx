@@ -1,3 +1,4 @@
+import React from 'react';
 import { GraduationCap } from 'lucide-react';
 import type React from 'react';
 import { Link } from 'react-router-dom';
