@@ -117,7 +117,17 @@ export const TeachersPage = () => {
   }, [schoolId, toast]);
 
   useEffect(() => {
-    void reloadTeachers();
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void reloadTeachers();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [reloadTeachers]);
 
   const resetForm = () => {

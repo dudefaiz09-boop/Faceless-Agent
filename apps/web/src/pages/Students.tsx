@@ -112,7 +112,17 @@ export const StudentsPage = () => {
   }, [schoolId, toast]);
 
   useEffect(() => {
-    void reloadStudents();
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void reloadStudents();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [reloadStudents]);
 
   const resetForm = () => {
