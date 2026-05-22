@@ -4,26 +4,48 @@ import { cn } from '../../lib/utils';
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className, ...props }, ref) => {
+  ({ label, error, leftIcon, rightIcon, className, ...props }, ref) => {
     return (
-      <div className="space-y-1 w-full">
+      <div className="space-y-1.5 w-full">
         {label && (
-          <label className="text-xs font-bold text-slate-400 uppercase ml-1">{label}</label>
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 dark:text-slate-400">
+            {label}
+          </label>
         )}
-        <input
-          ref={ref}
-          className={cn(
-            'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition-all placeholder:text-slate-500 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-400 dark:focus:border-blue-400 dark:focus:ring-blue-950/70 dark:disabled:text-slate-400',
-            error &&
-              'border-red-300 focus:ring-red-100 dark:border-red-500 dark:focus:ring-red-950/70',
-            className
+        <div className="relative">
+          {leftIcon && (
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+              {leftIcon}
+            </div>
           )}
-          {...props}
-        />
-        {error && <p className="text-xs text-red-500 ml-1 font-medium">{error}</p>}
+          <input
+            ref={ref}
+            className={cn(
+              'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all duration-200',
+              'placeholder:text-slate-400',
+              'focus:border-violet-400 focus:ring-2 focus:ring-violet-100',
+              'disabled:cursor-not-allowed disabled:opacity-60',
+              'dark:border-[#1e1e3a] dark:bg-[#12121e] dark:text-slate-50 dark:placeholder:text-slate-500',
+              'dark:focus:border-violet-500 dark:focus:ring-violet-950/50',
+              error && 'border-rose-300 focus:ring-rose-100 dark:border-rose-500 dark:focus:ring-rose-950/50',
+              leftIcon && 'pl-11',
+              rightIcon && 'pr-11',
+              className
+            )}
+            {...props}
+          />
+          {rightIcon && (
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+              {rightIcon}
+            </div>
+          )}
+        </div>
+        {error && <p className="text-xs text-rose-500 ml-1 font-medium">{error}</p>}
       </div>
     );
   }
