@@ -3,8 +3,10 @@ import { createManagedUser, updateManagedUser, writeAuditLog } from '../lib/user
 import { auth, db } from '../lib/documents.js';
 import { requireAnyRole, requirePermission } from '../middleware/permissions.js';
 import {
+  auditLogsQuerySchema,
   bulkManagedUsersSchema,
   createManagedUserSchema,
+  listUsersQuerySchema,
   updateManagedUserSchema,
   updateOwnProfileSchema,
   userParamsSchema,
@@ -19,6 +21,132 @@ function actorFromRequest(req: Request) {
     schoolId: req.tenantId || req.user!.schoolId,
   };
 }
+
+type UserListRecord = {
+  id: string;
+  uid?: string;
+  displayName?: string;
+  email?: string;
+  role?: string;
+  roles?: string[];
+  status?: string;
+  schoolId?: string;
+  tenantId?: string;
+  managedTenantIds?: string[];
+  [key: string]: unknown;
+};
+
+type AuditLogRecord = {
+  id: string;
+  targetUid?: string;
+  timestamp?: string;
+  createdAt?: string;
+  tenantId?: string;
+  schoolId?: string;
+  [key: string]: unknown;
+};
+
+router.get('/', requirePermission('manageUsers'), async (req, res, next) => {
+  try {
+    const { tenantId, role, status, search, limit } = listUsersQuerySchema.parse(req.query);
+
+    const requestedTenantId = tenantId || req.tenantId;
+    const canSwitchTenant =
+      Boolean(req.user!.isSuperAdmin) &&
+      Boolean(requestedTenantId) &&
+      Boolean(req.user!.managedTenantIds?.includes(requestedTenantId));
+
+    if (requestedTenantId !== req.tenantId && !canSwitchTenant) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
+    }
+
+    const snapshot = await db.collection('users').where('tenantId', '==', requestedTenantId).get();
+
+    let users = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      uid: doc.id,
+      ...(doc.data() as Omit<UserListRecord, 'id'>),
+    }));
+
+    if (role) {
+      users = users.filter((profile) => {
+        const roles = Array.isArray(profile.roles) ? profile.roles : [];
+        return profile.role === role || roles.includes(role);
+      });
+    }
+
+    if (status) {
+      users = users.filter((profile) => profile.status === status);
+    }
+
+    if (search) {
+      const query = search.toLowerCase();
+      users = users.filter((profile) =>
+        `${profile.displayName || ''} ${profile.email || ''} ${profile.role || ''}`
+          .toLowerCase()
+          .includes(query)
+      );
+    }
+
+    res.json(users.slice(0, limit));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/tenants', requireAnyRole(['admin', 'super_admin']), async (req, res, next) => {
+  try {
+    const allowedTenantIds = req.user!.isSuperAdmin
+      ? req.user!.managedTenantIds || []
+      : req.tenantId
+        ? [req.tenantId]
+        : [];
+
+    if (allowedTenantIds.length === 0) {
+      return res.json([]);
+    }
+
+    const snapshot = await db.collection('schools').get();
+
+    const tenants = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((tenant) => allowedTenantIds.includes(String(tenant.id)));
+
+    res.json(tenants);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/audit-logs', requirePermission('manageUsers'), async (req, res, next) => {
+  try {
+    const { targetUid, limit } = auditLogsQuerySchema.parse(req.query);
+
+    const snapshot = await db.collection('auditLogs').where('tenantId', '==', req.tenantId).get();
+
+    let logs = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as Omit<AuditLogRecord, 'id'>),
+    }));
+
+    if (targetUid) {
+      logs = logs.filter((log) => log.targetUid === targetUid);
+    }
+
+    logs = logs.sort((a, b) => {
+      const left = new Date(String(a.timestamp || a.createdAt || 0)).getTime();
+      const right = new Date(String(b.timestamp || b.createdAt || 0)).getTime();
+      return right - left;
+    });
+
+    res.json(logs.slice(0, limit));
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.put('/profile', async (req, res, next) => {
   try {
