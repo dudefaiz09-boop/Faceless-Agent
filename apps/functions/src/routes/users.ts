@@ -1,30 +1,39 @@
-import { Router } from 'express';
-import { checkAdmin } from '../middleware/auth.js';
+import { Router, type Request } from 'express';
 import {
   createManagedUser,
   updateManagedUser,
   writeAuditLog,
-  type ManagedUserPayload,
 } from '../lib/user-management.js';
 import { auth, db } from '../lib/documents.js';
+import {
+  requireAnyRole,
+  requirePermission,
+} from '../middleware/permissions.js';
+import {
+  bulkManagedUsersSchema,
+  createManagedUserSchema,
+  updateManagedUserSchema,
+  updateOwnProfileSchema,
+  userParamsSchema,
+} from '../schemas/users.js';
 
 const router: Router = Router();
 
-function actorFromRequest(req: any) {
+function actorFromRequest(req: Request) {
   return {
-    uid: req.user.uid,
-    email: req.user.email,
-    schoolId: req.tenantId || req.user.schoolId,
+    uid: req.user!.uid,
+    email: req.user!.email,
+    schoolId: req.tenantId || req.user!.schoolId,
   };
 }
 
-router.put('/profile', async (req: any, res, next) => {
+router.put('/profile', async (req, res, next) => {
   try {
-    const uid = req.user.uid;
-    const { displayName, photoURL } = req.body;
+    const uid = req.user!.uid;
+    const { displayName, photoURL } = updateOwnProfileSchema.parse(req.body);
     const supabaseAdmin = auth.getSupabaseAdmin();
 
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
     if (displayName) updateData.display_name = displayName;
     if (photoURL) updateData.avatar_url = photoURL;
 
@@ -34,6 +43,7 @@ router.put('/profile', async (req: any, res, next) => {
 
     const userRef = db.collection('users').doc(uid);
     const snapshot = await userRef.get();
+
     if (snapshot.exists) {
       const before = snapshot.data() || {};
       const after = {
@@ -42,6 +52,7 @@ router.put('/profile', async (req: any, res, next) => {
         ...(photoURL ? { photoURL } : {}),
         updatedAt: new Date().toISOString(),
       };
+
       await userRef.update(after);
 
       await supabaseAdmin.from('profiles').upsert({
@@ -57,33 +68,33 @@ router.put('/profile', async (req: any, res, next) => {
   }
 });
 
-router.post('/create', checkAdmin, async (req, res, next) => {
+router.post('/create', requirePermission('manageUsers'), async (req, res, next) => {
   try {
+    const parsedBody = createManagedUserSchema.parse(req.body);
+
     const profile = await createManagedUser(
-      { ...req.body, tenantId: req.body.tenantId || req.tenantId },
+      { ...parsedBody, tenantId: parsedBody.tenantId || req.tenantId },
       actorFromRequest(req)
     );
+
     res.status(201).json({ success: true, profile });
   } catch (error) {
     next(error);
   }
 });
 
-router.post('/bulk-import', checkAdmin, async (req, res, next) => {
+router.post('/bulk-import', requirePermission('manageUsers'), async (req, res, next) => {
   try {
-    const users = Array.isArray(req.body?.users) ? (req.body.users as ManagedUserPayload[]) : [];
-    if (users.length === 0) {
-      return res.status(400).json({ error: 'users array is required' });
-    }
+    const { users } = bulkManagedUsersSchema.parse(req.body);
 
     const results = [];
     for (const user of users) {
       try {
-        // Support per-user tenantId from CSV or fallback to request tenantId
         const payload = {
           ...user,
           tenantId: user.tenantId || req.tenantId,
         };
+
         const profile = await createManagedUser(payload, actorFromRequest(req));
         results.push({ success: true, uid: profile.uid, email: profile.email });
       } catch (error) {
@@ -101,13 +112,9 @@ router.post('/bulk-import', checkAdmin, async (req, res, next) => {
   }
 });
 
-router.post('/import-csv', checkAdmin, async (req, res, next) => {
-  // Re-use the logic from bulk-import directly to avoid recursion with router.handle
+router.post('/import-csv', requirePermission('manageUsers'), async (req, res, next) => {
   try {
-    const users = Array.isArray(req.body?.users) ? (req.body.users as ManagedUserPayload[]) : [];
-    if (users.length === 0) {
-      return res.status(400).json({ error: 'users array is required' });
-    }
+    const { users } = bulkManagedUsersSchema.parse(req.body);
 
     const results = [];
     for (const user of users) {
@@ -116,6 +123,7 @@ router.post('/import-csv', checkAdmin, async (req, res, next) => {
           ...user,
           tenantId: user.tenantId || req.tenantId,
         };
+
         const profile = await createManagedUser(payload, actorFromRequest(req));
         results.push({ success: true, uid: profile.uid, email: profile.email });
       } catch (error) {
@@ -133,52 +141,65 @@ router.post('/import-csv', checkAdmin, async (req, res, next) => {
   }
 });
 
-router.put('/:uid', checkAdmin, async (req, res, next) => {
+router.put('/:uid', requirePermission('manageUsers'), async (req, res, next) => {
   try {
-    const profile = await updateManagedUser(req.params.uid, req.body, actorFromRequest(req));
+    const { uid } = userParamsSchema.parse(req.params);
+    const parsedBody = updateManagedUserSchema.parse(req.body);
+
+    const profile = await updateManagedUser(uid, parsedBody, actorFromRequest(req));
+
     res.json({ success: true, profile });
   } catch (error) {
     next(error);
   }
 });
 
-router.patch('/:uid/deactivate', checkAdmin, async (req, res, next) => {
+router.patch('/:uid/deactivate', requirePermission('manageUsers'), async (req, res, next) => {
   try {
-    const profile = await updateManagedUser(
-      req.params.uid,
-      { status: 'inactive' },
-      actorFromRequest(req),
-      'user_deactivated'
-    );
-    res.json({ success: true, profile });
-  } catch (error) {
-    next(error);
-  }
-});
+    const { uid } = userParamsSchema.parse(req.params);
 
-router.delete('/:uid', checkAdmin, async (req, res, next) => {
-  try {
     const profile = await updateManagedUser(
-      req.params.uid,
+      uid,
       { status: 'inactive' },
       actorFromRequest(req),
       'user_deactivated'
     );
 
-    await writeAuditLog({
-      action: 'user_delete_requested',
-      targetUid: req.params.uid,
-      performedBy: req.user!.uid,
-      details: `Delete requested; ${profile.email || req.params.uid} was deactivated instead`,
-      before: profile,
-      after: profile,
-      schoolId: profile.schoolId,
-    });
-
     res.json({ success: true, profile });
   } catch (error) {
     next(error);
   }
 });
+
+router.delete(
+  '/:uid',
+  requireAnyRole(['admin', 'super_admin']),
+  async (req, res, next) => {
+    try {
+      const { uid } = userParamsSchema.parse(req.params);
+
+      const profile = await updateManagedUser(
+        uid,
+        { status: 'inactive' },
+        actorFromRequest(req),
+        'user_deactivated'
+      );
+
+      await writeAuditLog({
+        action: 'user_delete_requested',
+        targetUid: uid,
+        performedBy: req.user!.uid,
+        details: `Delete requested; ${profile.email || uid} was deactivated instead`,
+        before: profile,
+        after: profile,
+        schoolId: profile.schoolId,
+      });
+
+      res.json({ success: true, profile });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export default router;
