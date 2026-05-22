@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User as UserIcon,
@@ -15,10 +15,9 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { apiClient } from '../lib/api-client';
+import { usersService } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { StudentProfile, AuditLog, BulkImportResult } from '@educonnect/shared';
-import { listDocuments, useDocuments } from '../lib/documents';
 import { useAuth } from '../contexts/AuthContext';
 import { EmptyState } from '../components/saas/EmptyState';
 import { SearchBar } from '../components/saas/SearchBar';
@@ -29,12 +28,31 @@ import { useToast } from '../components/saas/ToastProvider';
 
 type StudentDocument = StudentProfile & {
   id?: string;
+  uid?: string;
   role?: string;
   roles?: string[];
+  classId?: string;
+  classIds?: string[];
+  section?: string;
+  sectionIds?: string[];
+  email?: string;
+  displayName?: string;
 };
 
 function isStudentProfile(profile: StudentDocument) {
   return profile.role === 'student' || profile.roles?.includes('student');
+}
+
+function getStudentUid(profile: StudentDocument) {
+  return profile.uid || profile.id || '';
+}
+
+function getStudentClass(profile: StudentDocument) {
+  return profile.classId || profile.classIds?.[0] || '';
+}
+
+function getStudentSection(profile: StudentDocument) {
+  return profile.section || profile.sectionIds?.[0] || '';
 }
 
 function formatAuditTimestamp(timestamp: unknown) {
@@ -44,22 +62,21 @@ function formatAuditTimestamp(timestamp: unknown) {
 }
 
 export const StudentsPage = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, schoolId } = useAuth();
   const { toast } = useToast();
+
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const { data: userDocuments, loading } = useDocuments<StudentDocument>('users');
-  const students = userDocuments.filter(isStudentProfile);
+  const [students, setStudents] = useState<StudentDocument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState('all');
 
-  // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentDocument | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-  // Form State
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -70,114 +87,214 @@ export const StudentsPage = () => {
 
   const [bulkText, setBulkText] = useState('');
 
+  const reloadStudents = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const data = (await usersService.list({
+        tenantId: schoolId || undefined,
+        role: 'student',
+        limit: 250,
+      })) as StudentDocument[];
+
+      setStudents(Array.isArray(data) ? data.filter(isStudentProfile) : []);
+    } catch (error) {
+      console.error('Failed to load students:', error);
+      toast({
+        tone: 'error',
+        title: 'Students unavailable',
+        description: error instanceof Error ? error.message : 'Unable to load students.',
+      });
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolId, toast]);
+
+  useEffect(() => {
+    void reloadStudents();
+  }, [reloadStudents]);
+
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      password: '',
+      displayName: '',
+      classId: '',
+      section: '',
+    });
+  };
+
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
+
     try {
-      await apiClient.request('/api/students/create', {
-        method: 'POST',
-        body: JSON.stringify(formData),
-      });
+      await usersService.create(
+        {
+          email: formData.email,
+          password: formData.password,
+          displayName: formData.displayName,
+          role: 'student',
+          roles: ['student'],
+          tenantId: schoolId || undefined,
+          classIds: formData.classId ? [formData.classId] : [],
+          sectionIds: formData.section ? [formData.section] : [],
+        },
+        `student-create-${Date.now()}`
+      );
+
       setIsAddModalOpen(false);
-      setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
+      resetForm();
+
       toast({
         tone: 'success',
         title: 'Student created',
         description: `${formData.displayName} was added.`,
       });
+
+      void reloadStudents();
     } catch (error) {
       toast({
         tone: 'error',
         title: 'Student creation failed',
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : 'Unable to create student.',
       });
     }
   };
 
   const handleUpdateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) return;
-    if (!selectedStudent) return;
+    if (!isAdmin || !selectedStudent) return;
+
+    const uid = getStudentUid(selectedStudent);
+    if (!uid) return;
+
     try {
-      await apiClient.request(`/api/students/${selectedStudent.uid}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          displayName: formData.displayName,
-          classId: formData.classId,
-          section: formData.section,
-        }),
+      await usersService.update(uid, {
+        displayName: formData.displayName,
+        classIds: formData.classId ? [formData.classId] : [],
+        sectionIds: formData.section ? [formData.section] : [],
       });
+
       setSelectedStudent(null);
-      setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
+      resetForm();
+
       toast({
         tone: 'success',
         title: 'Student updated',
         description: 'Profile changes were saved.',
       });
+
+      void reloadStudents();
     } catch (error) {
       toast({
         tone: 'error',
         title: 'Student update failed',
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : 'Unable to update student.',
       });
     }
   };
 
   const handleDeleteStudent = async (uid: string) => {
-    if (!isAdmin) return;
-    if (
-      !window.confirm('Are you sure you want to delete this student? This action cannot be undone.')
-    )
-      return;
+    if (!isAdmin || !uid) return;
+    if (!window.confirm('Deactivate this student? They can be restored later by an admin.')) return;
+
     try {
-      await apiClient.request(`/api/students/${uid}`, { method: 'DELETE' });
-      toast({ tone: 'success', title: 'Student deleted', description: 'The record was removed.' });
+      await usersService.deactivate(uid);
+
+      toast({
+        tone: 'success',
+        title: 'Student deactivated',
+        description: 'The student was marked inactive.',
+      });
+
+      void reloadStudents();
     } catch (error) {
       toast({
         tone: 'error',
-        title: 'Student delete failed',
-        description: (error as Error).message,
+        title: 'Student deactivate failed',
+        description: error instanceof Error ? error.message : 'Unable to deactivate student.',
       });
     }
   };
 
   const handleBulkImport = async () => {
     if (!isAdmin) return;
-    const lines = bulkText.trim().split('\n');
+
+    const lines = bulkText
+      .trim()
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      toast({
+        tone: 'error',
+        title: 'No data',
+        description: 'Paste at least one student row before importing.',
+      });
+      return;
+    }
+
     const studentsToImport = lines.map((line) => {
       const [email, displayName, classId, section, password] = line.split(',').map((s) => s.trim());
-      return { email, displayName, classId, section, password };
+
+      return {
+        email,
+        displayName,
+        classId,
+        section,
+        password,
+      };
     });
 
     try {
-      const result = await apiClient.request<{ results: BulkImportResult[] }>(
-        '/api/students/bulk-import',
-        {
-          method: 'POST',
-          body: JSON.stringify({ students: studentsToImport }),
-        }
-      );
+      const result = (await usersService.bulkImport(
+        studentsToImport.map((student) => ({
+          email: student.email,
+          password: student.password,
+          displayName: student.displayName,
+          role: 'student',
+          roles: ['student'],
+          tenantId: schoolId || undefined,
+          classIds: student.classId ? [student.classId] : [],
+          sectionIds: student.section ? [student.section] : [],
+        })),
+        `students-import-${Date.now()}`
+      )) as { results: BulkImportResult[] };
+
       setIsBulkModalOpen(false);
       setBulkText('');
+
       toast({
         tone: 'success',
         title: 'Student import complete',
-        description: `Success: ${result.results.filter((r) => r.success).length}, Failed: ${result.results.filter((r) => !r.success).length}`,
+        description: `Success: ${result.results.filter((r) => r.success).length}, Failed: ${
+          result.results.filter((r) => !r.success).length
+        }`,
       });
+
+      void reloadStudents();
     } catch (error) {
-      toast({ tone: 'error', title: 'Bulk import failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Bulk import failed',
+        description: error instanceof Error ? error.message : 'Unable to import students.',
+      });
     }
   };
 
   const viewAuditLogs = async (studentUid?: string) => {
     setIsAuditModalOpen(true);
+
     try {
-      const logs = await listDocuments<AuditLog>('auditLogs', {
-        filters: studentUid ? [{ field: 'targetUid', op: 'eq', value: studentUid }] : [],
-        order: { field: 'timestamp', ascending: false },
+      const logs = (await usersService.listAuditLogs({
+        targetUid: studentUid,
         limit: 50,
-      });
-      setAuditLogs(logs);
+      })) as AuditLog[];
+
+      setAuditLogs(Array.isArray(logs) ? logs : []);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
       toast({
@@ -189,16 +306,17 @@ export const StudentsPage = () => {
     }
   };
 
-  const filtered = students.filter((s) => {
+  const filtered = students.filter((student) => {
+    const query = debouncedSearch.toLowerCase();
     const matchesSearch =
-      s.displayName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      s.email?.toLowerCase().includes(debouncedSearch.toLowerCase());
-    const matchesClass = selectedClass === 'all' || s.classId === selectedClass;
+      student.displayName?.toLowerCase().includes(query) ||
+      student.email?.toLowerCase().includes(query);
+    const matchesClass = selectedClass === 'all' || getStudentClass(student) === selectedClass;
     return matchesSearch && matchesClass;
   });
 
-  const classes = Array.from(new Set(students.map((s) => s.classId).filter(Boolean)));
-  const sectionCount = new Set(students.map((s) => s.section).filter(Boolean)).size;
+  const classes = Array.from(new Set(students.map(getStudentClass).filter(Boolean)));
+  const sectionCount = new Set(students.map(getStudentSection).filter(Boolean)).size;
 
   return (
     <PageShell>
@@ -210,7 +328,7 @@ export const StudentsPage = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => {
-                setFormData({ email: '', password: '', displayName: '', classId: '', section: '' });
+                resetForm();
                 setIsAddModalOpen(true);
               }}
               className="px-5 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
@@ -260,7 +378,6 @@ export const StudentsPage = () => {
         />
       </div>
 
-      {/* Filters & Search */}
       <div className="flex flex-col md:flex-row gap-4">
         <SearchBar
           value={search}
@@ -277,95 +394,100 @@ export const StudentsPage = () => {
             className="py-4 bg-transparent outline-none text-sm font-bold text-slate-600 pr-4"
           >
             <option value="all">All Classes</option>
-            {classes.map((c) => (
-              <option key={c} value={c}>
-                Class {c}
+            {classes.map((classId) => (
+              <option key={classId} value={classId}>
+                Class {classId}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Student List */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
-          {filtered.map((s) => (
-            <motion.div
-              key={s.uid}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
-            >
-              {isAdmin && (
-                <div className="absolute top-0 right-0 p-6">
-                  <button
-                    onClick={() => {
-                      setSelectedStudent(s);
-                      setFormData({
-                        email: s.email,
-                        password: '',
-                        displayName: s.displayName,
-                        classId: s.classId || '',
-                        section: s.section || '',
-                      });
-                    }}
-                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                  >
-                    <MoreVertical size={20} />
-                  </button>
-                </div>
-              )}
+          {filtered.map((student) => {
+            const uid = getStudentUid(student);
+            const classId = getStudentClass(student);
+            const section = getStudentSection(student);
 
-              <div className="flex items-center gap-5 mb-8">
-                <div className="w-16 h-16 rounded-[24px] bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 transform group-hover:rotate-6">
-                  <GraduationCap size={32} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-xl font-black text-slate-900 truncate leading-tight">
-                    {s.displayName || 'Unnamed Student'}
-                  </h3>
-                  <p className="text-sm text-slate-400 font-bold truncate tracking-wide">
-                    {s.email}
-                  </p>
-                </div>
-              </div>
+            return (
+              <motion.div
+                key={uid}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
+              >
+                {isAdmin && (
+                  <div className="absolute top-0 right-0 p-6">
+                    <button
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setFormData({
+                          email: student.email || '',
+                          password: '',
+                          displayName: student.displayName || '',
+                          classId,
+                          section,
+                        });
+                      }}
+                      className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                    >
+                      <MoreVertical size={20} />
+                    </button>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    Class
-                  </p>
-                  <p className="font-bold text-slate-900">{s.classId || 'N/A'}</p>
+                <div className="flex items-center gap-5 mb-8">
+                  <div className="w-16 h-16 rounded-[24px] bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 transform group-hover:rotate-6">
+                    <GraduationCap size={32} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xl font-black text-slate-900 truncate leading-tight">
+                      {student.displayName || 'Unnamed Student'}
+                    </h3>
+                    <p className="text-sm text-slate-400 font-bold truncate tracking-wide">
+                      {student.email}
+                    </p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    Section
-                  </p>
-                  <p className="font-bold text-slate-900">{s.section || 'N/A'}</p>
-                </div>
-              </div>
 
-              {isAdmin && (
-                <div className="flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => viewAuditLogs(s.uid)}
-                    className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <History size={14} />
-                    Logs
-                  </button>
-                  <button
-                    onClick={() => handleDeleteStudent(s.uid)}
-                    className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Class
+                    </p>
+                    <p className="font-bold text-slate-900">{classId || 'N/A'}</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Section
+                    </p>
+                    <p className="font-bold text-slate-900">{section || 'N/A'}</p>
+                  </div>
                 </div>
-              )}
-            </motion.div>
-          ))}
+
+                {isAdmin && (
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      onClick={() => viewAuditLogs(uid)}
+                      className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <History size={14} />
+                      Logs
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStudent(uid)}
+                      className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
 
@@ -377,7 +499,6 @@ export const StudentsPage = () => {
         />
       )}
 
-      {/* Add/Edit Modal */}
       <AnimatePresence>
         {(isAddModalOpen || selectedStudent) && (
           <div className="fixed inset-0 flex items-center justify-center p-6 z-[100]">
@@ -433,6 +554,7 @@ export const StudentsPage = () => {
                       className="w-full bg-slate-50 border border-slate-100 p-5 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 transition-all font-bold"
                     />
                   </div>
+
                   {!selectedStudent && (
                     <>
                       <div className="space-y-2">
@@ -461,6 +583,7 @@ export const StudentsPage = () => {
                       </div>
                     </>
                   )}
+
                   <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
                       Class
@@ -510,7 +633,6 @@ export const StudentsPage = () => {
         )}
       </AnimatePresence>
 
-      {/* Bulk Import Modal */}
       <AnimatePresence>
         {isBulkModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center p-6 z-[100]">
@@ -579,7 +701,6 @@ export const StudentsPage = () => {
         )}
       </AnimatePresence>
 
-      {/* Audit Logs Modal */}
       <AnimatePresence>
         {isAuditModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center p-6 z-[100]">
@@ -658,6 +779,7 @@ export const StudentsPage = () => {
                     </div>
                   </div>
                 ))}
+
                 {auditLogs.length === 0 && (
                   <div className="text-center py-20">
                     <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-6">

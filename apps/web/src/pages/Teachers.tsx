@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User as UserIcon,
@@ -14,10 +14,9 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { apiClient } from '../lib/api-client';
+import { usersService } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
 import { TeacherProfile, AuditLog, BulkImportResult } from '@educonnect/shared';
-import { listDocuments, useDocuments } from '../lib/documents';
 import { useAuth } from '../contexts/AuthContext';
 import { EmptyState } from '../components/saas/EmptyState';
 import { SearchBar } from '../components/saas/SearchBar';
@@ -28,14 +27,23 @@ import { useToast } from '../components/saas/ToastProvider';
 
 type TeacherDocument = TeacherProfile & {
   id?: string;
+  uid?: string;
   role?: string;
   roles?: string[];
   subjectIds?: string[];
   classIds?: string[];
+  subjects?: string[];
+  classes?: string[];
+  email?: string;
+  displayName?: string;
 };
 
 function isTeacherProfile(profile: TeacherDocument) {
   return profile.role === 'teacher' || profile.roles?.includes('teacher');
+}
+
+function getTeacherUid(profile: TeacherDocument) {
+  return profile.uid || profile.id || '';
 }
 
 function formatAuditTimestamp(timestamp: unknown) {
@@ -52,22 +60,28 @@ function teacherClasses(teacher: TeacherDocument) {
   return teacher.classes || teacher.classIds || [];
 }
 
+function splitCsv(value: string) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export const TeachersPage = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, schoolId } = useAuth();
   const { toast } = useToast();
+
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
-  const { data: userDocuments, loading } = useDocuments<TeacherDocument>('users');
-  const teachers = userDocuments.filter(isTeacherProfile);
+  const [teachers, setTeachers] = useState<TeacherDocument[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState<TeacherProfile | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<TeacherDocument | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
-  // Form State
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -78,142 +92,226 @@ export const TeachersPage = () => {
 
   const [bulkText, setBulkText] = useState('');
 
+  const reloadTeachers = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const data = (await usersService.list({
+        tenantId: schoolId || undefined,
+        role: 'teacher',
+        limit: 250,
+      })) as TeacherDocument[];
+
+      setTeachers(Array.isArray(data) ? data.filter(isTeacherProfile) : []);
+    } catch (error) {
+      console.error('Failed to load teachers:', error);
+      toast({
+        tone: 'error',
+        title: 'Teachers unavailable',
+        description: error instanceof Error ? error.message : 'Unable to load teachers.',
+      });
+      setTeachers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolId, toast]);
+
+  useEffect(() => {
+    void reloadTeachers();
+  }, [reloadTeachers]);
+
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      password: '',
+      displayName: '',
+      subjects: '',
+      classes: '',
+    });
+  };
+
   const handleCreateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
+
     try {
-      await apiClient.request('/api/teachers/create', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...formData,
-          subjects: formData.subjects
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
-          classes: formData.classes
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
-        }),
-      });
+      await usersService.create(
+        {
+          email: formData.email,
+          password: formData.password,
+          displayName: formData.displayName,
+          role: 'teacher',
+          roles: ['teacher'],
+          tenantId: schoolId || undefined,
+          subjectIds: splitCsv(formData.subjects),
+          classIds: splitCsv(formData.classes),
+        },
+        `teacher-create-${Date.now()}`
+      );
+
       setIsAddModalOpen(false);
-      setFormData({ email: '', password: '', displayName: '', subjects: '', classes: '' });
+      resetForm();
+
       toast({
         tone: 'success',
         title: 'Teacher created',
         description: `${formData.displayName} was added.`,
       });
+
+      void reloadTeachers();
     } catch (error) {
       toast({
         tone: 'error',
         title: 'Teacher creation failed',
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : 'Unable to create teacher.',
       });
     }
   };
 
   const handleUpdateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) return;
-    if (!selectedTeacher) return;
+    if (!isAdmin || !selectedTeacher) return;
+
+    const uid = getTeacherUid(selectedTeacher);
+    if (!uid) return;
+
     try {
-      await apiClient.request(`/api/teachers/${selectedTeacher.uid}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          displayName: formData.displayName,
-          subjects: formData.subjects
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
-          classes: formData.classes
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
-        }),
+      await usersService.update(uid, {
+        displayName: formData.displayName,
+        subjectIds: splitCsv(formData.subjects),
+        classIds: splitCsv(formData.classes),
       });
+
       setSelectedTeacher(null);
-      setFormData({ email: '', password: '', displayName: '', subjects: '', classes: '' });
+      resetForm();
+
       toast({
         tone: 'success',
         title: 'Teacher updated',
         description: 'Faculty assignment changes were saved.',
       });
+
+      void reloadTeachers();
     } catch (error) {
       toast({
         tone: 'error',
         title: 'Teacher update failed',
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : 'Unable to update teacher.',
       });
     }
   };
 
   const handleDeleteTeacher = async (uid: string) => {
-    if (!isAdmin) return;
-    if (
-      !window.confirm('Are you sure you want to delete this teacher? This action cannot be undone.')
-    )
-      return;
+    if (!isAdmin || !uid) return;
+    if (!window.confirm('Deactivate this teacher? They can be restored later by an admin.')) return;
+
     try {
-      await apiClient.request(`/api/teachers/${uid}`, { method: 'DELETE' });
+      await usersService.deactivate(uid);
+
       toast({
         tone: 'success',
-        title: 'Teacher deleted',
-        description: 'The faculty record was removed.',
+        title: 'Teacher deactivated',
+        description: 'The faculty member was marked inactive.',
       });
+
+      void reloadTeachers();
     } catch (error) {
       toast({
         tone: 'error',
-        title: 'Teacher delete failed',
-        description: (error as Error).message,
+        title: 'Teacher deactivate failed',
+        description: error instanceof Error ? error.message : 'Unable to deactivate teacher.',
       });
     }
   };
 
   const handleBulkImport = async () => {
     if (!isAdmin) return;
-    const lines = bulkText.trim().split('\n');
+
+    const lines = bulkText
+      .trim()
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      toast({
+        tone: 'error',
+        title: 'No data',
+        description: 'Paste at least one teacher row before importing.',
+      });
+      return;
+    }
+
     const teachersToImport = lines.map((line) => {
       const [email, displayName, subjects, classes, password] = line
         .split(',')
-        .map((s) => s.trim());
+        .map((item) => item.trim());
+
       return {
         email,
         displayName,
-        subjects: subjects ? subjects.split(';').map((s) => s.trim()) : [],
-        classes: classes ? classes.split(';').map((s) => s.trim()) : [],
+        subjects: subjects
+          ? subjects
+              .split(';')
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : [],
+        classes: classes
+          ? classes
+              .split(';')
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : [],
         password,
       };
     });
 
     try {
-      const result = await apiClient.request<{ results: BulkImportResult[] }>(
-        '/api/teachers/bulk-import',
-        {
-          method: 'POST',
-          body: JSON.stringify({ teachers: teachersToImport }),
-        }
-      );
+      const result = (await usersService.bulkImport(
+        teachersToImport.map((teacher) => ({
+          email: teacher.email,
+          password: teacher.password,
+          displayName: teacher.displayName,
+          role: 'teacher',
+          roles: ['teacher'],
+          tenantId: schoolId || undefined,
+          subjectIds: teacher.subjects,
+          classIds: teacher.classes,
+        })),
+        `teachers-import-${Date.now()}`
+      )) as { results: BulkImportResult[] };
+
       setIsBulkModalOpen(false);
       setBulkText('');
+
       toast({
         tone: 'success',
         title: 'Faculty import complete',
-        description: `Success: ${result.results.filter((r) => r.success).length}, Failed: ${result.results.filter((r) => !r.success).length}`,
+        description: `Success: ${result.results.filter((r) => r.success).length}, Failed: ${
+          result.results.filter((r) => !r.success).length
+        }`,
       });
+
+      void reloadTeachers();
     } catch (error) {
-      toast({ tone: 'error', title: 'Bulk import failed', description: (error as Error).message });
+      toast({
+        tone: 'error',
+        title: 'Bulk import failed',
+        description: error instanceof Error ? error.message : 'Unable to import teachers.',
+      });
     }
   };
 
   const viewAuditLogs = async (teacherUid?: string) => {
     setIsAuditModalOpen(true);
+
     try {
-      const logs = await listDocuments<AuditLog>('auditLogs', {
-        filters: teacherUid ? [{ field: 'targetUid', op: 'eq', value: teacherUid }] : [],
-        order: { field: 'timestamp', ascending: false },
+      const logs = (await usersService.listAuditLogs({
+        targetUid: teacherUid,
         limit: 50,
-      });
-      setAuditLogs(logs);
+      })) as AuditLog[];
+
+      setAuditLogs(Array.isArray(logs) ? logs : []);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
       toast({
@@ -225,12 +323,15 @@ export const TeachersPage = () => {
     }
   };
 
-  const filtered = teachers.filter(
-    (t) =>
-      t.displayName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      t.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      teacherSubjects(t).some((s) => s.toLowerCase().includes(debouncedSearch.toLowerCase()))
-  );
+  const filtered = teachers.filter((teacher) => {
+    const query = debouncedSearch.toLowerCase();
+    return (
+      teacher.displayName?.toLowerCase().includes(query) ||
+      teacher.email?.toLowerCase().includes(query) ||
+      teacherSubjects(teacher).some((subject) => subject.toLowerCase().includes(query))
+    );
+  });
+
   const subjectCount = new Set(teachers.flatMap(teacherSubjects).filter(Boolean)).size;
   const classCount = new Set(teachers.flatMap(teacherClasses).filter(Boolean)).size;
 
@@ -244,13 +345,7 @@ export const TeachersPage = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => {
-                setFormData({
-                  email: '',
-                  password: '',
-                  displayName: '',
-                  subjects: '',
-                  classes: '',
-                });
+                resetForm();
                 setIsAddModalOpen(true);
               }}
               className="px-5 py-3 bg-blue-600 text-white rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
@@ -300,117 +395,119 @@ export const TeachersPage = () => {
         />
       </div>
 
-      {/* Search */}
       <SearchBar
         value={search}
         onChange={setSearch}
         placeholder="Search by name, email, or subject..."
       />
 
-      {/* Teacher List */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
-          {filtered.map((t) => (
-            <motion.div
-              key={t.uid}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 p-6">
+          {filtered.map((teacher) => {
+            const uid = getTeacherUid(teacher);
+
+            return (
+              <motion.div
+                key={uid}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 p-6">
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setSelectedTeacher(teacher);
+                        setFormData({
+                          email: teacher.email || '',
+                          password: '',
+                          displayName: teacher.displayName || '',
+                          subjects: teacherSubjects(teacher).join(', '),
+                          classes: teacherClasses(teacher).join(', '),
+                        });
+                      }}
+                      className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-5 mb-8">
+                  <div className="w-16 h-16 rounded-[24px] bg-slate-900 flex items-center justify-center text-white group-hover:bg-blue-600 transition-all duration-500 transform group-hover:-rotate-6">
+                    <UserIcon size={32} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xl font-black text-slate-900 truncate leading-tight">
+                      {teacher.displayName || 'Unnamed Teacher'}
+                    </h3>
+                    <p className="text-sm text-slate-400 font-bold truncate tracking-wide">
+                      {teacher.email}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <BookOpen size={10} /> Subjects
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {teacherSubjects(teacher).map((subject) => (
+                        <span
+                          key={subject}
+                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600"
+                        >
+                          {subject}
+                        </span>
+                      ))}
+                      {teacherSubjects(teacher).length === 0 && (
+                        <span className="text-xs text-slate-400 italic">None assigned</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Briefcase size={10} /> Classes
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {teacherClasses(teacher).map((classId) => (
+                        <span
+                          key={classId}
+                          className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600"
+                        >
+                          {classId}
+                        </span>
+                      ))}
+                      {teacherClasses(teacher).length === 0 && (
+                        <span className="text-xs text-slate-400 italic">None assigned</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setSelectedTeacher(t);
-                      setFormData({
-                        email: t.email,
-                        password: '',
-                        displayName: t.displayName,
-                        subjects: teacherSubjects(t).join(', '),
-                        classes: teacherClasses(t).join(', '),
-                      });
-                    }}
-                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
+                  <div className="flex items-center justify-between gap-3 pt-2">
+                    <button
+                      onClick={() => viewAuditLogs(uid)}
+                      className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <History size={14} />
+                      History
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTeacher(uid)}
+                      className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 )}
-              </div>
-
-              <div className="flex items-center gap-5 mb-8">
-                <div className="w-16 h-16 rounded-[24px] bg-slate-900 flex items-center justify-center text-white group-hover:bg-blue-600 transition-all duration-500 transform group-hover:-rotate-6">
-                  <UserIcon size={32} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-xl font-black text-slate-900 truncate leading-tight">
-                    {t.displayName || 'Unnamed Teacher'}
-                  </h3>
-                  <p className="text-sm text-slate-400 font-bold truncate tracking-wide">
-                    {t.email}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4 mb-8">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                    <BookOpen size={10} /> Subjects
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {teacherSubjects(t).map((s) => (
-                      <span
-                        key={s}
-                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                    {teacherSubjects(t).length === 0 && (
-                      <span className="text-xs text-slate-400 italic">None assigned</span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                    <Briefcase size={10} /> Classes
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {teacherClasses(t).map((c) => (
-                      <span
-                        key={c}
-                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600"
-                      >
-                        {c}
-                      </span>
-                    ))}
-                    {teacherClasses(t).length === 0 && (
-                      <span className="text-xs text-slate-400 italic">None assigned</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {isAdmin && (
-                <div className="flex items-center justify-between gap-3 pt-2">
-                  <button
-                    onClick={() => viewAuditLogs(t.uid)}
-                    className="flex-1 px-4 py-3 rounded-xl bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <History size={14} />
-                    History
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTeacher(t.uid)}
-                    className="px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
 
@@ -422,7 +519,6 @@ export const TeachersPage = () => {
         />
       )}
 
-      {/* Add/Edit Modal */}
       <AnimatePresence>
         {(isAddModalOpen || selectedTeacher) && (
           <div className="fixed inset-0 flex items-center justify-center p-6 z-[100]">
@@ -478,6 +574,7 @@ export const TeachersPage = () => {
                       className="w-full bg-slate-50 border border-slate-100 p-5 rounded-3xl outline-none focus:ring-4 focus:ring-blue-100 transition-all font-bold"
                     />
                   </div>
+
                   {!selectedTeacher && (
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
@@ -506,6 +603,7 @@ export const TeachersPage = () => {
                       </div>
                     </div>
                   )}
+
                   <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
                       Subjects (comma separated)
@@ -555,7 +653,6 @@ export const TeachersPage = () => {
         )}
       </AnimatePresence>
 
-      {/* Bulk Import Modal */}
       <AnimatePresence>
         {isBulkModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center p-6 z-[100]">
@@ -625,7 +722,6 @@ export const TeachersPage = () => {
         )}
       </AnimatePresence>
 
-      {/* Audit Logs Modal */}
       <AnimatePresence>
         {isAuditModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center p-6 z-[100]">
@@ -707,6 +803,7 @@ export const TeachersPage = () => {
                     </div>
                   </div>
                 ))}
+
                 {auditLogs.length === 0 && (
                   <div className="text-center py-20">
                     <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-6">
