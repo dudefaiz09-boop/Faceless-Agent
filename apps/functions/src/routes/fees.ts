@@ -1,12 +1,20 @@
 import { Router } from 'express';
 import { db } from '../lib/documents.js';
-import { checkPermission } from '../middleware/auth.js';
 import { createNotification } from '../lib/notifications.js';
 import { logger } from '@educonnect/logger';
+import {
+  requireAnyPermission,
+  requirePermission,
+} from '../middleware/permissions.js';
+import {
+  classReportParamsSchema,
+  feePaymentSchema,
+  feeUploadSchema,
+  studentFeesParamsSchema,
+} from '../schemas/fees.js';
 
 const router: Router = Router();
 
-// Get currency symbol from config
 const CURRENCY = process.env.CURRENCY || 'INR';
 const CURRENCY_SYMBOL = CURRENCY === 'INR' ? '₹' : '$';
 
@@ -23,14 +31,14 @@ type FeeRecord = {
 };
 
 function hasFeeAccess(user: NonNullable<Express.Request['user']>) {
-  return user.isAdmin || user.permissions.manageFees || user.roles.includes('accountant');
+  return user.isAdmin || user.permissions?.manageFees || user.roles?.includes('accountant');
 }
 
 function canViewStudentFees(user: NonNullable<Express.Request['user']>, studentId: string) {
   return (
     hasFeeAccess(user) ||
     studentId === user.uid ||
-    (user.permissions.viewOwnRecords && user.linkedStudentIds.includes(studentId))
+    (user.permissions?.viewOwnRecords && user.linkedStudentIds?.includes(studentId))
   );
 }
 
@@ -52,71 +60,63 @@ async function safeFeeNotification(input: Parameters<typeof createNotification>[
   }
 }
 
-router.get('/report/:classId', checkPermission('manageFees'), async (req, res, next) => {
-  try {
-    const snapshot = await db
-      .collection('fees')
-      .where('tenantId', '==', req.tenantId)
-      .where('classId', '==', req.params.classId)
-      .get();
+router.get(
+  '/report/:classId',
+  requireAnyPermission(['manageFees', 'viewReports']),
+  async (req, res, next) => {
+    try {
+      const { classId } = classReportParamsSchema.parse(req.params);
 
-    const records = snapshot.docs.map((doc) => {
-      const fee = doc.data() as FeeRecord;
-      const amountDue = Number(fee.amountDue || 0);
-      const amountPaid = Number(fee.amountPaid || 0);
-      return {
-        id: doc.id,
-        studentId: fee.studentId,
-        amountDue,
-        amountPaid,
-        dueDate: fee.dueDate,
-        status: feeStatus(amountDue, amountPaid),
-      };
-    });
+      const snapshot = await db
+        .collection('fees')
+        .where('tenantId', '==', req.tenantId)
+        .where('classId', '==', classId)
+        .get();
 
-    const totalDue = records.reduce((sum, record) => sum + record.amountDue, 0);
-    const totalPaid = records.reduce((sum, record) => sum + record.amountPaid, 0);
-    const pending = records.reduce(
-      (sum, record) => sum + Math.max(record.amountDue - record.amountPaid, 0),
-      0
-    );
+      const records = snapshot.docs.map((doc) => {
+        const fee = doc.data() as FeeRecord;
+        const amountDue = Number(fee.amountDue || 0);
+        const amountPaid = Number(fee.amountPaid || 0);
 
-    res.json({ totalPaid, pending, totalDue, records });
-  } catch (error) {
-    next(error);
-  }
-});
+        return {
+          id: doc.id,
+          studentId: fee.studentId,
+          amountDue,
+          amountPaid,
+          dueDate: fee.dueDate,
+          status: feeStatus(amountDue, amountPaid),
+        };
+      });
 
-router.post('/upload', checkPermission('manageFees'), async (req, res, next) => {
-  try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const records = Array.isArray(req.body.records) ? req.body.records : [];
-    if (records.length === 0) {
-      return res.status(400).json({ error: 'records array is required' });
+      const totalDue = records.reduce((sum, record) => sum + record.amountDue, 0);
+      const totalPaid = records.reduce((sum, record) => sum + record.amountPaid, 0);
+      const pending = records.reduce(
+        (sum, record) => sum + Math.max(record.amountDue - record.amountPaid, 0),
+        0
+      );
+
+      res.json({ totalPaid, pending, totalDue, records });
+    } catch (error) {
+      next(error);
     }
+  }
+);
+
+router.post('/upload', requirePermission('manageFees'), async (req, res, next) => {
+  try {
+    const { records } = feeUploadSchema.parse(req.body);
 
     const now = new Date().toISOString();
     const imported = await Promise.all(
-      records.map(async (record: Partial<FeeRecord>) => {
-        const studentId = String(record.studentId || '').trim();
-        const classId = String(record.classId || '').trim();
-        const dueDate = String(record.dueDate || '').trim();
-        const amountDue = Number(record.amountDue || 0);
-
-        if (!studentId || !classId || !dueDate || !Number.isFinite(amountDue) || amountDue <= 0) {
-          throw Object.assign(
-            new Error('Each fee record requires studentId, classId, amountDue, and dueDate'),
-            {
-              statusCode: 400,
-            }
-          );
-        }
+      records.map(async (record) => {
+        const { studentId, classId, dueDate, amountDue } = record;
 
         const id = stableFeeId(classId, studentId, dueDate);
         const ref = db.collection('fees').doc(id);
         const existing = await ref.get();
         const existingFee = existing.exists ? (existing.data() as FeeRecord) : null;
         const amountPaid = Number(existingFee?.amountPaid || 0);
+
         const payload: FeeRecord & Record<string, unknown> = {
           tenantId: req.tenantId,
           schoolId: req.tenantId,
@@ -128,7 +128,7 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
           status: feeStatus(amountDue, amountPaid),
           uploadedAt: now,
           updatedAt: now,
-          updatedBy: req.user?.uid,
+          updatedBy: req.user!.uid,
         };
 
         await ref.set({
@@ -136,7 +136,6 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
           createdAt: existingFee ? existingFee.createdAt : now,
         });
 
-        // Notify student
         await safeFeeNotification({
           title: 'Fee record updated',
           message: `A fee of ${CURRENCY_SYMBOL}${amountDue} is due on ${dueDate}.`,
@@ -145,17 +144,18 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
           targetUserIds: [studentId],
           schoolId: req.tenantId,
           tenantId: req.tenantId,
-          actorId: req.user?.uid,
+          actorId: req.user!.uid,
           metadata: { feeId: id, classId, dueDate, amountDue },
         });
 
-        // Notify linked parents
         try {
           const usersSnapshot = await db
             .collection('users')
             .where('linkedStudentIds', 'array-contains', studentId)
             .get();
+
           const parentIds = usersSnapshot.docs.map((doc) => doc.id);
+
           if (parentIds.length > 0) {
             await safeFeeNotification({
               title: 'Student fee record updated',
@@ -165,7 +165,7 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
               targetUserIds: parentIds,
               schoolId: req.tenantId,
               tenantId: req.tenantId,
-              actorId: req.user?.uid,
+              actorId: req.user!.uid,
               metadata: { feeId: id, classId, dueDate, amountDue, studentId },
             });
           }
@@ -185,21 +185,18 @@ router.post('/upload', checkPermission('manageFees'), async (req, res, next) => 
 
 router.post('/pay', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const feeId = String(req.body.feeId || '').trim();
-    const amount = Number(req.body.amount || 0);
-    const method = String(req.body.method || 'online');
-
-    if (!feeId || !Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'feeId and positive amount are required' });
-    }
+    const { feeId, amount, method } = feePaymentSchema.parse(req.body);
 
     const feeRef = db.collection('fees').doc(feeId);
     const feeSnapshot = await feeRef.get();
-    if (!feeSnapshot.exists) return res.status(404).json({ error: 'Fee record not found' });
+
+    if (!feeSnapshot.exists) {
+      return res.status(404).json({ error: 'Fee record not found' });
+    }
 
     const fee = feeSnapshot.data() as FeeRecord;
-    if (!canViewStudentFees(req.user, fee.studentId)) {
+
+    if (!canViewStudentFees(req.user!, fee.studentId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -207,6 +204,7 @@ router.post('/pay', async (req, res, next) => {
     const currentPaid = Number(fee.amountPaid || 0);
     const amountDue = Number(fee.amountDue || 0);
     const nextPaid = Math.min(currentPaid + amount, amountDue);
+
     const paymentRef = await db.collection('payments').add({
       tenantId: req.tenantId,
       schoolId: req.tenantId,
@@ -216,14 +214,14 @@ router.post('/pay', async (req, res, next) => {
       method,
       paidAt: now,
       receiptUrl: `/fees/receipts/${feeId}`,
-      recordedBy: req.user.uid,
+      recordedBy: req.user!.uid,
     });
 
     await feeRef.update({
       amountPaid: nextPaid,
       status: feeStatus(amountDue, nextPaid),
       updatedAt: now,
-      updatedBy: req.user.uid,
+      updatedBy: req.user!.uid,
     });
 
     await safeFeeNotification({
@@ -234,7 +232,7 @@ router.post('/pay', async (req, res, next) => {
       targetUserIds: [fee.studentId],
       schoolId: req.tenantId,
       tenantId: req.tenantId,
-      actorId: req.user.uid,
+      actorId: req.user!.uid,
       metadata: { feeId, paymentId: paymentRef.id, amount },
     });
 
@@ -251,20 +249,22 @@ router.post('/pay', async (req, res, next) => {
 
 router.get('/:uid', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    if (!canViewStudentFees(req.user, req.params.uid)) {
+    const { uid } = studentFeesParamsSchema.parse(req.params);
+
+    if (!canViewStudentFees(req.user!, uid)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
     const feesSnapshot = await db
       .collection('fees')
       .where('tenantId', '==', req.tenantId)
-      .where('studentId', '==', req.params.uid)
+      .where('studentId', '==', uid)
       .get();
+
     const paymentsSnapshot = await db
       .collection('payments')
       .where('tenantId', '==', req.tenantId)
-      .where('studentId', '==', req.params.uid)
+      .where('studentId', '==', uid)
       .get();
 
     const fees = feesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
