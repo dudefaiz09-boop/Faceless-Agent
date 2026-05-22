@@ -1,8 +1,16 @@
 import { Router } from 'express';
 import { db } from '../lib/documents.js';
-import { checkPermission } from '../middleware/auth.js';
+import { requireAnyPermission, requirePermission } from '../middleware/permissions.js';
 import { AttendanceAnalytics } from '@educonnect/shared-analytics';
 import { appEvents } from '../lib/events.js';
+import {
+  attendanceHistoryParamsSchema,
+  attendanceListParamsSchema,
+  attendanceListQuerySchema,
+  attendanceReportParamsSchema,
+  attendanceReportQuerySchema,
+  markAttendanceSchema,
+} from '../schemas/attendance.js';
 
 const router: Router = Router();
 
@@ -14,14 +22,20 @@ type AttendanceEntry = {
   status: AttendanceStatus;
 };
 
+type AttendanceDayRecord = {
+  date?: string;
+  classId?: string;
+  records?: AttendanceEntry[];
+};
+
 function canViewAttendance(user: NonNullable<Express.Request['user']>) {
   return (
     user.isAdmin ||
-    user.permissions.viewAttendance ||
-    user.permissions.manageAttendance ||
-    user.permissions.markAttendance ||
-    user.permissions.viewReports ||
-    user.roles.some((role) => ['principal', 'teacher', 'staff'].includes(role))
+    user.permissions?.viewAttendance ||
+    user.permissions?.manageAttendance ||
+    user.permissions?.markAttendance ||
+    user.permissions?.viewReports ||
+    user.roles?.some((role) => ['principal', 'teacher', 'staff'].includes(role))
   );
 }
 
@@ -29,26 +43,23 @@ function canViewStudentAttendance(user: NonNullable<Express.Request['user']>, st
   return (
     studentId === user.uid ||
     canViewAttendance(user) ||
-    (user.permissions.viewOwnRecords && user.linkedStudentIds.includes(studentId))
+    (user.permissions?.viewOwnRecords && user.linkedStudentIds?.includes(studentId))
   );
 }
 
-function requireAttendanceViewer(
-  req: Express.Request,
-  res: Express.Response,
-  next: Express.NextFunction
-) {
-  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-  if (canViewAttendance(req.user)) return next();
-  return res.status(403).json({ error: 'Forbidden', message: 'Attendance access required' });
-}
+const requireAttendanceViewer = requireAnyPermission([
+  'viewAttendance',
+  'manageAttendance',
+  'markAttendance',
+  'viewReports',
+]);
 
 router.get('/report/:classId', requireAttendanceViewer, async (req, res, next) => {
   try {
-    const { classId } = req.params;
-    const { startDate, endDate } = req.query;
+    const { classId } = attendanceReportParamsSchema.parse(req.params);
+    const { startDate, endDate } = attendanceReportQuerySchema.parse(req.query);
 
-    let query: any = db
+    let query = db
       .collection('attendance')
       .where('tenantId', '==', req.tenantId)
       .where('classId', '==', classId);
@@ -58,9 +69,8 @@ router.get('/report/:classId', requireAttendanceViewer, async (req, res, next) =
 
     const snapshot = await query.get();
 
-    const stats = snapshot.docs.map((doc: any) => {
-      const data = doc.data() || {};
-      // Flatten the record structure for the calculator
+    const stats = snapshot.docs.map((doc) => {
+      const data = (doc.data() || {}) as AttendanceDayRecord;
       const records = data.records || [];
       return AttendanceAnalytics.calculateStats(records, req.tenantId!, data.date);
     });
@@ -73,13 +83,12 @@ router.get('/report/:classId', requireAttendanceViewer, async (req, res, next) =
 
 router.get('/history/:uid', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const { uid } = req.params;
-    if (!canViewStudentAttendance(req.user, uid)) {
+    const { uid } = attendanceHistoryParamsSchema.parse(req.params);
+
+    if (!canViewStudentAttendance(req.user!, uid)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Get student's classId
     const userDoc = await db.collection('users').doc(uid).get();
     const classId = userDoc.exists ? userDoc.data()?.classId : null;
 
@@ -90,11 +99,19 @@ router.get('/history/:uid', async (req, res, next) => {
       .where('tenantId', '==', req.tenantId)
       .where('classId', '==', classId)
       .get();
+
     const history = snapshot.docs
-      .map((doc: any) => {
-        const data = doc.data() || {};
-        const record = data.records?.find((r: AttendanceEntry) => r.studentId === uid);
-        return record ? { id: doc.id, date: data.date, status: record.status } : null;
+      .map((doc) => {
+        const data = (doc.data() || {}) as AttendanceDayRecord;
+        const record = data.records?.find((entry) => entry.studentId === uid);
+
+        return record
+          ? {
+              id: doc.id,
+              date: data.date,
+              status: record.status,
+            }
+          : null;
       })
       .filter(Boolean);
 
@@ -106,14 +123,15 @@ router.get('/history/:uid', async (req, res, next) => {
 
 router.get('/:classId?', requireAttendanceViewer, async (req, res, next) => {
   try {
-    const classId = req.params.classId || (req.query.classId as string);
-    const date = req.query.date as string;
+    const { classId: paramClassId } = attendanceListParamsSchema.parse(req.params);
+    const { classId: queryClassId, date } = attendanceListQuerySchema.parse(req.query);
+    const classId = paramClassId || queryClassId;
 
     if (!classId) {
       return res.status(400).json({ error: 'classId is required' });
     }
 
-    let query: any = db
+    let query = db
       .collection('attendance')
       .where('tenantId', '==', req.tenantId)
       .where('classId', '==', classId);
@@ -123,10 +141,15 @@ router.get('/:classId?', requireAttendanceViewer, async (req, res, next) => {
     }
 
     const snapshot = await query.get();
-    const days = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    const days = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as AttendanceDayRecord),
+    }));
+
     if (date) {
       const day = days[0];
-      const records = (day?.records || []) as AttendanceEntry[];
+      const records = day?.records || [];
+
       return res.json(
         records.map((record) => ({
           id: `${day.id}_${record.studentId}`,
@@ -143,22 +166,16 @@ router.get('/:classId?', requireAttendanceViewer, async (req, res, next) => {
   }
 });
 
-router.post('/mark', checkPermission('markAttendance'), async (req, res, next) => {
+router.post('/mark', requirePermission('markAttendance'), async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const { classId, date, records } = req.body;
-    if (!classId || !date || !Array.isArray(records)) {
-      return res.status(400).json({ error: 'classId, date, and records are required' });
-    }
+    const { classId, date, records } = markAttendanceSchema.parse(req.body);
 
     const docId = `${classId}_${date}`;
-    const normalizedRecords = records
-      .map((record: AttendanceEntry) => ({
-        studentId: String(record.studentId || '').trim(),
-        studentName: record.studentName || '',
-        status: ['present', 'absent', 'late'].includes(record.status) ? record.status : 'absent',
-      }))
-      .filter((record: AttendanceEntry) => record.studentId);
+    const normalizedRecords = records.map((record) => ({
+      studentId: record.studentId,
+      studentName: record.studentName || '',
+      status: record.status,
+    }));
 
     await db.collection('attendance').doc(docId).set({
       tenantId: req.tenantId,
@@ -166,15 +183,14 @@ router.post('/mark', checkPermission('markAttendance'), async (req, res, next) =
       classId,
       date,
       records: normalizedRecords,
-      markedBy: req.user.uid,
+      markedBy: req.user!.uid,
       updatedAt: new Date().toISOString(),
     });
 
-    // Defer processing of notifications to the background
     appEvents.emit('attendanceMarked', {
       tenantId: req.tenantId,
       schoolId: req.tenantId,
-      actorId: req.user.uid,
+      actorId: req.user!.uid,
       classId,
       date,
       records: normalizedRecords,
