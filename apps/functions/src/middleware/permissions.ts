@@ -10,6 +10,7 @@ function requireUser(req: Request) {
       statusCode: 401,
     });
   }
+
   return req.user;
 }
 
@@ -26,7 +27,11 @@ export const requirePermission =
   (permission: string) => (req: Request, _res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);
-      if (hasPermission(user, permission) || user.permissions[permission]) return next();
+
+      if (hasPermission(user, permission) || user.permissions?.[permission]) {
+        return next();
+      }
+
       return next(denied({ permission }));
     } catch (error) {
       return next(error);
@@ -37,13 +42,15 @@ export const requireAnyPermission =
   (permissions: string[]) => (req: Request, _res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);
+
       if (
         permissions.some(
-          (permission) => hasPermission(user, permission) || user.permissions[permission]
+          (permission) => hasPermission(user, permission) || user.permissions?.[permission]
         )
       ) {
         return next();
       }
+
       return next(denied({ permissions }));
     } catch (error) {
       return next(error);
@@ -56,7 +63,11 @@ export const requireAnyRole =
   (roles: string[]) => (req: Request, _res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);
-      if (roles.some((role) => user.roles.includes(role) || user.role === role)) return next();
+
+      if (roles.some((role) => user.roles?.includes(role) || user.role === role)) {
+        return next();
+      }
+
       return next(denied({ roles }));
     } catch (error) {
       return next(error);
@@ -67,7 +78,15 @@ export const requireModuleAccess =
   (module: string) => (req: Request, _res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);
-      if (user.isAdmin || user.isSuperAdmin || user.assignedModules.includes(module)) return next();
+
+      if (
+        user.isAdmin ||
+        user.isSuperAdmin ||
+        user.assignedModules?.includes(module)
+      ) {
+        return next();
+      }
+
       return next(denied({ module }));
     } catch (error) {
       return next(error);
@@ -82,15 +101,17 @@ export const requireStudentSelfOrLinkedParent =
     try {
       const user = requireUser(req);
       const studentId = req.params[studentIdParam];
+
       if (
         user.isAdmin ||
         user.isSuperAdmin ||
         user.uid === studentId ||
-        user.linkedStudentIds.includes(studentId)
+        user.linkedStudentIds?.includes(studentId)
       ) {
         return next();
       }
-      return next(denied({ studentIdParam }));
+
+      return next(denied({ studentIdParam, studentId }));
     } catch (error) {
       return next(error);
     }
@@ -101,8 +122,16 @@ export const requireClassAccess =
     try {
       const user = requireUser(req);
       const classId = req.params[classIdParam];
-      if (user.isAdmin || user.isSuperAdmin || user.classIds.includes(classId)) return next();
-      return next(denied({ classIdParam }));
+
+      if (
+        user.isAdmin ||
+        user.isSuperAdmin ||
+        user.classIds?.includes(classId)
+      ) {
+        return next();
+      }
+
+      return next(denied({ classIdParam, classId }));
     } catch (error) {
       return next(error);
     }
