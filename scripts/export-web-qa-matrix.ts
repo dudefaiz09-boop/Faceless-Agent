@@ -132,9 +132,7 @@ function csv(values: string[][]) {
     .map((row) =>
       row
         .map((value) =>
-          value.includes(',') || value.includes('"')
-            ? `"${value.replace(/"/g, '""')}"`
-            : value
+          value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value
         )
         .join(',')
     )
