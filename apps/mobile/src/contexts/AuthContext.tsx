@@ -5,10 +5,9 @@ import {
   getAuthErrorMessage,
   getUserRole,
   hasPermission,
-  type ModuleKey,
   type Role,
 } from '@educonnect/shared';
-import { setMobileTenantId } from '../lib/api-client';
+import { authProfileService, setMobileTenantId } from '../lib/api-client';
 import { supabase } from '../lib/supabase';
 
 interface MobileUser {
@@ -91,37 +90,6 @@ function toMobileUser(user: SupabaseUser, accessToken: string | null): MobileUse
   };
 }
 
-async function getProfile(uid: string) {
-  const { data, error } = await supabase
-    .from('documents')
-    .select('data')
-    .eq('collection', 'users')
-    .eq('id', uid)
-    .maybeSingle();
-
-  if (error) throw error;
-  return (data?.data || {}) as {
-    schoolId?: string;
-    tenantId?: string;
-    defaultTenantId?: string;
-    classId?: string | null;
-    classIds?: string[];
-    subjectIds?: string[];
-    sectionIds?: string[];
-    linkedStudentIds?: string[];
-    assignedModules?: ModuleKey[] | string[];
-    is_super_admin?: boolean;
-    isSuperAdmin?: boolean;
-    managed_tenant_ids?: string[];
-    managedTenantIds?: string[];
-    roles?: string[];
-    role?: string;
-    permissions?: Record<string, boolean>;
-    disabled?: boolean;
-    status?: string;
-  };
-}
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(toMobileUser(session.user, session.access_token));
 
     try {
-      const profile = await getProfile(session.user.id);
+      const profile = await authProfileService.getProfile();
       const appMetadata = session.user.app_metadata || {};
 
       if (profile.disabled || profile.status === 'disabled' || appMetadata.disabled === true) {
@@ -205,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRoles(nextRoles);
       setPermissions(profile.permissions || appMetadata.permissions || {});
     } catch (error) {
-      console.error('[Auth] Failed to fetch Supabase profile:', (error as Error).message);
+      console.error('[Auth] Failed to fetch API profile:', (error as Error).message);
     } finally {
       setLoading(false);
     }

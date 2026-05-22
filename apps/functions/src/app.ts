@@ -23,6 +23,7 @@ import aiRoutes from './features/ai/ai.routes.js';
 import { AiController } from './features/ai/ai.controller.js';
 
 // Legacy Routes (Pending Refactor)
+import authProfileRouter from './routes/auth-profile.js';
 import announcementsRouter from './routes/announcements.js';
 import attendanceRouter from './routes/attendance.js';
 import assignmentsRouter from './routes/assignments.js';
@@ -182,9 +183,10 @@ app.use('/api', publicRouter);
 // 4. Protected Router
 const protectedRouter = express.Router();
 
-// Apply authentication and tenancy middlewares to all protected routes
+// Apply authentication first so bootstrap routes can resolve the user's tenant seed.
 protectedRouter.use(authMiddleware);
 protectedRouter.use(requireAuth);
+protectedRouter.use('/auth', authProfileRouter);
 protectedRouter.use(tenantMiddleware);
 protectedRouter.use(idempotencyMiddleware);
 

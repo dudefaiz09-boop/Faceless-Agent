@@ -3,6 +3,7 @@ import {
   AnnouncementsService,
   AssignmentsService,
   AttendanceService,
+  AuthProfileService,
   ChatService,
   FeesService,
   LibraryService,
@@ -33,6 +34,7 @@ export const apiClient = new ApiClient({
 export const announcementsService = new AnnouncementsService(apiClient);
 export const assignmentsService = new AssignmentsService(apiClient);
 export const attendanceService = new AttendanceService(apiClient);
+export const authProfileService = new AuthProfileService(apiClient);
 export const chatService = new ChatService(apiClient);
 export const feesService = new FeesService(apiClient);
 export const libraryService = new LibraryService(apiClient);
