@@ -1,0 +1,54 @@
+name: API Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'API base URL ending with /api'
+        required: false
+        type: string
+  schedule:
+    - cron: '17 3 * * *'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Resolve API base URL
+        id: api
+        env:
+          INPUT_API_BASE_URL: ${{ inputs.api_base_url }}
+          CONFIG_API_BASE_URL: ${{ secrets.API_BASE_URL || vars.API_BASE_URL }}
+        run: |
+          API_BASE_URL="${INPUT_API_BASE_URL:-$CONFIG_API_BASE_URL}"
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::notice::API_BASE_URL is not configured; skipping smoke test."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$API_BASE_URL" in
+            https://*/api|http://localhost*/api|http://127.*/api) ;;
+            *)
+              echo "::error::API_BASE_URL must end with /api"
+              exit 1
+              ;;
+          esac
+          echo "api_base_url=$API_BASE_URL" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+      - name: Run API smoke test
+        if: steps.api.outputs.skip != 'true'
+        env:
+          API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
+          SMOKE_TENANT_ID: ${{ secrets.SMOKE_TENANT_ID || vars.SMOKE_TENANT_ID }}
+          SMOKE_ACCESS_TOKEN: ${{ secrets.SMOKE_ACCESS_TOKEN }}
+        run: pnpm smoke:web-api
