@@ -15,20 +15,20 @@ import {
   UsersService,
 } from '@educonnect/shared-api';
 import { getSupabaseAccessToken, supabase } from './supabase';
-import { getStoredTenantId } from './tenant';
+import { getActiveTenantId } from './tenant';
 import { env } from './env';
 
 const BASE_URL = env.VITE_API_BASE_URL;
 
-function getActiveTenantId() {
-  return getStoredTenantId();
+function getResolvedTenantId() {
+  return getActiveTenantId();
 }
 
 export const apiClient = new ApiClient({
   baseUrl: BASE_URL,
   getToken: getSupabaseAccessToken,
   getTenantId: () => {
-    return getActiveTenantId();
+    return getResolvedTenantId();
   },
   onUnauthorized: () => {
     void supabase.auth.signOut();
