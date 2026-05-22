@@ -1,22 +1,39 @@
 import { Router } from 'express';
 import type { Request } from 'express';
 import { db } from '../lib/documents.js';
-import { checkAdmin } from '../middleware/auth.js';
+import { requireAnyRole } from '../middleware/permissions.js';
 import { createNotification } from '../lib/notifications.js';
+import {
+  createNotificationSchema,
+  notificationIdParamsSchema,
+} from '../schemas/notifications.js';
 
 const router: Router = Router();
 
-interface NotificationDoc {
+type NotificationDoc = {
   id: string;
   archivedBy?: string[];
+  readBy?: string[];
   targetUserIds?: string[];
   targetRoles?: string[];
   targetClasses?: string[];
   schoolId?: string;
   tenantId?: string;
   archived?: boolean;
-  [key: string]: any;
-}
+  actorId?: string;
+  title?: string;
+  message?: string;
+  type?: string;
+  href?: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type DocumentSnapshotLike = {
+  id: string;
+  data: () => Record<string, unknown> | undefined;
+};
 
 function canSeeNotification(
   notification: NotificationDoc,
@@ -27,61 +44,69 @@ function canSeeNotification(
   if (archivedBy.includes(user.uid)) return false;
 
   const targetUserIds = notification.targetUserIds || [];
-  const targetRoles = notification.targetRoles || ['all'];
-  const targetClasses = notification.targetClasses || ['all'];
+  const targetRoles = notification.targetRoles?.length ? notification.targetRoles : ['all'];
+  const targetClasses = notification.targetClasses?.length ? notification.targetClasses : ['all'];
   const schoolId = notification.schoolId || notification.tenantId;
+
+  const userRoles = user.roles || (user.role ? [user.role] : []);
+  const userClassIds = user.classIds || (user.classId ? [user.classId] : []);
 
   const userMatch = targetUserIds.length === 0 || targetUserIds.includes(user.uid);
   const roleMatch =
-    targetRoles.includes('all') || user.roles.some((role) => targetRoles.includes(role));
+    targetRoles.includes('all') || userRoles.some((role) => targetRoles.includes(role));
   const classMatch =
     targetClasses.includes('all') ||
-    user.classIds.some((classId) => targetClasses.includes(classId));
+    userClassIds.some((classId) => targetClasses.includes(classId));
   const schoolMatch = !schoolId || schoolId === activeTenantId || schoolId === user.schoolId;
 
   return !notification.archived && userMatch && roleMatch && classMatch && schoolMatch;
 }
 
+function toNotificationDoc(doc: DocumentSnapshotLike): NotificationDoc {
+  return {
+    id: doc.id,
+    ...(doc.data() as Omit<NotificationDoc, 'id'>),
+  };
+}
+
+async function getVisibleNotifications(req: Request) {
+  const snapshot = await db
+    .collection('notifications')
+    .where('tenantId', '==', req.tenantId)
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .get();
+
+  return snapshot.docs
+    .map(toNotificationDoc)
+    .filter((notification) => canSeeNotification(notification, req.user!, req.tenantId));
+}
+
 router.get('/', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-
-    const snapshot = await db
-      .collection('notifications')
-      .where('tenantId', '==', req.tenantId)
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
-    const notifications = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((notification) => canSeeNotification(notification, req.user!, req.tenantId));
-
+    const notifications = await getVisibleNotifications(req);
     res.json(notifications);
   } catch (error) {
     next(error);
   }
 });
 
-router.post('/', checkAdmin, async (req, res, next) => {
+router.post('/', requireAnyRole(['admin', 'principal', 'super_admin']), async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const { title, message } = req.body;
-    if (!title || !message) {
-      return res.status(400).json({ error: 'title and message are required' });
-    }
+    const parsedBody = createNotificationSchema.parse(req.body);
 
     const notification = await createNotification({
-      title,
-      message,
-      type: req.body.type || 'system',
-      href: req.body.href,
-      targetUserIds: Array.isArray(req.body.targetUserIds) ? req.body.targetUserIds : [],
-      targetRoles: Array.isArray(req.body.targetRoles) ? req.body.targetRoles : ['all'],
-      targetClasses: Array.isArray(req.body.targetClasses) ? req.body.targetClasses : ['all'],
+      title: parsedBody.title,
+      message: parsedBody.message,
+      type: parsedBody.type,
+      href: parsedBody.href,
+      targetUserIds: parsedBody.targetUserIds,
+      targetRoles: parsedBody.targetRoles,
+      targetClasses: parsedBody.targetClasses,
       schoolId: req.tenantId,
       tenantId: req.tenantId,
-      actorId: req.user.uid,
-      metadata: req.body.metadata || {},
+      actorId: req.user!.uid,
+      metadata: parsedBody.metadata,
     });
 
     res.status(201).json(notification);
@@ -90,29 +115,20 @@ router.post('/', checkAdmin, async (req, res, next) => {
   }
 });
 
-// IMPORTANT: /read-all must come BEFORE /:id/read to prevent Express from treating "read-all" as an ID parameter
+// IMPORTANT: /read-all must come BEFORE /:id/read
 router.patch('/read-all', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-
-    const snapshot = await db
-      .collection('notifications')
-      .where('tenantId', '==', req.tenantId)
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
-    const visible = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((notification) => canSeeNotification(notification, req.user!, req.tenantId));
+    const visible = await getVisibleNotifications(req);
+    const now = new Date().toISOString();
 
     await Promise.all(
-      visible.map((notification: NotificationDoc) =>
+      visible.map((notification) =>
         db
           .collection('notifications')
           .doc(notification.id)
           .update({
             readBy: Array.from(new Set([...(notification.readBy || []), req.user!.uid])),
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           })
       )
     );
@@ -125,19 +141,28 @@ router.patch('/read-all', async (req, res, next) => {
 
 router.patch('/:id/read', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const { id } = notificationIdParamsSchema.parse(req.params);
 
-    const ref = db.collection('notifications').doc(req.params.id);
+    const ref = db.collection('notifications').doc(id);
     const snapshot = await ref.get();
-    if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
 
-    const notification = { id: snapshot.id, ...snapshot.data() };
-    if (!canSeeNotification(notification, req.user, req.tenantId)) {
+    if (!snapshot.exists) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    const notification = toNotificationDoc(snapshot);
+
+    if (!canSeeNotification(notification, req.user!, req.tenantId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const readBy = Array.from(new Set([...(notification.readBy || []), req.user.uid]));
-    await ref.update({ readBy, updatedAt: new Date().toISOString() });
+    const readBy = Array.from(new Set([...(notification.readBy || []), req.user!.uid]));
+
+    await ref.update({
+      readBy,
+      updatedAt: new Date().toISOString(),
+    });
+
     res.json({ success: true, readBy });
   } catch (error) {
     next(error);
@@ -146,30 +171,21 @@ router.patch('/:id/read', async (req, res, next) => {
 
 router.delete('/read', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-
-    const snapshot = await db
-      .collection('notifications')
-      .where('tenantId', '==', req.tenantId)
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
-    const visible = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((notification) => canSeeNotification(notification, req.user!, req.tenantId));
-
-    const readNotifications = visible.filter((n: NotificationDoc) =>
-      n.readBy?.includes(req.user!.uid)
+    const visible = await getVisibleNotifications(req);
+    const readNotifications = visible.filter((notification) =>
+      notification.readBy?.includes(req.user!.uid)
     );
 
+    const now = new Date().toISOString();
+
     await Promise.all(
-      readNotifications.map((n: NotificationDoc) =>
+      readNotifications.map((notification) =>
         db
           .collection('notifications')
-          .doc(n.id)
+          .doc(notification.id)
           .update({
-            archivedBy: Array.from(new Set([...(n.archivedBy || []), req.user!.uid])),
-            updatedAt: new Date().toISOString(),
+            archivedBy: Array.from(new Set([...(notification.archivedBy || []), req.user!.uid])),
+            updatedAt: now,
           })
       )
     );
@@ -182,24 +198,26 @@ router.delete('/read', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const { id } = notificationIdParamsSchema.parse(req.params);
 
-    const ref = db.collection('notifications').doc(req.params.id);
+    const ref = db.collection('notifications').doc(id);
     const snapshot = await ref.get();
-    if (!snapshot.exists) return res.status(404).json({ error: 'Notification not found' });
 
-    const notification = { id: snapshot.id, ...snapshot.data() };
-    if (!canSeeNotification(notification, req.user, req.tenantId)) {
+    if (!snapshot.exists) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    const notification = toNotificationDoc(snapshot);
+
+    if (!canSeeNotification(notification, req.user!, req.tenantId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    if (req.user.isAdmin || (notification as any).actorId === req.user.uid) {
+    if (req.user!.isAdmin || notification.actorId === req.user!.uid) {
       await ref.delete();
     } else {
       await ref.update({
-        archivedBy: Array.from(
-          new Set([...((notification as any).archivedBy || []), req.user.uid])
-        ),
+        archivedBy: Array.from(new Set([...(notification.archivedBy || []), req.user!.uid])),
         updatedAt: new Date().toISOString(),
       });
     }
