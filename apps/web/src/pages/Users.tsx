@@ -32,7 +32,6 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { usersService } from '../lib/api-client';
 import { useDebounce } from '../lib/hooks';
-import { listDocuments, useDocuments } from '../lib/documents';
 import { DEMO_TENANTS, getStoredTenantId, isDemoMode, setStoredTenantId } from '../lib/tenant';
 import { cn } from '../lib/utils';
 import { SearchBar } from '../components/saas/SearchBar';
@@ -156,7 +155,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const [saving, setSaving] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const debouncedSearch = useDebounce(search, 300);
-  const { data: allUsers, loading, reload } = useDocuments<UserProfile>('users');
+  const { data: allUsers, loading, reload } = usersService.list;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
@@ -167,9 +166,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
   useEffect(() => {
     if (isSuperAdmin && managedTenantIds.length > 0) {
-      listDocuments<Tenant>('schools')
-        .then((records) => setTenants(records))
-        .catch(() => setTenants([]));
+      usersService.listTenants.then((records) => setTenants(records)).catch(() => setTenants([]));
     }
   }, [isSuperAdmin, managedTenantIds]);
 
@@ -417,12 +414,12 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const openAuditLogs = async (targetUid?: string) => {
     setIsAuditModalOpen(true);
     try {
-      const logs = await listDocuments<AuditLogRecord>('auditLogs', {
-        filters: targetUid ? [{ field: 'targetUid', op: 'eq', value: targetUid }] : [],
-        order: { field: 'timestamp', ascending: false },
+      const logs = (await usersService.listAuditLogs({
+        targetUid,
         limit: 80,
-      });
-      setAuditLogs(logs);
+      })) as AuditLogRecord[];
+
+      setAuditLogs(Array.isArray(logs) ? logs : []);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
       toast({

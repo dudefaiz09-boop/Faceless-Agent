@@ -66,7 +66,26 @@ export const userParamsSchema = z
   })
   .strict();
 
+export const listUsersQuerySchema = z
+  .object({
+    tenantId: z.string().trim().min(1).optional(),
+    role: z.string().trim().min(1).optional(),
+    status: z.enum(['active', 'inactive']).optional(),
+    search: z.string().trim().optional(),
+    limit: z.coerce.number().int().min(1).max(250).optional().default(100),
+  })
+  .strict();
+
+export const auditLogsQuerySchema = z
+  .object({
+    targetUid: z.string().trim().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(250).optional().default(80),
+  })
+  .strict();
+
 export type CreateManagedUserInput = z.infer<typeof createManagedUserSchema>;
 export type UpdateManagedUserInput = z.infer<typeof updateManagedUserSchema>;
 export type BulkManagedUsersInput = z.infer<typeof bulkManagedUsersSchema>;
 export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileSchema>;
+export type ListUsersQueryInput = z.infer<typeof listUsersQuerySchema>;
+export type AuditLogsQueryInput = z.infer<typeof auditLogsQuerySchema>;
