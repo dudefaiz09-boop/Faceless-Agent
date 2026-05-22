@@ -10,7 +10,14 @@ import {
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { AttendanceRecord, Assignment, Submission } from '@educonnect/shared';
-import { apiClient } from '../lib/api-client';
+import {
+  assignmentsService,
+  attendanceService,
+  feesService,
+  libraryService,
+  performanceService,
+  studentsService,
+} from '../lib/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, formatCurrency } from '../theme';
 import {
@@ -126,8 +133,8 @@ export function AttendanceScreen() {
     ['mobile-attendance', mode, user?.uid, selectedClass, selectedDate],
     () =>
       mode === 'class' && canManageAttendance
-        ? apiClient.request(`/api/attendance?classId=${selectedClass}&date=${selectedDate}`)
-        : apiClient.request(`/api/attendance/history/${user?.uid}`),
+        ? (attendanceService.list(selectedClass, selectedDate) as Promise<AttendanceRecord[]>)
+        : (attendanceService.history(user!.uid) as Promise<AttendanceRecord[]>),
     Boolean(user?.uid)
   );
 
@@ -220,8 +227,8 @@ export function FeesScreen() {
     ['mobile-fees', user?.uid, isStudent, canManageFees, selectedClass],
     () =>
       isStudent
-        ? apiClient.request(`/api/fees/${user?.uid}`)
-        : apiClient.request(`/api/fees/report/${selectedClass}`),
+        ? (feesService.getStudentAccount(user!.uid) as Promise<FeeAccountResponse>)
+        : (feesService.getClassReport(selectedClass) as Promise<FeeReport>),
     Boolean(user?.uid) && (isStudent || canManageFees)
   );
 
@@ -312,12 +319,13 @@ export function FeesScreen() {
 export function LibraryScreen() {
   const { user, isStudent, canManageLibrary } = useAuth();
   const [queryText, setQueryText] = useState('');
-  const resourcesQuery = useApiData<LibraryResource[]>(['mobile-library-resources'], () =>
-    apiClient.request('/api/library/resources')
+  const resourcesQuery = useApiData<LibraryResource[]>(
+    ['mobile-library-resources'],
+    () => libraryService.resources() as Promise<LibraryResource[]>
   );
   const historyQuery = useApiData<BorrowRecord[]>(
     ['mobile-library-history', user?.uid],
-    () => apiClient.request(`/api/library/borrow/history/${user?.uid}`),
+    () => libraryService.borrowHistory(user!.uid) as Promise<BorrowRecord[]>,
     Boolean(user?.uid && isStudent)
   );
   const resources = useMemo(() => {
@@ -411,8 +419,8 @@ export function PerformanceScreen() {
     ['mobile-performance', user?.uid, isStudent, selectedClass],
     () =>
       isStudent
-        ? apiClient.request(`/api/performance/${user?.uid}`)
-        : apiClient.request(`/api/performance/report/${selectedClass}`),
+        ? (performanceService.student(user!.uid) as Promise<PerformanceRecord[]>)
+        : (performanceService.report(selectedClass) as Promise<PerformanceReport>),
     Boolean(user?.uid) && (isStudent || canManagePerformance)
   );
   const report = query.data as PerformanceReport | undefined;
@@ -511,20 +519,21 @@ export function ParentPortalScreen() {
   const query = useApiData(
     ['mobile-parent-portal', selectedStudentId],
     async () => {
-      const profileResponse = await apiClient.request<StudentProfile | { data?: StudentProfile }>(
-        `/api/students/${selectedStudentId}`
-      );
+      const profileResponse = (await studentsService.getProfile(selectedStudentId)) as
+        | StudentProfile
+        | { data?: StudentProfile };
+
       const profile = (
         'data' in profileResponse && profileResponse.data ? profileResponse.data : profileResponse
       ) as StudentProfile;
       const [attendance, fees, performance, assignments, submissions] = await Promise.all([
-        apiClient.request<AttendanceRecord[]>(`/api/attendance/history/${selectedStudentId}`),
-        apiClient.request<FeeAccountResponse>(`/api/fees/${selectedStudentId}`),
-        apiClient.request<PerformanceRecord[]>(`/api/performance/${selectedStudentId}`),
+        attendanceService.history(selectedStudentId) as Promise<AttendanceRecord[]>,
+        feesService.getStudentAccount(selectedStudentId) as Promise<FeeAccountResponse>,
+        performanceService.student(selectedStudentId) as Promise<PerformanceRecord[]>,
         profile.classId
-          ? apiClient.request<Assignment[]>(`/api/assignments/${profile.classId}`)
+          ? (assignmentsService.getAssignments(profile.classId) as Promise<Assignment[]>)
           : Promise.resolve([]),
-        apiClient.request<Submission[]>(`/api/assignments/history/${selectedStudentId}`),
+        assignmentsService.getMyHistory(selectedStudentId) as Promise<Submission[]>,
       ]);
       return { profile, attendance, fees, performance, assignments, submissions };
     },
