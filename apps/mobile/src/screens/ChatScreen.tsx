@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { apiClient } from '../lib/api-client';
-import { collectionPath, useDocuments } from '../lib/documents';
+import { useQuery } from '@tanstack/react-query';
+import type { ChatContact, ChatConversation, ChatMessage } from '@educonnect/shared-api';
+import { chatService } from '../lib/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, formatDate } from '../theme';
 import {
@@ -20,78 +21,6 @@ import {
   Pill,
   SearchInput,
 } from '../components/ModuleUi';
-
-type Conversation = {
-  id: string;
-  participants: string[];
-  type: 'direct' | 'group';
-  name?: string;
-  lastMessage?: string;
-  updatedAt?: string | null;
-  lastMessageAt?: string | null;
-};
-
-type Message = {
-  id: string;
-  senderId: string;
-  senderName?: string;
-  text: string;
-  sentAt?: string | null;
-  readBy?: string[];
-};
-
-type UserProfile = {
-  id: string;
-  uid?: string;
-  email?: string;
-  displayName?: string;
-  role?: string;
-  roles?: string[];
-  status?: 'active' | 'inactive';
-  classId?: string;
-  classIds?: string[];
-  linkedStudentIds?: string[];
-};
-
-function canMessageUser(
-  currentRole: string | null,
-  currentClassIds: string[],
-  currentLinkedStudentIds: string[],
-  targetProfile: UserProfile
-) {
-  if (!currentRole) return false;
-  const targetRole = targetProfile.role || targetProfile.roles?.[0] || '';
-  const targetClassIds =
-    targetProfile.classIds || (targetProfile.classId ? [targetProfile.classId] : []);
-
-  if (currentRole === 'admin' || currentRole === 'principal') return true;
-  if (currentRole === 'student') {
-    return (
-      (targetRole === 'teacher' &&
-        targetClassIds.some((classId) => currentClassIds.includes(classId))) ||
-      targetRole === 'principal' ||
-      targetRole === 'admin'
-    );
-  }
-  if (currentRole === 'parent') {
-    return targetRole === 'principal' || targetRole === 'admin' || targetRole === 'teacher';
-  }
-  if (currentRole === 'teacher') {
-    if (targetRole === 'student')
-      return targetClassIds.some((classId) => currentClassIds.includes(classId));
-    if (targetRole === 'parent') {
-      return (targetProfile.linkedStudentIds || []).some((studentId) =>
-        currentLinkedStudentIds.includes(studentId)
-      );
-    }
-    return ['teacher', 'principal', 'admin'].includes(targetRole);
-  }
-  if (currentRole === 'librarian')
-    return ['admin', 'principal', 'student', 'parent'].includes(targetRole);
-  if (currentRole === 'accountant')
-    return ['admin', 'principal', 'student', 'parent'].includes(targetRole);
-  return false;
-}
 
 function initials(value: string) {
   return (
@@ -104,40 +33,48 @@ function initials(value: string) {
   );
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function ChatScreen() {
-  const { user, role, classIds, linkedStudentIds, schoolId } = useAuth();
-  const [selected, setSelected] = useState<Conversation | null>(null);
+  const { user } = useAuth();
+  const [selected, setSelected] = useState<ChatConversation | null>(null);
   const [query, setQuery] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [contactMode, setContactMode] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  const conversationsQuery = useDocuments<Conversation>('conversations', {
-    enabled: Boolean(user),
-    order: { field: 'updatedAt', ascending: false },
-    realtime: true,
+  const conversationsQuery = useQuery({
+    queryKey: ['mobile-chat-conversations', user?.uid],
+    queryFn: () => chatService.conversations(),
+    enabled: Boolean(user?.uid),
+    retry: 1,
   });
-  const usersQuery = useDocuments<UserProfile>('users', {
-    enabled: Boolean(user),
-    order: { field: 'displayName', ascending: true },
-    realtime: true,
-    schoolId,
+
+  const contactsQuery = useQuery({
+    queryKey: ['mobile-chat-contacts', user?.uid],
+    queryFn: () => chatService.contacts(),
+    enabled: Boolean(user?.uid),
+    retry: 1,
   });
-  const messagesQuery = useDocuments<Message>(
-    selected ? collectionPath('conversations', selected.id, 'messages') : '',
-    {
-      enabled: Boolean(selected),
-      order: { field: 'sentAt', ascending: true },
-      realtime: true,
-    }
-  );
+
+  const messagesQuery = useQuery({
+    queryKey: ['mobile-chat-messages', selected?.id],
+    queryFn: () => chatService.messages(selected!.id),
+    enabled: Boolean(selected?.id),
+    retry: 1,
+    refetchInterval: selected ? 15000 : false,
+  });
+
+  const contacts = contactsQuery.data || [];
 
   const userMap = useMemo(() => {
-    return new Map(usersQuery.data.map((profile) => [profile.uid || profile.id, profile]));
-  }, [usersQuery.data]);
+    return new Map(contacts.map((profile) => [profile.uid || profile.id, profile]));
+  }, [contacts]);
 
-  function getChatName(conversation: Conversation) {
+  function getChatName(conversation: ChatConversation) {
     if (conversation.type === 'group') return conversation.name || 'Group Chat';
     const peerId = conversation.participants.find((participantId) => participantId !== user?.uid);
     const peer = peerId ? userMap.get(peerId) : null;
@@ -146,7 +83,7 @@ export function ChatScreen() {
 
   const conversations = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return conversationsQuery.data
+    return (conversationsQuery.data || [])
       .filter((conversation) => conversation.participants?.includes(user?.uid || ''))
       .filter((conversation) => {
         if (!normalized) return true;
@@ -162,26 +99,17 @@ export function ChatScreen() {
       });
   }, [conversationsQuery.data, query, user?.uid, userMap]);
 
-  const contacts = useMemo(() => {
-    return usersQuery.data.filter((profile) => {
-      const uid = profile.uid || profile.id;
-      if (!uid || uid === user?.uid || profile.status === 'inactive') return false;
-      return canMessageUser(role, classIds, linkedStudentIds, profile);
-    });
-  }, [classIds, linkedStudentIds, role, user?.uid, usersQuery.data]);
-
-  const startConversation = async (profile: UserProfile) => {
+  const startConversation = async (profile: ChatContact) => {
     setLocalError('');
     try {
       const recipientId = profile.uid || profile.id;
-      const conversation = await apiClient.request<Conversation>('/api/chat/conversations', {
-        method: 'POST',
-        body: JSON.stringify({ type: 'direct', recipientId }),
-      });
+      const conversation = await chatService.createConversation({ type: 'direct', recipientId });
       setSelected(conversation);
       setContactMode(false);
+      await conversationsQuery.refetch();
+      await messagesQuery.refetch();
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : 'Could not start chat.');
+      setLocalError(errorMessage(error, 'Could not start chat.'));
     }
   };
 
@@ -193,31 +121,27 @@ export function ChatScreen() {
       const recipientId = selected.participants.find(
         (participantId) => participantId !== user?.uid
       );
-      await apiClient.request('/api/chat/send', {
-        method: 'POST',
-        body: JSON.stringify({
-          recipientId,
-          text: message.trim(),
-          type: selected.type,
-          conversationId: selected.id,
-        }),
+      await chatService.sendMessage({
+        recipientId,
+        text: message.trim(),
+        conversationId: selected.id,
       });
       setMessage('');
-      await messagesQuery.reload();
+      await Promise.all([messagesQuery.refetch(), conversationsQuery.refetch()]);
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : 'Message not sent.');
+      setLocalError(errorMessage(error, 'Message not sent.'));
     } finally {
       setSending(false);
     }
   };
 
-  if (conversationsQuery.error) {
+  if (conversationsQuery.isError) {
     return (
       <View style={styles.flex}>
         <ModuleHeader title="Chat" subtitle="Role-aware direct and group conversations." />
         <ErrorState
-          message={conversationsQuery.error.message}
-          onRetry={() => void conversationsQuery.reload()}
+          message={errorMessage(conversationsQuery.error, 'Could not load conversations.')}
+          onRetry={() => void conversationsQuery.refetch()}
         />
       </View>
     );
@@ -242,16 +166,18 @@ export function ChatScreen() {
           keyExtractor={(item) => item.uid || item.id}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <EmptyState
-              title="No contacts available"
-              body="No eligible people were found for your role."
-            />
+            contactsQuery.isLoading ? null : (
+              <EmptyState
+                title="No contacts available"
+                body="No eligible people were found for your role."
+              />
+            )
           }
           refreshControl={
             <RefreshControl
               tintColor={colors.ai}
-              refreshing={usersQuery.loading}
-              onRefresh={() => void usersQuery.reload()}
+              refreshing={contactsQuery.isRefetching}
+              onRefresh={() => void contactsQuery.refetch()}
             />
           }
           renderItem={({ item }) => {
@@ -279,35 +205,51 @@ export function ChatScreen() {
               <Text style={styles.cardContent}>{selected.type}</Text>
             </View>
           </Card>
-          <FlatList
-            data={messagesQuery.data}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.messagesContent}
-            ListEmptyComponent={
-              <EmptyState
-                title="No messages yet"
-                body="Send the first message to start the conversation."
-              />
-            }
-            renderItem={({ item }) => {
-              const mine = item.senderId === user?.uid;
-              return (
-                <View
-                  style={[styles.messageBubble, mine ? styles.messageMine : styles.messageOther]}
-                >
-                  {!mine && (
-                    <Text style={styles.senderName}>{item.senderName || 'EduConnect'}</Text>
-                  )}
-                  <Text style={[styles.messageText, mine && styles.messageMineText]}>
-                    {item.text}
-                  </Text>
-                  <Text style={[styles.messageTime, mine && styles.messageMineText]}>
-                    {formatDate(item.sentAt)}
-                  </Text>
-                </View>
-              );
-            }}
-          />
+          {messagesQuery.isError ? (
+            <ErrorState
+              message={errorMessage(messagesQuery.error, 'Could not load messages.')}
+              onRetry={() => void messagesQuery.refetch()}
+            />
+          ) : (
+            <FlatList<ChatMessage>
+              data={messagesQuery.data || []}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.messagesContent}
+              ListEmptyComponent={
+                messagesQuery.isLoading ? null : (
+                  <EmptyState
+                    title="No messages yet"
+                    body="Send the first message to start the conversation."
+                  />
+                )
+              }
+              refreshControl={
+                <RefreshControl
+                  tintColor={colors.ai}
+                  refreshing={messagesQuery.isRefetching}
+                  onRefresh={() => void messagesQuery.refetch()}
+                />
+              }
+              renderItem={({ item }) => {
+                const mine = item.senderId === user?.uid;
+                return (
+                  <View
+                    style={[styles.messageBubble, mine ? styles.messageMine : styles.messageOther]}
+                  >
+                    {!mine && (
+                      <Text style={styles.senderName}>{item.senderName || 'EduConnect'}</Text>
+                    )}
+                    <Text style={[styles.messageText, mine && styles.messageMineText]}>
+                      {item.text}
+                    </Text>
+                    <Text style={[styles.messageTime, mine && styles.messageMineText]}>
+                      {formatDate(item.sentAt)}
+                    </Text>
+                  </View>
+                );
+              }}
+            />
+          )}
           <View style={styles.composer}>
             <TextInput
               value={message}
@@ -333,7 +275,7 @@ export function ChatScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
-              conversationsQuery.loading ? null : (
+              conversationsQuery.isLoading ? null : (
                 <EmptyState
                   title="No conversations found"
                   body="Start a conversation with an eligible contact."
@@ -343,8 +285,8 @@ export function ChatScreen() {
             refreshControl={
               <RefreshControl
                 tintColor={colors.ai}
-                refreshing={conversationsQuery.loading}
-                onRefresh={() => void conversationsQuery.reload()}
+                refreshing={conversationsQuery.isRefetching}
+                onRefresh={() => void conversationsQuery.refetch()}
               />
             }
             renderItem={({ item }) => (
