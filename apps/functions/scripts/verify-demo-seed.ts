@@ -5,7 +5,15 @@ config({ path: '../../.env', quiet: true });
 config({ quiet: true });
 
 const demoTenantIds = ['tenant-a', 'tenant-b'];
-const requiredRoles = ['admin', 'principal', 'teacher', 'student', 'parent', 'librarian', 'accountant'];
+const requiredRoles = [
+  'admin',
+  'principal',
+  'teacher',
+  'student',
+  'parent',
+  'librarian',
+  'accountant',
+];
 const requiredCollections = [
   'schools',
   'users',
@@ -46,7 +54,9 @@ function getSupabase() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before verifying demo seed data.');
+    throw new Error(
+      'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before verifying demo seed data.'
+    );
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {
@@ -57,11 +67,7 @@ function getSupabase() {
   });
 }
 
-async function countDocuments(
-  supabase: SupabaseClient,
-  collection: string,
-  tenantId?: string
-) {
+async function countDocuments(supabase: SupabaseClient, collection: string, tenantId?: string) {
   let query = supabase
     .from('documents')
     .select('id', { count: 'exact', head: true })
@@ -77,7 +83,11 @@ async function countDocuments(
 }
 
 async function verifyTenantRecord(supabase: SupabaseClient, tenantId: string, failures: Failure[]) {
-  const { data, error } = await supabase.from('tenants').select('id').eq('id', tenantId).maybeSingle();
+  const { data, error } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('id', tenantId)
+    .maybeSingle();
   if (error) throw error;
 
   if (!data) {
@@ -145,7 +155,8 @@ async function verifyParentLinks(supabase: SupabaseClient, tenantId: string, fai
 
   const parents = data || [];
   const hasLinkedParent = parents.some((row) => {
-    const linkedStudentIds = (row.data as { linkedStudentIds?: string[] } | null)?.linkedStudentIds || [];
+    const linkedStudentIds =
+      (row.data as { linkedStudentIds?: string[] } | null)?.linkedStudentIds || [];
     return linkedStudentIds.length > 0;
   });
 
