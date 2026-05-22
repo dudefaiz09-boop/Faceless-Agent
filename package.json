@@ -15,6 +15,7 @@
     "verify": "bash scripts/verify-all.sh",
     "smoke:web-api": "tsx scripts/smoke-web-api.ts",
     "qa:web-matrix": "tsx scripts/export-web-qa-matrix.ts",
+    "release:checklist": "tsx scripts/export-release-checklist.ts",
     "build:web": "corepack pnpm --filter @educonnect/web build",
     "build:api": "corepack pnpm --filter @educonnect/functions build",
     "test:mobile": "corepack pnpm --filter mobile test",
