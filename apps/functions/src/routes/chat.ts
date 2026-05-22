@@ -1,149 +1,203 @@
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import { db } from '../lib/documents.js';
 import { createNotification } from '../lib/notifications.js';
 import { logger } from '@educonnect/logger';
+import {
+  chatRoomParamsSchema,
+  createConversationSchema,
+  sendMessageSchema,
+} from '../schemas/chat.js';
 
 const router: Router = Router();
 
-function requireUser(req: Request, _res: Response) {
-  const user = req.user;
-  if (!user) {
-    throw new Error('Unauthorized');
-  }
-  return user;
-}
+type ChatUser = NonNullable<Express.Request['user']>;
+
+type ConversationRecord = {
+  participants?: string[];
+  type?: 'direct' | 'group';
+  name?: string | null;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  lastSenderId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+  schoolId?: string | null;
+  tenantId?: string;
+};
+
+type MessageRecord = {
+  senderId?: string;
+  senderName?: string;
+  text?: string;
+  sentAt?: string;
+  readBy?: string[];
+  status?: string;
+  schoolId?: string | null;
+  tenantId?: string;
+};
+
+type UserRecord = {
+  role?: string;
+  roles?: string[];
+  classId?: string;
+  classIds?: string[];
+  linkedStudentIds?: string[];
+  tenantId?: string;
+  schoolId?: string | null;
+};
 
 function directConversationId(left: string, right: string) {
   return `direct_${[left, right].sort().join('_')}`;
 }
 
-function displayName(user: NonNullable<Express.Request['user']>) {
+function displayName(user: ChatUser) {
   return user.displayName || user.email || 'EduConnect user';
 }
 
-/**
- * Check if user can message another user based on role eligibility rules
- */
+function isTenantRecord(
+  record: Pick<ConversationRecord | UserRecord, 'tenantId' | 'schoolId'>,
+  tenantId?: string
+) {
+  return record.tenantId === tenantId || record.schoolId === tenantId;
+}
+
+function getClassIds(user: Pick<ChatUser | UserRecord, 'classId' | 'classIds'>) {
+  return user.classIds || (user.classId ? [user.classId] : []);
+}
+
 async function canMessageUser(
-  currentUser: NonNullable<Express.Request['user']>,
-  targetUserId: string
+  currentUser: ChatUser,
+  targetUserId: string,
+  tenantId?: string
 ): Promise<{ allowed: boolean; reason?: string }> {
   const currentRole = currentUser.role;
 
-  // Admin and Principal can message anyone
-  if (currentRole === 'admin' || currentRole === 'principal') {
+  if (currentRole === 'admin' || currentRole === 'principal' || currentUser.isAdmin) {
     return { allowed: true, reason: 'Admin/Principal access' };
   }
 
-  // Fetch target user profile
   const targetDoc = await db.collection('users').doc(targetUserId).get();
+
   if (!targetDoc.exists) {
     return { allowed: false, reason: 'Target user not found' };
   }
 
-  const targetData = targetDoc.data() || {};
-  const targetRole = targetData.role || targetData.roles?.[0] || '';
-  const targetClassIds = targetData.classIds || (targetData.classId ? [targetData.classId] : []);
-  const currentClassIds =
-    currentUser.classIds || (currentUser.classId ? [currentUser.classId] : []);
+  const targetData = (targetDoc.data() || {}) as UserRecord;
 
-  // Student eligibility
+  if (!isTenantRecord(targetData, tenantId)) {
+    return { allowed: false, reason: 'Target user is not in this school' };
+  }
+
+  const targetRole = targetData.role || targetData.roles?.[0] || '';
+  const targetClassIds = getClassIds(targetData);
+  const currentClassIds = getClassIds(currentUser);
+
   if (currentRole === 'student') {
-    // Can message teachers in their class
     if (targetRole === 'teacher') {
-      const hasSharedClass = targetClassIds.some((classId: string) =>
-        currentClassIds.includes(classId)
-      );
+      const hasSharedClass = targetClassIds.some((classId) => currentClassIds.includes(classId));
       if (hasSharedClass) return { allowed: true, reason: 'Class Teacher' };
     }
-    // Can message principal or admin
+
     if (targetRole === 'principal' || targetRole === 'admin') {
       return { allowed: true, reason: 'Administration' };
     }
+
     return { allowed: false, reason: 'Not authorized to message this user' };
   }
 
-  // Parent eligibility
   if (currentRole === 'parent') {
-    // Can message their linked child's teachers
     if (targetRole === 'teacher') {
-      const hasLinkedStudentClass = targetClassIds.some((classId: string) =>
+      const hasLinkedStudentClass = targetClassIds.some((classId) =>
         currentClassIds.includes(classId)
       );
       if (hasLinkedStudentClass) return { allowed: true, reason: "Child's Teacher" };
     }
-    // Can message principal or admin
+
     if (targetRole === 'principal' || targetRole === 'admin') {
       return { allowed: true, reason: 'Administration' };
     }
+
     return { allowed: false, reason: 'Not authorized to message this user' };
   }
 
-  // Teacher eligibility
   if (currentRole === 'teacher') {
-    // Can message students in assigned classes
     if (targetRole === 'student') {
-      const hasSharedClass = targetClassIds.some((classId: string) =>
-        currentClassIds.includes(classId)
-      );
+      const hasSharedClass = targetClassIds.some((classId) => currentClassIds.includes(classId));
       if (hasSharedClass) return { allowed: true, reason: 'Your Student' };
     }
-    // Can message parents of assigned students
+
     if (targetRole === 'parent') {
       const targetLinkedStudents = targetData.linkedStudentIds || [];
-      // Check if any linked student is in teacher's class
-      const hasLinkedStudent = targetLinkedStudents.some((_studentId: string) => {
-        // This is simplified - in production you'd check if student is in teacher's class
-        return currentClassIds.length > 0;
-      });
+      const hasLinkedStudent = targetLinkedStudents.length > 0 && currentClassIds.length > 0;
       if (hasLinkedStudent) return { allowed: true, reason: "Student's Parent" };
     }
-    // Can message principal/admin or other teachers
+
     if (targetRole === 'principal' || targetRole === 'admin' || targetRole === 'teacher') {
       return { allowed: true, reason: 'Colleague' };
     }
+
     return { allowed: false, reason: 'Not authorized to message this user' };
   }
 
-  // Librarian eligibility
   if (currentRole === 'librarian') {
     if (targetRole === 'admin' || targetRole === 'principal') {
       return { allowed: true, reason: 'Administration' };
     }
+
     if (targetRole === 'student' || targetRole === 'parent') {
       return { allowed: true, reason: 'Library Services' };
     }
+
     return { allowed: false, reason: 'Not authorized to message this user' };
   }
 
-  // Accountant eligibility
   if (currentRole === 'accountant') {
     if (targetRole === 'admin' || targetRole === 'principal') {
       return { allowed: true, reason: 'Administration' };
     }
+
     if (targetRole === 'student' || targetRole === 'parent') {
       return { allowed: true, reason: 'Fee Management' };
     }
+
     return { allowed: false, reason: 'Not authorized to message this user' };
   }
 
-  // Default: deny
   return { allowed: false, reason: 'Not authorized to message this user' };
+}
+
+function assertConversationAccess(
+  conversation: ConversationRecord,
+  user: ChatUser,
+  tenantId?: string
+) {
+  if (!isTenantRecord(conversation, tenantId)) {
+    return { allowed: false, error: 'Tenant access denied' };
+  }
+
+  if (!conversation.participants?.includes(user.uid)) {
+    return { allowed: false, error: 'You are not a participant in this conversation' };
+  }
+
+  return { allowed: true };
 }
 
 router.get('/rooms', async (req, res, next) => {
   try {
-    let user;
-    try {
-      user = requireUser(req, res);
-    } catch {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const user = req.user!;
 
-    const snapshot = await db.collection('conversations').get();
+    const snapshot = await db
+      .collection('conversations')
+      .where('tenantId', '==', req.tenantId)
+      .get();
+
     const rooms = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((room: any) => room.participants?.includes(user.uid));
+      .map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as ConversationRecord),
+      }))
+      .filter((room) => room.participants?.includes(user.uid));
 
     res.json(rooms);
   } catch (error) {
@@ -153,29 +207,25 @@ router.get('/rooms', async (req, res, next) => {
 
 router.post('/conversations', async (req, res, next) => {
   try {
-    let user;
-    try {
-      user = requireUser(req, res);
-    } catch {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const type = req.body.type === 'group' ? 'group' : 'direct';
+    const user = req.user!;
+    const parsedBody = createConversationSchema.parse(req.body);
     const now = new Date().toISOString();
 
-    if (type === 'direct') {
-      const recipientId = String(req.body.recipientId || '').trim();
-      if (!recipientId || recipientId === user.uid) {
+    if (parsedBody.type === 'direct') {
+      const recipientId = parsedBody.recipientId!;
+
+      if (recipientId === user.uid) {
         return res.status(400).json({ error: 'A valid recipientId is required' });
       }
 
-      // Check eligibility
-      const eligibility = await canMessageUser(user, recipientId);
+      const eligibility = await canMessageUser(user, recipientId, req.tenantId);
+
       if (!eligibility.allowed) {
         logger.warn(
           { userId: user.uid, recipientId, reason: eligibility.reason },
           'Unauthorized conversation attempt'
         );
+
         return res
           .status(403)
           .json({ error: eligibility.reason || 'You are not authorized to message this user' });
@@ -184,7 +234,8 @@ router.post('/conversations', async (req, res, next) => {
       const id = directConversationId(user.uid, recipientId);
       const ref = db.collection('conversations').doc(id);
       const snapshot = await ref.get();
-      const baseConversation = {
+
+      const baseConversation: ConversationRecord = {
         participants: [user.uid, recipientId],
         type: 'direct',
         name: null,
@@ -194,8 +245,14 @@ router.post('/conversations', async (req, res, next) => {
       };
 
       if (snapshot.exists) {
+        const existing = (snapshot.data() || {}) as ConversationRecord;
+
+        if (!isTenantRecord(existing, req.tenantId)) {
+          return res.status(403).json({ error: 'Tenant access denied' });
+        }
+
         await ref.update({ updatedAt: now });
-        return res.json({ id, ...snapshot.data(), updatedAt: now });
+        return res.json({ id, ...existing, updatedAt: now });
       }
 
       await ref.set({
@@ -204,25 +261,30 @@ router.post('/conversations', async (req, res, next) => {
         createdAt: now,
         createdBy: user.uid,
       });
-      return res.status(201).json({ id, ...baseConversation, lastMessage: '', createdAt: now });
+
+      return res.status(201).json({
+        id,
+        ...baseConversation,
+        lastMessage: '',
+        createdAt: now,
+        createdBy: user.uid,
+      });
     }
 
-    const name = String(req.body.name || '').trim();
-    const participantIds = Array.isArray(req.body.participantIds) ? req.body.participantIds : [];
     const participants = Array.from(
-      new Set([user.uid, ...participantIds.map(String).filter(Boolean)])
+      new Set([user.uid, ...parsedBody.participantIds.map(String).filter(Boolean)])
     );
 
-    if (!name || participants.length < 2) {
-      return res
-        .status(400)
-        .json({ error: 'Group chats require a name and at least two participants' });
+    if (participants.length < 2) {
+      return res.status(400).json({
+        error: 'Group chats require at least two participants',
+      });
     }
 
     const ref = await db.collection('conversations').add({
       participants,
       type: 'group',
-      name,
+      name: parsedBody.name,
       lastMessage: '',
       schoolId: req.tenantId,
       tenantId: req.tenantId,
@@ -235,7 +297,7 @@ router.post('/conversations', async (req, res, next) => {
       id: ref.id,
       participants,
       type: 'group',
-      name,
+      name: parsedBody.name,
       lastMessage: '',
       schoolId: req.tenantId,
       tenantId: req.tenantId,
@@ -250,53 +312,56 @@ router.post('/conversations', async (req, res, next) => {
 
 router.post('/send', async (req, res, next) => {
   try {
-    let user;
-    try {
-      user = requireUser(req, res);
-    } catch {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const text = String(req.body.text || '').trim();
-    if (!text) return res.status(400).json({ error: 'Message text is required' });
-    if (text.length > 2000) return res.status(400).json({ error: 'Message is too long' });
+    const user = req.user!;
+    const { conversationId: parsedConversationId, recipientId, text } = sendMessageSchema.parse(
+      req.body
+    );
 
     const now = new Date().toISOString();
-    let conversationId = String(req.body.conversationId || '').trim();
-    let conversation: any = null;
+    let conversationId = parsedConversationId || '';
+    let conversation: ConversationRecord;
 
     if (conversationId) {
       const snapshot = await db.collection('conversations').doc(conversationId).get();
-      if (!snapshot.exists) return res.status(404).json({ error: 'Conversation not found' });
-      conversation = snapshot.data() || {};
-      if (!conversation.participants?.includes(user.uid)) {
-        return res.status(403).json({ error: 'You are not a participant in this conversation' });
+
+      if (!snapshot.exists) {
+        return res.status(404).json({ error: 'Conversation not found' });
+      }
+
+      conversation = (snapshot.data() || {}) as ConversationRecord;
+
+      const access = assertConversationAccess(conversation, user, req.tenantId);
+      if (!access.allowed) {
+        return res.status(403).json({ error: access.error });
       }
     } else {
-      const recipientId = String(req.body.recipientId || '').trim();
-      if (!recipientId || recipientId === user.uid) {
+      const targetRecipientId = recipientId!;
+
+      if (targetRecipientId === user.uid) {
         return res.status(400).json({ error: 'recipientId is required for a new direct message' });
       }
 
-      // Check eligibility for new conversation
-      const eligibility = await canMessageUser(user, recipientId);
+      const eligibility = await canMessageUser(user, targetRecipientId, req.tenantId);
+
       if (!eligibility.allowed) {
         logger.warn(
-          { userId: user.uid, recipientId, reason: eligibility.reason },
+          { userId: user.uid, recipientId: targetRecipientId, reason: eligibility.reason },
           'Unauthorized message attempt'
         );
+
         return res
           .status(403)
           .json({ error: eligibility.reason || 'You are not authorized to message this user' });
       }
 
-      conversationId = directConversationId(user.uid, recipientId);
+      conversationId = directConversationId(user.uid, targetRecipientId);
       const ref = db.collection('conversations').doc(conversationId);
       const snapshot = await ref.get();
+
       conversation = snapshot.exists
-        ? snapshot.data() || {}
+        ? ((snapshot.data() || {}) as ConversationRecord)
         : {
-            participants: [user.uid, recipientId],
+            participants: [user.uid, targetRecipientId],
             type: 'direct',
             name: null,
             schoolId: req.tenantId,
@@ -304,6 +369,10 @@ router.post('/send', async (req, res, next) => {
             createdAt: now,
             createdBy: user.uid,
           };
+
+      if (snapshot.exists && !isTenantRecord(conversation, req.tenantId)) {
+        return res.status(403).json({ error: 'Tenant access denied' });
+      }
 
       if (!snapshot.exists) {
         await ref.set({
@@ -317,6 +386,7 @@ router.post('/send', async (req, res, next) => {
     const participants = Array.isArray(conversation.participants)
       ? conversation.participants
       : [user.uid];
+
     const messageRef = await db.collection(`conversations/${conversationId}/messages`).add({
       senderId: user.uid,
       senderName: displayName(user),
@@ -326,7 +396,7 @@ router.post('/send', async (req, res, next) => {
       status: 'sent',
       schoolId: req.tenantId,
       tenantId: req.tenantId,
-    });
+    } satisfies MessageRecord);
 
     await db.collection('conversations').doc(conversationId).update({
       lastMessage: text,
@@ -335,7 +405,8 @@ router.post('/send', async (req, res, next) => {
       updatedAt: now,
     });
 
-    const recipients = participants.filter((participantId: string) => participantId !== user.uid);
+    const recipients = participants.filter((participantId) => participantId !== user.uid);
+
     if (recipients.length > 0) {
       await createNotification({
         title: `New message from ${displayName(user)}`,
@@ -367,37 +438,39 @@ router.post('/send', async (req, res, next) => {
 
 router.patch('/rooms/:id/read', async (req, res, next) => {
   try {
-    let user;
-    try {
-      user = requireUser(req, res);
-    } catch {
-      return res.status(401).json({ error: 'Unauthorized' });
+    const user = req.user!;
+    const { id } = chatRoomParamsSchema.parse(req.params);
+
+    const roomSnapshot = await db.collection('conversations').doc(id).get();
+
+    if (!roomSnapshot.exists) {
+      return res.status(404).json({ error: 'Conversation not found' });
     }
 
-    const roomSnapshot = await db.collection('conversations').doc(req.params.id).get();
-    if (!roomSnapshot.exists) return res.status(404).json({ error: 'Conversation not found' });
+    const conversation = (roomSnapshot.data() || {}) as ConversationRecord;
 
-    const conversation = roomSnapshot.data() || {};
-    if (!conversation.participants?.includes(user.uid)) {
-      return res.status(403).json({ error: 'You are not a participant in this conversation' });
+    const access = assertConversationAccess(conversation, user, req.tenantId);
+    if (!access.allowed) {
+      return res.status(403).json({ error: access.error });
     }
 
-    // Get messages that haven't been read by this user yet to avoid redundant updates
     const snapshot = await db
-      .collection(`conversations/${req.params.id}/messages`)
+      .collection(`conversations/${id}/messages`)
       .orderBy('sentAt', 'desc')
       .limit(100)
       .get();
 
     const unreadDocs = snapshot.docs.filter((doc) => {
-      const data = doc.data() || {};
+      const data = (doc.data() || {}) as MessageRecord;
       return !data.readBy?.includes(user.uid);
     });
 
     const now = new Date().toISOString();
+
     await Promise.all(
       unreadDocs.map((doc) => {
-        const currentReadBy = doc.data()?.readBy || [];
+        const currentReadBy = ((doc.data() || {}) as MessageRecord).readBy || [];
+
         return doc.ref.update({
           readBy: [...currentReadBy, user.uid],
           updatedAt: now,
@@ -405,7 +478,7 @@ router.patch('/rooms/:id/read', async (req, res, next) => {
       })
     );
 
-    res.json({ success: true, count: snapshot.docs.length });
+    res.json({ success: true, count: unreadDocs.length });
   } catch (error) {
     next(error);
   }
