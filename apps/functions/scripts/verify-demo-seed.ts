@@ -23,6 +23,18 @@ const requiredCollections = [
   'notifications',
 ];
 
+const minimumCollectionCounts: Record<string, number> = {
+  users: 8,
+  attendance: 4,
+  assignments: 1,
+  submissions: 1,
+  fees: 4,
+  performance: 4,
+  library: 1,
+  announcements: 1,
+  notifications: 1,
+};
+
 type Failure = {
   label: string;
   expected: string;
@@ -50,7 +62,10 @@ async function countDocuments(
   collection: string,
   tenantId?: string
 ) {
-  let query = supabase.from('documents').select('id', { count: 'exact', head: true }).eq('collection', collection);
+  let query = supabase
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('collection', collection);
 
   if (tenantId) {
     query = query.contains('data', { tenantId });
@@ -108,10 +123,11 @@ async function verifyCollectionCoverage(
 ) {
   for (const collection of requiredCollections) {
     const count = await countDocuments(supabase, collection, tenantId);
-    if (count < 1) {
+    const minimumCount = minimumCollectionCounts[collection] || 1;
+    if (count < minimumCount) {
       failures.push({
         label: `${tenantId} collection ${collection}`,
-        expected: 'at least 1 document',
+        expected: `at least ${minimumCount} document(s)`,
         actual: String(count),
       });
     }
@@ -142,6 +158,63 @@ async function verifyParentLinks(supabase: SupabaseClient, tenantId: string, fai
   }
 }
 
+async function verifyAssignmentSubmissionCoverage(
+  supabase: SupabaseClient,
+  tenantId: string,
+  failures: Failure[]
+) {
+  const { data: assignments, error: assignmentError } = await supabase
+    .from('documents')
+    .select('id')
+    .eq('collection', 'assignments')
+    .contains('data', { tenantId });
+  if (assignmentError) throw assignmentError;
+
+  const { data: submissions, error: submissionError } = await supabase
+    .from('documents')
+    .select('id')
+    .eq('collection', 'submissions')
+    .contains('data', { tenantId });
+  if (submissionError) throw submissionError;
+
+  if ((assignments || []).length > 0 && (submissions || []).length === 0) {
+    failures.push({
+      label: `${tenantId} assignment submissions`,
+      expected: 'at least 1 seeded submission when assignments exist',
+      actual: '0',
+    });
+  }
+}
+
+async function verifyFeeStatusCoverage(
+  supabase: SupabaseClient,
+  tenantId: string,
+  failures: Failure[]
+) {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id,data')
+    .eq('collection', 'fees')
+    .contains('data', { tenantId });
+  if (error) throw error;
+
+  const statuses = new Set(
+    (data || [])
+      .map((row) => (row.data as { status?: string } | null)?.status)
+      .filter((status): status is string => Boolean(status))
+  );
+
+  for (const status of ['paid', 'pending']) {
+    if (!statuses.has(status)) {
+      failures.push({
+        label: `${tenantId} fee status ${status}`,
+        expected: 'at least 1 fee row',
+        actual: '0',
+      });
+    }
+  }
+}
+
 async function main() {
   const supabase = getSupabase();
   const failures: Failure[] = [];
@@ -153,6 +226,8 @@ async function main() {
     await verifyRoleCoverage(supabase, tenantId, failures);
     await verifyCollectionCoverage(supabase, tenantId, failures);
     await verifyParentLinks(supabase, tenantId, failures);
+    await verifyAssignmentSubmissionCoverage(supabase, tenantId, failures);
+    await verifyFeeStatusCoverage(supabase, tenantId, failures);
   }
 
   if (failures.length > 0) {
