@@ -9,6 +9,7 @@ import {
   ParentPortalService,
   PerformanceService,
   StudentsService,
+  UsersService,
 } from '@educonnect/shared-api';
 import { getSupabaseAccessToken, supabase } from './supabase';
 import { ENV } from '../config/env';
@@ -37,3 +38,4 @@ export const notificationsService = new NotificationsService(apiClient);
 export const parentPortalService = new ParentPortalService(apiClient);
 export const performanceService = new PerformanceService(apiClient);
 export const studentsService = new StudentsService(apiClient);
+export const usersService = new UsersService(apiClient);

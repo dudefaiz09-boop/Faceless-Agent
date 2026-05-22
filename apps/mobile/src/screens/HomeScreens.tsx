@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   FlatList,
   RefreshControl,
@@ -12,8 +13,7 @@ import { useAnnouncements } from '@educonnect/shared-api';
 import { canAccessModule, type ModuleKey } from '@educonnect/shared';
 import { AssignmentsScreen } from './AssignmentsScreen';
 import { useAuth } from '../contexts/AuthContext';
-import { announcementsService } from '../lib/api-client';
-import { useDocuments } from '../lib/documents';
+import { announcementsService, usersService } from '../lib/api-client';
 import { colors, formatDate } from '../theme';
 import {
   Card,
@@ -98,14 +98,32 @@ const roleCopy: Record<string, { title: string; subtitle: string; insight: strin
 function roleOf(user: UserRecord) {
   return user.role || user.roles?.[0] || 'student';
 }
+async function listMobileUsers(args: {
+  schoolId: string | null;
+  role?: 'student' | 'teacher';
+}): Promise<UserRecord[]> {
+  const data = (await usersService.list({
+    tenantId: args.schoolId || undefined,
+    role: args.role,
+    limit: 250,
+  })) as UserRecord[];
 
+  return Array.isArray(data) ? data : [];
+}
+
+function useMobileUsers(schoolId: string | null, role?: 'student' | 'teacher') {
+  return useQuery({
+    queryKey: ['mobile-users', schoolId, role || 'all'],
+    queryFn: () => listMobileUsers({ schoolId, role }),
+    enabled: Boolean(schoolId),
+    retry: 1,
+  });
+}
 export function DashboardScreen({ onOpenModule }: { onOpenModule: (module: ModuleKey) => void }) {
   const { role, assignedModules, schoolId } = useAuth();
-  const {
-    data: users,
-    loading: usersLoading,
-    reload: reloadUsers,
-  } = useDocuments<UserRecord>('users', { schoolId, realtime: true });
+  const usersQuery = useMobileUsers(schoolId);
+  const users = usersQuery.data || [];
+  const usersLoading = usersQuery.isLoading || usersQuery.isRefetching;
   const {
     data: announcements = [],
     dataUpdatedAt,
@@ -121,7 +139,7 @@ export function DashboardScreen({ onOpenModule }: { onOpenModule: (module: Modul
   const quickModules: ModuleKey[] = ['announcements', 'attendance', 'assignments', 'chat'];
 
   const refresh = () => {
-    void reloadUsers();
+    void usersQuery.refetch();
     void refetch();
   };
 
@@ -295,16 +313,11 @@ export function AssignmentsModuleScreen() {
 export function DirectoryScreen({ type }: { type: 'student' | 'teacher' | 'all' }) {
   const { schoolId, isAdmin } = useAuth();
   const [query, setQuery] = useState('');
-  const {
-    data: users,
-    loading,
-    error,
-    reload,
-  } = useDocuments<UserRecord>('users', {
-    schoolId,
-    realtime: true,
-    order: { field: 'displayName', ascending: true },
-  });
+  const directoryRole = type === 'all' ? undefined : type;
+  const usersQuery = useMobileUsers(schoolId, directoryRole);
+  const users = usersQuery.data || [];
+  const loading = usersQuery.isLoading;
+  const error = usersQuery.error as Error | null;
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -340,7 +353,7 @@ export function DirectoryScreen({ type }: { type: 'student' | 'teacher' | 'all' 
         placeholder="Search by name, email, role, or class"
       />
       {error ? (
-        <ErrorState message={error.message} onRetry={() => void reload()} />
+        <ErrorState message={error.message} onRetry={() => void usersQuery.refetch()} />
       ) : (
         <FlatList
           data={filtered}
@@ -357,8 +370,8 @@ export function DirectoryScreen({ type }: { type: 'student' | 'teacher' | 'all' 
           refreshControl={
             <RefreshControl
               tintColor={colors.ai}
-              refreshing={loading}
-              onRefresh={() => void reload()}
+              refreshing={usersQuery.isRefetching}
+              onRefresh={() => void usersQuery.refetch()}
             />
           }
           renderItem={({ item }) => (
