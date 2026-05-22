@@ -1,19 +1,39 @@
 import { Router } from 'express';
-import { checkAdmin } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permissions.js';
 import { createManagedUser, updateManagedUser } from '../lib/user-management.js';
+import {
+  bulkTeachersSchema,
+  createTeacherSchema,
+  updateTeacherParamsSchema,
+  updateTeacherSchema,
+} from '../schemas/teachers.js';
 
 const router: Router = Router();
 
-router.post('/create', checkAdmin, async (req, res, next) => {
+function actorFromRequest(req: Express.Request) {
+  return {
+    uid: req.user!.uid,
+    email: req.user!.email,
+    schoolId: req.user!.schoolId,
+  };
+}
+
+function normalizeTeacherPayload<T extends Record<string, unknown>>(payload: T) {
+  return {
+    ...payload,
+    role: 'teacher',
+    subjectIds: payload.subjectIds || payload.subjects || [],
+    classIds: payload.classIds || payload.classes || [],
+  };
+}
+
+router.post('/create', requirePermission('manageUsers'), async (req, res, next) => {
   try {
+    const parsedBody = createTeacherSchema.parse(req.body);
+
     const profile = await createManagedUser(
-      {
-        ...req.body,
-        role: 'teacher',
-        subjectIds: req.body.subjectIds || req.body.subjects || [],
-        classIds: req.body.classIds || req.body.classes || [],
-      },
-      { uid: req.user!.uid, email: req.user!.email, schoolId: req.user!.schoolId }
+      normalizeTeacherPayload(parsedBody),
+      actorFromRequest(req)
     );
 
     res.json({ success: true, uid: profile.uid, profile });
@@ -22,22 +42,18 @@ router.post('/create', checkAdmin, async (req, res, next) => {
   }
 });
 
-router.post('/bulk-import', checkAdmin, async (req, res, next) => {
+router.post('/bulk-import', requirePermission('manageUsers'), async (req, res, next) => {
   try {
-    const teachers = Array.isArray(req.body?.teachers) ? req.body.teachers : [];
+    const { teachers } = bulkTeachersSchema.parse(req.body);
     const results = [];
 
     for (const teacher of teachers) {
       try {
         const profile = await createManagedUser(
-          {
-            ...teacher,
-            role: 'teacher',
-            subjectIds: teacher.subjectIds || teacher.subjects || [],
-            classIds: teacher.classIds || teacher.classes || [],
-          },
-          { uid: req.user!.uid, email: req.user!.email, schoolId: req.user!.schoolId }
+          normalizeTeacherPayload(teacher),
+          actorFromRequest(req)
         );
+
         results.push({ success: true, uid: profile.uid, email: profile.email });
       } catch (error) {
         results.push({
@@ -54,34 +70,35 @@ router.post('/bulk-import', checkAdmin, async (req, res, next) => {
   }
 });
 
-router.put('/:uid', checkAdmin, async (req, res, next) => {
+router.put('/:uid', requirePermission('manageUsers'), async (req, res, next) => {
   try {
-    const uid = req.params.uid as string;
+    const { uid } = updateTeacherParamsSchema.parse(req.params);
+    const parsedBody = updateTeacherSchema.parse(req.body);
+
     const profile = await updateManagedUser(
       uid,
-      {
-        ...req.body,
-        role: 'teacher',
-        subjectIds: req.body.subjectIds || req.body.subjects || [],
-        classIds: req.body.classIds || req.body.classes || [],
-      },
-      { uid: req.user!.uid, email: req.user!.email, schoolId: req.user!.schoolId },
+      normalizeTeacherPayload(parsedBody),
+      actorFromRequest(req),
       'teacher_updated'
     );
+
     res.json({ success: true, profile });
   } catch (error) {
     next(error);
   }
 });
 
-router.delete('/:uid', checkAdmin, async (req, res, next) => {
+router.delete('/:uid', requirePermission('manageUsers'), async (req, res, next) => {
   try {
+    const { uid } = updateTeacherParamsSchema.parse(req.params);
+
     const profile = await updateManagedUser(
-      req.params.uid,
+      uid,
       { role: 'teacher', status: 'inactive' },
-      { uid: req.user!.uid, email: req.user!.email, schoolId: req.user!.schoolId },
+      actorFromRequest(req),
       'teacher_deactivated'
     );
+
     res.json({ success: true, profile });
   } catch (error) {
     next(error);
