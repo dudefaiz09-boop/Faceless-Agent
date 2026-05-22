@@ -1,25 +1,22 @@
 import { Router } from 'express';
-import { isRole } from '@educonnect/shared';
-import { checkAdmin } from '../middleware/auth.js';
+import { requireAnyRole } from '../middleware/permissions.js';
 import { updateManagedUser } from '../lib/user-management.js';
+import { updateRoleSchema } from '../schemas/roles.js';
 
 const router: Router = Router();
 
-router.post('/', checkAdmin, async (req, res, next) => {
+router.post('/', requireAnyRole(['admin', 'super_admin']), async (req, res, next) => {
   try {
-    const { uid, role } = req.body;
-
-    if (!uid || !role) {
-      return res.status(400).json({ error: 'uid and role are required' });
-    }
-
-    if (!isRole(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
+    const parsedBody = updateRoleSchema.parse(req.body);
 
     const profile = await updateManagedUser(
-      uid,
-      req.body,
+      parsedBody.uid,
+      {
+        role: parsedBody.role,
+        roles: parsedBody.roles,
+        permissions: parsedBody.permissions,
+        assignedModules: parsedBody.assignedModules,
+      },
       {
         uid: req.user!.uid,
         email: req.user!.email,
@@ -28,7 +25,7 @@ router.post('/', checkAdmin, async (req, res, next) => {
       'role_or_access_changed'
     );
 
-    res.json({ success: true, uid, profile });
+    res.json({ success: true, uid: parsedBody.uid, profile });
   } catch (error) {
     next(error);
   }
