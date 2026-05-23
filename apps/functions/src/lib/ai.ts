@@ -270,7 +270,7 @@ export async function generateSafeContent(
   const premiumKeywords = ['gpt-4', 'gpt4', 'claude-3', 'claude 3', 'gemini pro', 'premium model'];
 
   if (premiumKeywords.some((keyword) => normalizedPrompt.includes(keyword))) {
-    return 'Only approved low-cost/free models are enabled on this platform.';
+    return 'Only free models are enabled. Only approved low-cost/free models are available on this platform.';
   }
 
   if (getProviderPreference() === 'offline') {
@@ -278,10 +278,14 @@ export async function generateSafeContent(
     return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
   }
 
+  let attemptedLiveProvider = false;
+
   if (shouldTryGeminiFirst()) {
+    attemptedLiveProvider ||= Boolean(getGeminiApiKey());
     const geminiResponse = await tryGeminiFallback(systemInstruction, userPrompt, config);
     if (geminiResponse) return geminiResponse;
 
+    attemptedLiveProvider ||= Boolean(getOpenRouterApiKey());
     const openRouterResponse = await tryOpenRouterFreeModels(
       systemInstruction,
       userPrompt,
@@ -292,6 +296,7 @@ export async function generateSafeContent(
   }
 
   if (shouldTryOpenRouterFirst()) {
+    attemptedLiveProvider ||= Boolean(getOpenRouterApiKey());
     const openRouterResponse = await tryOpenRouterFreeModels(
       systemInstruction,
       userPrompt,
@@ -300,8 +305,13 @@ export async function generateSafeContent(
     );
     if (openRouterResponse) return openRouterResponse;
 
+    attemptedLiveProvider ||= Boolean(getGeminiApiKey());
     const geminiResponse = await tryGeminiFallback(systemInstruction, userPrompt, config);
     if (geminiResponse) return geminiResponse;
+  }
+
+  if (attemptedLiveProvider) {
+    return 'AI providers are temporarily overloaded. Please try again shortly.';
   }
 
   const offlineProvider = new OfflineAiProvider();
