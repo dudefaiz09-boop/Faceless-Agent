@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
-import { getActiveTenantId, setStoredTenantId } from '../../lib/tenant';
+import { DEMO_TENANT_IDS, getActiveTenantId, isDemoMode, setStoredTenantId } from '../../lib/tenant';
 import { cn } from '../../lib/utils';
 
 interface ChatLog {
@@ -51,20 +51,20 @@ const modes = [
 ] as const;
 
 function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
-  const error = err as { status?: number; message?: string; data?: { error?: string } };
+  const error = err as { status?: number; message?: string; data?: { error?: string; message?: string } };
   const status = error?.status;
-  const message = error?.message || String(err || '');
+  const message = error?.message || error?.data?.message || String(err || '');
   const errorData = error?.data || {};
 
   if (message === 'AI_TENANT_CONTEXT_MISSING') {
-    return 'AI request failed: no active school is selected. Switch/select a tenant, then retry.';
+    return 'AI request failed: no active school was found. Select/switch a tenant, then retry.';
   }
 
   if (
     status === 400 &&
     (message.toLowerCase().includes('tenant') || message.toLowerCase().includes('school'))
   ) {
-    return 'AI request failed: school context was not sent. Select a school or refresh the page, then retry.';
+    return 'AI request failed: school context was not sent. Refresh the page or switch tenant, then retry.';
   }
 
   if (status === 401 || message.toLowerCase().includes('unauthorized')) {
@@ -86,7 +86,7 @@ function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
     return 'AI request failed: could not reach the API. Verify connection or API status.';
   }
 
-  if (status >= 400) {
+  if (status && status >= 400) {
     return `AI request failed (Status: ${status}). ${message}`;
   }
 
@@ -131,16 +131,18 @@ export const GlobalChatbot = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const resolveAiTenantId = useCallback(() => {
-    const activeTenantId = getActiveTenantId(schoolId);
-    if (activeTenantId) return activeTenantId;
+    const candidates = [
+      getActiveTenantId(schoolId),
+      schoolId,
+      managedTenantIds[0],
+      isDemoMode() ? DEMO_TENANT_IDS[0] : null,
+    ].filter(Boolean) as string[];
 
-    const firstManagedTenantId = managedTenantIds[0];
-    if (firstManagedTenantId) {
-      setStoredTenantId(firstManagedTenantId);
-      return firstManagedTenantId;
+    const tenantId = candidates[0] || null;
+    if (tenantId) {
+      setStoredTenantId(tenantId);
     }
-
-    return null;
+    return tenantId;
   }, [managedTenantIds, schoolId]);
 
   const getAiHeaders = useCallback(() => {
@@ -151,6 +153,7 @@ export const GlobalChatbot = () => {
 
     return {
       'x-school-id': tenantId,
+      'x-tenant-id': tenantId,
       'x-user-role': role || 'student',
     };
   }, [resolveAiTenantId, role]);
@@ -176,6 +179,7 @@ export const GlobalChatbot = () => {
         headers: tenantId
           ? {
               'x-school-id': tenantId,
+              'x-tenant-id': tenantId,
               'x-user-role': role || 'student',
             }
           : undefined,
@@ -188,7 +192,6 @@ export const GlobalChatbot = () => {
 
   useEffect(() => {
     if (!isOpen) return;
-    // Load status asynchronously — not synchronously within the effect body
     const controller = new AbortController();
     const run = async () => {
       if (!controller.signal.aborted) {
@@ -213,10 +216,9 @@ export const GlobalChatbot = () => {
     setLoading(true);
     setError(null);
 
-    // Append user query to logs immediately for optimal UX
     const userLogId = crypto.randomUUID();
-    const tempLogs = [
-      ...logs,
+    setLogs((prev) => [
+      ...prev,
       {
         id: userLogId,
         query: currentQuery,
@@ -224,8 +226,7 @@ export const GlobalChatbot = () => {
         timestamp: new Date().toISOString(),
         feedback: null,
       },
-    ];
-    setLogs(tempLogs);
+    ]);
 
     try {
       const aiHeaders = getAiHeaders();
@@ -263,7 +264,6 @@ export const GlobalChatbot = () => {
       );
     } catch (err) {
       console.error('Failed to get AI response:', err);
-      // Remove temporary log if failed
       setLogs((prev) => prev.filter((log) => log.id !== userLogId));
       setQuery(currentQuery || previousQuery);
       setError(getFriendlyAiError(err, aiStatus));
@@ -278,7 +278,6 @@ export const GlobalChatbot = () => {
 
   return (
     <>
-      {/* Floating Trigger Button */}
       <div className="fixed bottom-6 right-6 z-[200]">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -305,7 +304,6 @@ export const GlobalChatbot = () => {
         </button>
       </div>
 
-      {/* Slide-Up Chat Panel */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -315,7 +313,6 @@ export const GlobalChatbot = () => {
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="fixed bottom-24 right-6 z-[200] w-[92vw] md:w-[440px] h-[600px] flex flex-col rounded-[30px] border border-white/70 bg-white/90 shadow-3xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 overflow-hidden"
           >
-            {/* Header */}
             <header className="relative shrink-0 overflow-hidden bg-slate-950 p-4 text-white">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.4),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(6,182,212,0.25),transparent_35%)]" />
               <div className="relative flex items-center justify-between">
@@ -327,8 +324,10 @@ export const GlobalChatbot = () => {
                     <h2 className="text-base font-black tracking-tight">EduConnect AI</h2>
                     <p className="text-[10px] text-slate-300">
                       {aiStatus?.provider === 'gemini'
-                        ? 'Powered by Gemini 2.5 Flash'
-                        : 'Role-aware assistant'}
+                        ? 'Powered by Gemini'
+                        : aiStatus?.provider === 'openrouter'
+                          ? 'Free model assistant'
+                          : 'Role-aware assistant'}
                     </p>
                   </div>
                 </div>
@@ -340,7 +339,6 @@ export const GlobalChatbot = () => {
                 </button>
               </div>
 
-              {/* Mode Selector */}
               <div className="relative mt-3 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                 {modes.map((item) => (
                   <button
@@ -359,7 +357,6 @@ export const GlobalChatbot = () => {
                 ))}
               </div>
 
-              {/* Scope/Data access chips */}
               <div className="relative mt-2 flex flex-wrap gap-1 border-t border-white/10 pt-2">
                 <span className="flex items-center gap-1 px-1 py-1 text-[8px] font-bold uppercase tracking-wider text-slate-400">
                   <Database size={8} /> Context:
@@ -388,7 +385,6 @@ export const GlobalChatbot = () => {
               </div>
             </header>
 
-            {/* Offline warning banner */}
             {showOfflineWarning && isStaffOrAdmin && (
               <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 shrink-0">
                 <AlertCircle className="text-amber-600" size={14} />
@@ -398,7 +394,6 @@ export const GlobalChatbot = () => {
               </div>
             )}
 
-            {/* Messages body */}
             <main className="flex-1 overflow-y-auto bg-slate-50/70 p-4 dark:bg-slate-900/40 space-y-4">
               {logs.length === 0 ? (
                 <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center dark:bg-slate-950 dark:border-slate-800">
@@ -419,13 +414,11 @@ export const GlobalChatbot = () => {
               ) : (
                 logs.map((log) => (
                   <div key={log.id} className="space-y-2.5">
-                    {/* User Query */}
                     <div className="flex justify-end">
                       <div className="max-w-[85%] rounded-[20px] bg-blue-600 px-4 py-2.5 text-xs font-semibold leading-relaxed text-white shadow-md">
                         {log.query}
                       </div>
                     </div>
-                    {/* AI Response */}
                     <div className="flex justify-start">
                       <div className="max-w-[88%] rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 shadow-sm">
                         {log.response ? (
@@ -446,7 +439,6 @@ export const GlobalChatbot = () => {
               <div ref={messagesEndRef} />
             </main>
 
-            {/* Error handling */}
             {error && (
               <div className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-[10px] font-semibold text-amber-800 shrink-0 flex items-center justify-between">
                 <span>{error}</span>
@@ -460,7 +452,6 @@ export const GlobalChatbot = () => {
               </div>
             )}
 
-            {/* Query Form */}
             <form
               onSubmit={sendQuery}
               className="border-t border-slate-200/80 bg-white p-3 shrink-0 dark:border-slate-800 dark:bg-slate-950"
