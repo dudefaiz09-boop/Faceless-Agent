@@ -1,0 +1,120 @@
+name: UI UX QA
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'QA mode to run'
+        type: choice
+        required: true
+        default: full
+        options: [pr, full, visual]
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  qa-pr:
+    name: PR UI QA
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'pr') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm qa:ui:install
+      - name: Run PR UI QA
+        run: pnpm qa:pr
+        env:
+          VITE_ENVIRONMENT: preview
+          VITE_DEMO_MODE: true
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          WEB_QA_DEFAULT_ROLE: admin
+          WEB_QA_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
+          WEB_QA_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}
+          WEB_QA_ADMIN_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
+          WEB_QA_ADMIN_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}
+      - name: Upload PR UI QA reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-qa-pr-report
+          path: qa/results/**
+          if-no-files-found: ignore
+
+  qa-full:
+    name: Full UI QA Audit
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm qa:ui:install
+      - name: Run full UI QA audit
+        run: pnpm qa:full
+        env:
+          VITE_ENVIRONMENT: preview
+          VITE_DEMO_MODE: true
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          WEB_QA_DEFAULT_ROLE: admin
+          WEB_QA_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
+          WEB_QA_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}
+      - name: Upload full UI QA reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-qa-full-report
+          path: qa/results/**
+          if-no-files-found: ignore
+
+  qa-visual:
+    name: Percy Visual QA
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'visual' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          cache: true
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm qa:ui:install
+      - name: Run Percy visual QA
+        run: pnpm test:visual
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          VITE_ENVIRONMENT: preview
+          VITE_DEMO_MODE: true
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          WEB_QA_DEFAULT_ROLE: admin
+          WEB_QA_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
+          WEB_QA_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}

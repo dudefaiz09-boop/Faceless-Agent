@@ -6,3 +6,5 @@ supabase/migrations/*.sql
 apps/functions/src/lib/ai.ts
 apps/web/src/components/saas/GlobalChatbot.tsx
 scripts/validate-demo-env.ts
+qa/e2e/roles.spec.ts
+README.md
