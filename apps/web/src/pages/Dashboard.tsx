@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import {
   Activity,
+  AlertCircle,
   Banknote,
   BookOpen,
   Brain,
@@ -119,11 +120,19 @@ const roleCopy: Record<UserRole, { title: string; subtitle: string; insight: str
 
 export function DashboardPage() {
   const { role } = useAuth();
-  const { data: announcements } = useDocuments<DashboardAnnouncement>('announcements', {
+  const {
+    data: announcements,
+    error: announcementsError,
+    loading: announcementsLoading,
+  } = useDocuments<DashboardAnnouncement>('announcements', {
     order: { field: 'createdAt', ascending: false },
     limit: 4,
   });
-  const { data: users } = useDocuments<DashboardUser>('users');
+  const {
+    data: users,
+    error: usersError,
+    loading: usersLoading,
+  } = useDocuments<DashboardUser>('users');
   const userRole = (role as UserRole) || 'student';
   const copy = roleCopy[userRole] || roleCopy.student;
 
@@ -203,18 +212,18 @@ export function DashboardPage() {
         : [
             {
               title: 'Students',
-              value: users.length > 0 ? String(studentCount) : '...',
-              detail: 'Active learners',
+              value: usersLoading ? '...' : String(studentCount),
+              detail: usersError ? 'Unable to load users' : 'Active learners',
               icon: Users,
-              tone: 'blue' as const,
-              trend: '+6%',
+              tone: usersError ? ('rose' as const) : ('blue' as const),
+              trend: usersError ? undefined : '+6%',
             },
             {
               title: 'Teachers',
-              value: users.length > 0 ? String(teacherCount) : '...',
-              detail: 'Faculty coverage',
+              value: usersLoading ? '...' : String(teacherCount),
+              detail: usersError ? 'Unable to load users' : 'Faculty coverage',
               icon: GraduationCap,
-              tone: 'violet' as const,
+              tone: usersError ? ('rose' as const) : ('violet' as const),
             },
             {
               title: 'Attendance',
@@ -258,6 +267,13 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {usersError && (
+        <div className="flex items-center gap-3 rounded-3xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+          <AlertCircle size={18} />
+          Demo user counts could not be loaded. Other dashboard modules remain available.
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
@@ -332,35 +348,45 @@ export function DashboardPage() {
               View all
             </Link>
           </div>
-          <div className="space-y-3">
-            {(announcements.length
-              ? announcements
-              : [
-                  {
-                    id: 'empty',
-                    title: 'No announcements yet',
-                    content: 'New school updates will appear here instantly.',
-                  },
-                ]
-            ).map((announcement, index) => (
-              <motion.div
-                key={announcement.id || index}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn(
-                  'rounded-2xl border p-4',
-                  index === 0
-                    ? 'border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/50'
-                    : 'border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70'
-                )}
-              >
-                <p className="font-black text-slate-900 dark:text-white">{announcement.title}</p>
-                <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                  {announcement.content}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+          {announcementsError ? (
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100">
+              Announcements could not be loaded right now.
+            </div>
+          ) : announcementsLoading ? (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+              Loading announcements...
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(announcements.length
+                ? announcements
+                : [
+                    {
+                      id: 'empty',
+                      title: 'No announcements yet',
+                      content: 'New school updates will appear here instantly.',
+                    },
+                  ]
+              ).map((announcement, index) => (
+                <motion.div
+                  key={announcement.id || index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn(
+                    'rounded-2xl border p-4',
+                    index === 0
+                      ? 'border-blue-100 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/50'
+                      : 'border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70'
+                  )}
+                >
+                  <p className="font-black text-slate-900 dark:text-white">{announcement.title}</p>
+                  <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {announcement.content}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </PageShell>

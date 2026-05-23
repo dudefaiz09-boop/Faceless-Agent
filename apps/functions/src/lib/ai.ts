@@ -43,7 +43,9 @@ function getGeminiModel(): string {
 }
 
 function getHttpReferer(): string {
-  return process.env.PUBLIC_APP_URL || process.env.CORS_ORIGINS?.split(',')[0] || 'http://localhost:5173';
+  return (
+    process.env.PUBLIC_APP_URL || process.env.CORS_ORIGINS?.split(',')[0] || 'http://localhost:5173'
+  );
 }
 
 function sanitizeFreeModel(model?: string): string {
@@ -76,24 +78,35 @@ export function getAiRuntimeStatus() {
   const openRouterModel = getOpenRouterModel();
   const geminiModel = getGeminiModel();
 
-  const activeProvider = configuredProvider === 'offline'
-    ? 'offline'
-    : configuredProvider === 'gemini' && hasGeminiKey
-      ? 'gemini'
-      : configuredProvider === 'openrouter' && hasOpenRouterKey
-        ? 'openrouter'
-        : hasOpenRouterKey
+  const activeProvider =
+    configuredProvider === 'offline'
+      ? 'offline'
+      : configuredProvider === 'gemini' && hasGeminiKey
+        ? 'gemini'
+        : configuredProvider === 'openrouter' && hasOpenRouterKey
           ? 'openrouter'
-          : hasGeminiKey
-            ? 'gemini'
-            : 'offline';
+          : hasOpenRouterKey
+            ? 'openrouter'
+            : hasGeminiKey
+              ? 'gemini'
+              : 'offline';
 
   return {
     enabled: activeProvider !== 'offline',
     configuredProvider,
     provider: activeProvider,
-    model: activeProvider === 'openrouter' ? openRouterModel : activeProvider === 'gemini' ? geminiModel : 'offline',
-    fallbackProvider: activeProvider === 'openrouter' && hasGeminiKey ? 'gemini' : activeProvider === 'gemini' && hasOpenRouterKey ? 'openrouter' : 'offline',
+    model:
+      activeProvider === 'openrouter'
+        ? openRouterModel
+        : activeProvider === 'gemini'
+          ? geminiModel
+          : 'offline',
+    fallbackProvider:
+      activeProvider === 'openrouter' && hasGeminiKey
+        ? 'gemini'
+        : activeProvider === 'gemini' && hasOpenRouterKey
+          ? 'openrouter'
+          : 'offline',
     mode: activeProvider !== 'offline' ? 'live' : 'offline-fallback',
     hasOpenRouterKey,
     hasGeminiKey,
@@ -257,7 +270,7 @@ export async function generateSafeContent(
   const premiumKeywords = ['gpt-4', 'gpt4', 'claude-3', 'claude 3', 'gemini pro', 'premium model'];
 
   if (premiumKeywords.some((keyword) => normalizedPrompt.includes(keyword))) {
-    return 'Only approved low-cost/free models are enabled on this platform.';
+    return 'Only free models are enabled. Only approved low-cost/free models are available on this platform.';
   }
 
   if (getProviderPreference() === 'offline') {
@@ -265,10 +278,14 @@ export async function generateSafeContent(
     return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
   }
 
+  let attemptedLiveProvider = false;
+
   if (shouldTryGeminiFirst()) {
+    attemptedLiveProvider ||= Boolean(getGeminiApiKey());
     const geminiResponse = await tryGeminiFallback(systemInstruction, userPrompt, config);
     if (geminiResponse) return geminiResponse;
 
+    attemptedLiveProvider ||= Boolean(getOpenRouterApiKey());
     const openRouterResponse = await tryOpenRouterFreeModels(
       systemInstruction,
       userPrompt,
@@ -279,6 +296,7 @@ export async function generateSafeContent(
   }
 
   if (shouldTryOpenRouterFirst()) {
+    attemptedLiveProvider ||= Boolean(getOpenRouterApiKey());
     const openRouterResponse = await tryOpenRouterFreeModels(
       systemInstruction,
       userPrompt,
@@ -287,8 +305,13 @@ export async function generateSafeContent(
     );
     if (openRouterResponse) return openRouterResponse;
 
+    attemptedLiveProvider ||= Boolean(getGeminiApiKey());
     const geminiResponse = await tryGeminiFallback(systemInstruction, userPrompt, config);
     if (geminiResponse) return geminiResponse;
+  }
+
+  if (attemptedLiveProvider) {
+    return 'AI providers are temporarily overloaded. Please try again shortly.';
   }
 
   const offlineProvider = new OfflineAiProvider();

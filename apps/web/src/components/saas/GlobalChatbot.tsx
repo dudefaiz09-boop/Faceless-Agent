@@ -17,7 +17,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
-import { DEMO_TENANT_IDS, getActiveTenantId, isDemoMode, setStoredTenantId } from '../../lib/tenant';
+import {
+  DEMO_TENANT_IDS,
+  getActiveTenantId,
+  isDemoMode,
+  setStoredTenantId,
+} from '../../lib/tenant';
 import { cn } from '../../lib/utils';
 
 interface ChatLog {
@@ -51,7 +56,11 @@ const modes = [
 ] as const;
 
 function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
-  const error = err as { status?: number; message?: string; data?: { error?: string; message?: string } };
+  const error = err as {
+    status?: number;
+    message?: string;
+    data?: { error?: string; message?: string };
+  };
   const status = error?.status;
   const message = error?.message || error?.data?.message || String(err || '');
   const errorData = error?.data || {};
@@ -106,14 +115,7 @@ const contextModules = [
 ] as const;
 
 export const GlobalChatbot = () => {
-  const {
-    role,
-    schoolId,
-    managedTenantIds,
-    isAdmin,
-    isTeacher,
-    canManageAssignments,
-  } = useAuth();
+  const { role, schoolId, managedTenantIds, isAdmin, isTeacher, canManageAssignments } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<(typeof modes)[number]['key']>('chat');

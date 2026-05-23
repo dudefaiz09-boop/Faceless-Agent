@@ -98,18 +98,27 @@ type UserProfileData = {
   roles?: string[];
   permissions?: Record<string, boolean>;
   schoolId?: string | null;
+  school_id?: string | null;
   tenantId?: string | null;
+  tenant_id?: string | null;
   defaultTenantId?: string | null;
+  default_tenant_id?: string | null;
   is_super_admin?: boolean;
   isSuperAdmin?: boolean;
   managed_tenant_ids?: string[];
   managedTenantIds?: string[];
   classId?: string | null;
+  class_id?: string | null;
   classIds?: string[];
+  class_ids?: string[];
   subjectIds?: string[];
+  subject_ids?: string[];
   sectionIds?: string[];
+  section_ids?: string[];
   assignedModules?: string[];
+  assigned_modules?: string[];
   linkedStudentIds?: string[];
+  linked_student_ids?: string[];
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -158,6 +167,23 @@ function toAuthenticatedUser(user: SupabaseUser, accessToken: string | null): Au
     isAnonymous: user.is_anonymous,
     getIdToken: async () => accessToken,
   };
+}
+
+function compactStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function resolveRoles(profile: UserProfileData, appMetadata: Record<string, unknown>) {
+  const roleList = compactStringArray(profile.roles).length
+    ? compactStringArray(profile.roles)
+    : compactStringArray(appMetadata.roles);
+
+  if (roleList.length) return roleList;
+  if (typeof profile.role === 'string') return [profile.role];
+  if (typeof appMetadata.role === 'string') return [appMetadata.role];
+  return [];
 }
 
 async function getProfile(uid: string) {
@@ -232,39 +258,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const nextManagedTenantIds =
         profile.managed_tenant_ids ||
         profile.managedTenantIds ||
-        appMetadata.managedTenantIds ||
+        compactStringArray(appMetadata.managedTenantIds) ||
         [];
 
       setIsSuperAdmin(nextIsSuperAdmin);
       setManagedTenantIds(nextManagedTenantIds);
 
-      const nextRoles = profile.roles || appMetadata.roles || [];
-      const nextPermissions = profile.permissions || appMetadata.permissions || {};
+      const nextRoles = resolveRoles(profile, appMetadata);
+      const nextPermissions =
+        profile.permissions || (appMetadata.permissions as Record<string, boolean>) || {};
       const profileTenantId =
         profile.tenantId ||
+        profile.tenant_id ||
         profile.schoolId ||
-        appMetadata.tenantId ||
-        appMetadata.schoolId ||
+        profile.school_id ||
+        (appMetadata.tenantId as string | null) ||
+        (appMetadata.schoolId as string | null) ||
         null;
       const nextSchoolId = resolveActiveTenantId({
         isSuperAdmin: nextIsSuperAdmin,
         managedTenantIds: nextManagedTenantIds,
         profileTenantId,
-        defaultTenantId: profile.defaultTenantId || appMetadata.defaultTenantId || null,
+        defaultTenantId:
+          profile.defaultTenantId ||
+          profile.default_tenant_id ||
+          (appMetadata.defaultTenantId as string | null) ||
+          null,
       });
 
       setRoles(nextRoles);
       setPermissions(nextPermissions);
       setSchoolId(nextSchoolId);
-      const nextClassId = profile.classId || appMetadata.classId || null;
+      const nextClassId =
+        profile.classId || profile.class_id || (appMetadata.classId as string | null) || null;
       const nextClassIds =
-        profile.classIds || appMetadata.classIds || (nextClassId ? [nextClassId] : []);
+        profile.classIds ||
+        profile.class_ids ||
+        compactStringArray(appMetadata.classIds) ||
+        (nextClassId ? [nextClassId] : []);
       setClassId(nextClassId);
       setClassIds(nextClassIds);
-      setSubjectIds(profile.subjectIds || appMetadata.subjectIds || []);
-      setSectionIds(profile.sectionIds || appMetadata.sectionIds || []);
-      setAssignedModules(profile.assignedModules || appMetadata.assignedModules || []);
-      setLinkedStudentIds(profile.linkedStudentIds || appMetadata.linkedStudentIds || []);
+      setSubjectIds(
+        profile.subjectIds || profile.subject_ids || compactStringArray(appMetadata.subjectIds)
+      );
+      setSectionIds(
+        profile.sectionIds || profile.section_ids || compactStringArray(appMetadata.sectionIds)
+      );
+      setAssignedModules(
+        profile.assignedModules ||
+          profile.assigned_modules ||
+          compactStringArray(appMetadata.assignedModules)
+      );
+      setLinkedStudentIds(
+        profile.linkedStudentIds ||
+          profile.linked_student_ids ||
+          compactStringArray(appMetadata.linkedStudentIds)
+      );
 
       if (nextSchoolId) {
         setStoredTenantId(nextSchoolId);

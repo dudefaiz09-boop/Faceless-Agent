@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { getStoredTenantId } from './tenant';
 
 export type DocumentFilterOperator =
   | 'eq'
@@ -38,6 +39,56 @@ type DocumentRow = {
 
 export type DocumentRecord<T> = T & { id: string };
 
+type FieldAlias = {
+  source: string;
+  target: string;
+};
+
+const seededFieldAliases: FieldAlias[] = [
+  { source: 'tenant_id', target: 'tenantId' },
+  { source: 'school_id', target: 'schoolId' },
+  { source: 'default_tenant_id', target: 'defaultTenantId' },
+  { source: 'managed_tenant_ids', target: 'managedTenantIds' },
+  { source: 'class_id', target: 'classId' },
+  { source: 'class_ids', target: 'classIds' },
+  { source: 'section_id', target: 'sectionId' },
+  { source: 'section_ids', target: 'sectionIds' },
+  { source: 'subject_id', target: 'subjectId' },
+  { source: 'subject_ids', target: 'subjectIds' },
+  { source: 'student_id', target: 'studentId' },
+  { source: 'student_name', target: 'studentName' },
+  { source: 'teacher_id', target: 'teacherId' },
+  { source: 'teacher_name', target: 'teacherName' },
+  { source: 'parent_id', target: 'parentId' },
+  { source: 'linked_student_ids', target: 'linkedStudentIds' },
+  { source: 'assigned_modules', target: 'assignedModules' },
+  { source: 'target_classes', target: 'targetClasses' },
+  { source: 'target_roles', target: 'targetRoles' },
+  { source: 'created_at', target: 'createdAt' },
+  { source: 'updated_at', target: 'updatedAt' },
+  { source: 'due_date', target: 'dueDate' },
+  { source: 'uploaded_at', target: 'uploadedAt' },
+  { source: 'paid_at', target: 'paidAt' },
+  { source: 'issued_at', target: 'issuedAt' },
+  { source: 'returned_at', target: 'returnedAt' },
+  { source: 'amount_due', target: 'amountDue' },
+  { source: 'amount_paid', target: 'amountPaid' },
+  { source: 'fee_id', target: 'feeId' },
+  { source: 'book_id', target: 'bookId' },
+  { source: 'book_title', target: 'bookTitle' },
+  { source: 'author_name', target: 'authorName' },
+  { source: 'submission_count', target: 'submissionCount' },
+  { source: 'submissions_count', target: 'submissionsCount' },
+  { source: 'points_possible', target: 'pointsPossible' },
+  { source: 'ai_score', target: 'aiScore' },
+  { source: 'ai_feedback', target: 'aiFeedback' },
+  { source: 'teacher_score', target: 'teacherScore' },
+  { source: 'teacher_feedback', target: 'teacherFeedback' },
+  { source: 'checked_by_ai', target: 'checkedByAI' },
+  { source: 'rechecked_by_teacher', target: 'recheckedByTeacher' },
+  { source: 'is_super_admin', target: 'isSuperAdmin' },
+];
+
 function getFieldValue(data: Record<string, unknown>, field: string) {
   return field.split('.').reduce<unknown>((value, key) => {
     if (value && typeof value === 'object' && key in value) {
@@ -45,6 +96,42 @@ function getFieldValue(data: Record<string, unknown>, field: string) {
     }
     return undefined;
   }, data);
+}
+
+function normalizeDocumentData(data: Record<string, unknown>) {
+  const record = { ...data };
+
+  seededFieldAliases.forEach((alias) => {
+    if (record[alias.target] === undefined && record[alias.source] !== undefined) {
+      record[alias.target] = record[alias.source];
+    }
+  });
+
+  if (!record.roles && typeof record.role === 'string') {
+    record.roles = [record.role];
+  }
+
+  if (!record.timestamp && record.createdAt) {
+    record.timestamp = record.createdAt;
+  }
+
+  if (!record.createdAt && record.timestamp) {
+    record.createdAt = record.timestamp;
+  }
+
+  if (!record.classIds && record.classId) {
+    record.classIds = [record.classId];
+  }
+
+  if (!record.targetClasses && record.classIds) {
+    record.targetClasses = record.classIds;
+  }
+
+  if (!record.targetClasses && record.classId) {
+    record.targetClasses = [record.classId];
+  }
+
+  return record;
 }
 
 function compareValues(left: unknown, right: unknown) {
@@ -90,7 +177,9 @@ function matchesFilter(data: Record<string, unknown>, filter: DocumentFilter) {
 }
 
 function materializeRows<T>(rows: DocumentRow[], options: DocumentListOptions) {
-  let records = rows.map((row) => ({ id: row.id, ...(row.data || {}) }) as DocumentRecord<T>);
+  let records = rows.map(
+    (row) => ({ id: row.id, ...normalizeDocumentData(row.data || {}) }) as DocumentRecord<T>
+  );
 
   if (options.filters?.length) {
     records = records.filter((record) =>
@@ -120,8 +209,6 @@ export function collectionPath(...segments: Array<string | undefined | null>) {
   return segments.filter(Boolean).join('/');
 }
 
-import { getStoredTenantId } from './tenant';
-
 export async function listDocuments<T>(
   collectionName: string,
   options: DocumentListOptions = {}
@@ -136,7 +223,7 @@ export async function listDocuments<T>(
   const activeTenantId = getStoredTenantId();
   if (activeTenantId && collectionName !== 'schools') {
     dbQuery = dbQuery.or(
-      `data->>tenantId.eq.${activeTenantId},data->>schoolId.eq.${activeTenantId}`
+      `data->>tenantId.eq.${activeTenantId},data->>schoolId.eq.${activeTenantId},data->>tenant_id.eq.${activeTenantId},data->>school_id.eq.${activeTenantId}`
     );
   }
 
