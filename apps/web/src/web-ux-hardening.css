@@ -1,0 +1,93 @@
+/*
+ * Web UX hardening layer.
+ *
+ * This complements dark-compat.css with safer modal sizing, table overflow,
+ * focus visibility, and small-screen behavior for legacy pages that still use
+ * broad utility-only layouts.
+ */
+
+#root [role='dialog'] {
+  align-items: flex-start;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+#root [role='dialog'] > div:last-child {
+  margin-top: auto;
+  margin-bottom: auto;
+  max-width: min(64rem, calc(100vw - 1rem));
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 640px) {
+  #root [role='dialog'] {
+    padding: 0.75rem;
+  }
+
+  #root [role='dialog'] > div:last-child {
+    max-height: calc(100vh - 1.5rem);
+    border-radius: 1.25rem;
+  }
+}
+
+#root table {
+  min-width: 100%;
+}
+
+#root th,
+#root td {
+  vertical-align: top;
+}
+
+#root input,
+#root select,
+#root textarea,
+#root button,
+#root a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root button:focus-visible,
+#root a:focus-visible,
+#root input:focus-visible,
+#root select:focus-visible,
+#root textarea:focus-visible {
+  outline: 3px solid rgba(124, 58, 237, 0.35);
+  outline-offset: 2px;
+}
+
+#root .overflow-x-auto {
+  scrollbar-width: thin;
+}
+
+.dark #root .overflow-x-auto {
+  scrollbar-color: #475569 transparent;
+}
+
+.dark #root [role='dialog'] {
+  background-color: rgba(2, 6, 23, 0.78);
+}
+
+.dark #root [role='dialog'] > div:last-child {
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.dark #root .bg-blue-600,
+.dark #root .hover\:bg-blue-700:hover {
+  color: #ffffff;
+}
+
+.dark #root .bg-slate-900,
+.dark #root .hover\:bg-slate-800:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  #root .grid {
+    min-width: 0;
+  }
+
+  #root .truncate {
+    min-width: 0;
+  }
+}
