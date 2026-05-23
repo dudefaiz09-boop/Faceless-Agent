@@ -1,15 +1,26 @@
 /*
+
  * Dark mode compatibility layer.
+
  *
+
  * Several legacy web pages still use light-only Tailwind utility classes inside
+
  * cards, modals, tables, previews, and import panels. This layer makes those
+
  * legacy surfaces readable in dark mode while the page-level components are
+
  * gradually refactored to explicit dark:* classes.
+
  */
+
+
 
 .dark .bg-white:not(.preserve-light-surface) {
   background-color: rgba(15, 23, 42, 0.96);
 }
+
+
 
 .dark .bg-slate-50,
 .dark .bg-slate-100,
@@ -19,6 +30,8 @@
 .dark .bg-emerald-50 {
   background-color: rgba(15, 23, 42, 0.78);
 }
+
+
 
 .dark .border-white,
 .dark .border-white\/80,
@@ -32,6 +45,8 @@
   border-color: rgba(51, 65, 85, 0.9);
 }
 
+
+
 .dark .text-slate-900,
 .dark .text-slate-800,
 .dark .text-slate-700,
@@ -39,32 +54,46 @@
   color: #e2e8f0;
 }
 
+
+
 .dark .text-slate-500,
 .dark .text-slate-400 {
   color: #94a3b8;
 }
 
+
+
 .dark .text-blue-600 {
   color: #93c5fd;
 }
 
+
+
 .dark .text-red-600 {
   color: #fca5a5;
 }
+
+
 
 .dark .text-amber-600,
 .dark .text-amber-700 {
   color: #fcd34d;
 }
 
+
+
 .dark .text-emerald-700 {
   color: #6ee7b7;
 }
+
+
 
 .dark .shadow-blue-100,
 .dark .shadow-slate-200\/50 {
   box-shadow: none;
 }
+
+
 
 .dark table thead,
 .dark table tbody tr,
@@ -73,9 +102,13 @@
   border-color: rgba(51, 65, 85, 0.9);
 }
 
+
+
 .dark table thead {
   background-color: rgba(15, 23, 42, 0.86);
 }
+
+
 
 .dark .hover\:bg-slate-50:hover,
 .dark .hover\:bg-slate-100:hover,
@@ -84,6 +117,49 @@
   background-color: rgba(30, 41, 59, 0.95);
 }
 
+
+
 .dark .disabled\:bg-slate-100:disabled {
   background-color: rgba(30, 41, 59, 0.85) !important;
+}
+
+
+
+/* ------------------------------------------------------------------------
+ * Extended dark mode compatibility rules
+ *
+ * Some legacy pages still rely on Tailwind's translucent white or light
+ * utility classes (e.g. bg-white/90, bg-slate-50/70) for backgrounds and
+ * borders. These look washed out in dark mode and were not originally
+ * covered by this compatibility layer. To ensure consistent readability
+ * across the app, override any class containing a translucent white or light
+ * background so it uses a dark base color with the same opacity.
+ *
+ * This selector uses a substring match on the class attribute to avoid
+ * enumerating every possible opacity suffix (50, 60, 70, 75, 80, 85, 90, 95).
+ * Tailwind sets `--tw-bg-opacity` on these classes, so we reuse that
+ * variable to preserve the intended transparency while swapping out the RGB.
+ * ----------------------------------------------------------------------*/
+
+
+
+.dark [class*='bg-white/'],
+.dark [class*='bg-slate-50/'],
+.dark [class*='bg-slate-100/'],
+.dark [class*='bg-slate-200/'],
+.dark [class*='bg-blue-50/'],
+.dark [class*='bg-amber-50/'],
+.dark [class*='bg-red-50/'],
+.dark [class*='bg-emerald-50/'] {
+  /* Preserve the original opacity while applying a dark base colour. */
+  background-color: rgb(15 23 42 / var(--tw-bg-opacity)) !important;
+}
+
+
+
+/* Similarly override translucent white borders in dark mode. Tailwind's
+ * border opacity variables are not always set, so fall back to full opacity.
+ */
+.dark [class*='border-white/'] {
+  border-color: rgb(51 65 85 / var(--tw-border-opacity, 1)) !important;
 }
