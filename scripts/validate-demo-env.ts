@@ -61,8 +61,10 @@ if (nodeEnv === 'production') {
   if (apiBaseUrlWeb && apiBaseUrlWeb.startsWith('/')) {
     error('VITE_API_BASE_URL must be an absolute URL in production.');
   }
-  if (apiBaseUrlMobile && (apiBaseUrlMobile.includes('localhost') || apiBaseUrlMobile.includes('127.0.0.1'))) {
-    error('API_BASE_URL must not point to localhost/127.0.0.1 for mobile builds.');
+  // prettier-ignore
+if (apiBaseUrlMobile && (apiBaseUrlMobile.includes('localhost') || apiBaseUrlMobile.includes('127.0.0.1'))) {
+    
+error('API_BASE_URL must not point to localhost/127.0.0.1 for mobile builds.');
   }
 }
 
