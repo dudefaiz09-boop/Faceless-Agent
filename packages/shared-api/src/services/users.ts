@@ -55,6 +55,10 @@ export class UsersService {
     return this.client.request(`/users/${uid}/deactivate`, { method: 'PATCH', retry: 0 });
   }
 
+  delete(uid: string) {
+    return this.client.request(`/users/${uid}`, { method: 'DELETE', retry: 0 });
+  }
+
   bulkImport(users: unknown[], idempotencyKey?: string) {
     return this.client.post(
       '/users/bulk-import',
