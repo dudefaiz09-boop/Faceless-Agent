@@ -82,6 +82,11 @@ type BorrowRecord = {
   status?: 'borrowed' | 'returned';
 };
 
+type BorrowDueState = {
+  label: string;
+  tone: 'green' | 'amber' | 'red';
+};
+
 type PerformanceRecord = {
   id: string;
   subject: string;
@@ -112,6 +117,40 @@ function errorMessage(error: unknown, fallback: string) {
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function parseDate(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getBorrowDueState(record?: BorrowRecord): BorrowDueState | null {
+  if (!record || record.status !== 'borrowed') return null;
+
+  const dueAt = parseDate(record.dueAt);
+  if (!dueAt) return { label: 'Borrowed', tone: 'amber' };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueDate = new Date(dueAt);
+  dueDate.setHours(0, 0, 0, 0);
+
+  const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / 86_400_000);
+
+  if (daysUntilDue < 0) {
+    const overdueDays = Math.abs(daysUntilDue);
+    return {
+      label: `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue`,
+      tone: 'red',
+    };
+  }
+
+  if (daysUntilDue === 0) return { label: 'Due today', tone: 'amber' };
+  if (daysUntilDue <= 2) return { label: `Due in ${daysUntilDue} days`, tone: 'amber' };
+
+  return { label: `Due in ${daysUntilDue} days`, tone: 'green' };
 }
 
 function useApiData<T>(key: unknown[], loader: () => Promise<T>, enabled = true) {
@@ -337,6 +376,8 @@ export function LibraryScreen() {
         .includes(normalized);
     });
   }, [queryText, resourcesQuery.data]);
+  const activeBorrows = (historyQuery.data || []).filter((item) => item.status === 'borrowed');
+  const overdueBorrows = activeBorrows.filter((item) => getBorrowDueState(item)?.tone === 'red');
 
   return (
     <View style={styles.flex}>
@@ -372,11 +413,15 @@ export function LibraryScreen() {
               />
               <StatCard
                 title="Borrowed"
-                value={String(
-                  historyQuery.data?.filter((item) => item.status === 'borrowed').length || 0
-                )}
+                value={String(activeBorrows.length)}
                 detail="Active checkouts"
                 tone="amber"
+              />
+              <StatCard
+                title="Overdue"
+                value={String(overdueBorrows.length)}
+                detail="Needs return"
+                tone="red"
               />
             </View>
           }
@@ -389,23 +434,34 @@ export function LibraryScreen() {
           refreshControl={
             <RefreshControl
               tintColor={colors.ai}
-              refreshing={resourcesQuery.isRefetching}
-              onRefresh={() => void resourcesQuery.refetch()}
+              refreshing={resourcesQuery.isRefetching || historyQuery.isRefetching}
+              onRefresh={() => {
+                void resourcesQuery.refetch();
+                void historyQuery.refetch();
+              }}
             />
           }
-          renderItem={({ item }) => (
-            <Card>
-              <Pill label={item.subject || item.type || 'resource'} />
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardContent}>
-                {item.description || 'No description provided.'}
-              </Text>
-              <Text style={styles.cardDate}>
-                Grade {item.grade || 'All'} -{' '}
-                {(item.tags || []).slice(0, 3).join(', ') || 'No tags'}
-              </Text>
-            </Card>
-          )}
+          renderItem={({ item }) => {
+            const borrow = activeBorrows.find((record) => record.resourceId === item.id);
+            const dueState = getBorrowDueState(borrow);
+
+            return (
+              <Card>
+                <View style={styles.cardPillRow}>
+                  <Pill label={item.subject || item.type || 'resource'} />
+                  {dueState && <Pill label={dueState.label} tone={dueState.tone} />}
+                </View>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardContent}>
+                  {item.description || 'No description provided.'}
+                </Text>
+                <Text style={styles.cardDate}>
+                  Grade {item.grade || 'All'} -{' '}
+                  {(item.tags || []).slice(0, 3).join(', ') || 'No tags'}
+                </Text>
+              </Card>
+            );
+          }}
         />
       )}
     </View>
@@ -703,6 +759,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 11,
     marginTop: 12,
+  },
+  cardPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
   },
   cardTitle: {
     color: colors.text,
