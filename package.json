@@ -17,6 +17,7 @@
     "validate:release": "bash scripts/validate-release.sh",
     "validate:release:win": "powershell -ExecutionPolicy Bypass -File scripts/validate-release.ps1",
     "smoke:web-api": "tsx scripts/smoke-web-api.ts",
+    "demo:api-smoke": "corepack pnpm --filter @educonnect/functions demo:api-smoke",
     "qa:web-matrix": "tsx scripts/export-web-qa-matrix.ts",
     "release:checklist": "tsx scripts/export-release-checklist.ts",
     "audit:web-shared-api": "tsx scripts/audit-web-shared-api-boundaries.ts",
