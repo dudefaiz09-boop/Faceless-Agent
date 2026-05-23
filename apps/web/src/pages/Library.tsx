@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Trash2,
   Edit2,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDebounce } from '../lib/hooks';
@@ -59,10 +60,53 @@ interface BorrowRecord {
   returnedAt: TimestampLike | string | number | null;
 }
 
+type BorrowDueState = {
+  label: string;
+  tone: 'returned' | 'overdue' | 'due-soon' | 'borrowed';
+};
+
+function parseTimestamp(value: TimestampLike | string | number | null | undefined) {
+  if (!value) return null;
+  const date = typeof value === 'object' && 'toDate' in value ? value.toDate() : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function formatTimestamp(value: TimestampLike | string | number | null) {
-  if (!value) return 'N/A';
-  const date = typeof value === 'object' && 'toDate' in value ? value.toDate() : value;
-  return new Date(date).toLocaleDateString();
+  const date = parseTimestamp(value);
+  return date ? date.toLocaleDateString() : 'N/A';
+}
+
+function getBorrowDueState(record: BorrowRecord): BorrowDueState {
+  if (record.status === 'returned') {
+    return { label: 'Returned', tone: 'returned' };
+  }
+
+  const dueAt = parseTimestamp(record.dueAt);
+  if (!dueAt) {
+    return { label: 'Borrowed', tone: 'borrowed' };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueDate = new Date(dueAt);
+  dueDate.setHours(0, 0, 0, 0);
+
+  const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / 86_400_000);
+
+  if (daysUntilDue < 0) {
+    const overdueDays = Math.abs(daysUntilDue);
+    return {
+      label: `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue`,
+      tone: 'overdue',
+    };
+  }
+
+  if (daysUntilDue <= 2) {
+    return { label: daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} days`, tone: 'due-soon' };
+  }
+
+  return { label: `Due in ${daysUntilDue} days`, tone: 'borrowed' };
 }
 
 export const LibraryPage = () => {
@@ -261,9 +305,6 @@ export const LibraryPage = () => {
         title: 'Book returned',
         description: 'The borrowing record was marked as returned.',
       });
-      if (canManageLibrary) {
-        // Refresh all if admin/teacher
-      }
     } catch {
       toast({
         tone: 'error',
@@ -295,6 +336,8 @@ export const LibraryPage = () => {
   };
 
   const subjects = ['All', ...new Set(resources.map((r) => r.subject))];
+  const activeBorrows = borrowHistory.filter((item) => item.status === 'borrowed');
+  const overdueBorrows = activeBorrows.filter((item) => getBorrowDueState(item).tone === 'overdue');
 
   const filteredResources = resources.filter((r) => {
     const matchesSearch =
@@ -349,7 +392,7 @@ export const LibraryPage = () => {
         </div>
       </PageHeader>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <StatCard
           title="Catalog"
           value={String(resources.length)}
@@ -366,10 +409,17 @@ export const LibraryPage = () => {
         />
         <StatCard
           title="Borrowed"
-          value={String(borrowHistory.filter((item) => item.status === 'borrowed').length)}
+          value={String(activeBorrows.length)}
           detail="Active checkouts"
           icon={Clock}
           tone="cyan"
+        />
+        <StatCard
+          title="Overdue"
+          value={String(overdueBorrows.length)}
+          detail="Need return follow-up"
+          icon={AlertTriangle}
+          tone="rose"
         />
       </div>
 
@@ -529,58 +579,81 @@ export const LibraryPage = () => {
                     description="Borrowed books and return status will appear here."
                   />
                 ) : (
-                  borrowHistory.map((record) => (
-                    <div
-                      key={record.id}
-                      className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={cn(
-                            'w-10 h-10 rounded-xl flex items-center justify-center font-bold',
-                            record.status === 'borrowed'
-                              ? 'bg-amber-50 text-amber-600'
-                              : 'bg-emerald-50 text-emerald-600'
-                          )}
-                        >
-                          <Clock size={18} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            Resource ID: {record.resourceId.slice(-6)}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            Borrowed: {formatTimestamp(record.borrowedAt)}
-                          </p>
-                          {record.status === 'borrowed' && record.dueAt && (
-                            <p className="text-xs font-bold text-amber-600">
-                              Due: {formatTimestamp(record.dueAt)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span
-                          className={cn(
-                            'text-[10px] font-black uppercase px-3 py-1 rounded-full',
-                            record.status === 'borrowed'
-                              ? 'bg-amber-50 text-amber-600'
-                              : 'bg-emerald-50 text-emerald-600'
-                          )}
-                        >
-                          {record.status}
-                        </span>
-                        {canManageLibrary && record.status === 'borrowed' && (
-                          <button
-                            onClick={() => returnBook(record.id)}
-                            className="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl"
-                          >
-                            Mark Returned
-                          </button>
+                  borrowHistory.map((record) => {
+                    const dueState = getBorrowDueState(record);
+                    const isOverdue = dueState.tone === 'overdue';
+                    const isDueSoon = dueState.tone === 'due-soon';
+                    const isReturned = dueState.tone === 'returned';
+
+                    return (
+                      <div
+                        key={record.id}
+                        className={cn(
+                          'bg-white p-6 rounded-3xl border shadow-sm flex items-center justify-between gap-4',
+                          isOverdue ? 'border-rose-200 bg-rose-50/50' : 'border-slate-100'
                         )}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={cn(
+                              'w-10 h-10 rounded-xl flex items-center justify-center font-bold',
+                              isOverdue
+                                ? 'bg-rose-100 text-rose-600'
+                                : isDueSoon
+                                  ? 'bg-amber-50 text-amber-600'
+                                  : isReturned
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : 'bg-blue-50 text-blue-600'
+                            )}
+                          >
+                            {isOverdue ? <AlertTriangle size={18} /> : <Clock size={18} />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              Resource ID: {record.resourceId.slice(-6)}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              Borrowed: {formatTimestamp(record.borrowedAt)}
+                            </p>
+                            {record.dueAt && record.status === 'borrowed' && (
+                              <p
+                                className={cn(
+                                  'text-xs font-bold',
+                                  isOverdue ? 'text-rose-600' : 'text-amber-600'
+                                )}
+                              >
+                                Due: {formatTimestamp(record.dueAt)} · {dueState.label}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span
+                            className={cn(
+                              'text-[10px] font-black uppercase px-3 py-1 rounded-full',
+                              isOverdue
+                                ? 'bg-rose-100 text-rose-600'
+                                : isDueSoon
+                                  ? 'bg-amber-50 text-amber-600'
+                                  : isReturned
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : 'bg-blue-50 text-blue-600'
+                            )}
+                          >
+                            {isReturned ? record.status : dueState.label}
+                          </span>
+                          {canManageLibrary && record.status === 'borrowed' && (
+                            <button
+                              onClick={() => returnBook(record.id)}
+                              className="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl"
+                            >
+                              Mark Returned
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
