@@ -101,7 +101,11 @@ router.get('/history/:uid', async (req, res, next) => {
     const userDoc = await db.collection('users').doc(uid).get();
     const userData = userDoc.exists ? userDoc.data() || {} : {};
 
-    if (userDoc.exists && userData.tenantId !== req.tenantId && userData.schoolId !== req.tenantId) {
+    if (
+      userDoc.exists &&
+      userData.tenantId !== req.tenantId &&
+      userData.schoolId !== req.tenantId
+    ) {
       return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
     }
 
@@ -189,7 +193,10 @@ router.post('/mark', requirePermission('markAttendance'), async (req, res, next)
     const attendanceRef = db.collection('attendance').doc(docId);
     const existing = await attendanceRef.get();
 
-    if (existing.exists && !isTenantAttendance(existing.data() as AttendanceDayRecord, req.tenantId)) {
+    if (
+      existing.exists &&
+      !isTenantAttendance(existing.data() as AttendanceDayRecord, req.tenantId)
+    ) {
       return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
     }
 
