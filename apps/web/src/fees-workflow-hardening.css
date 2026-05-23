@@ -1,0 +1,87 @@
+/*
+ * Fees workflow hardening.
+ *
+ * Keeps fee cards, analytics panels, import modal, CSV validation, and payment
+ * surfaces readable across light mode, dark mode, desktop, and mobile widths.
+ */
+
+.dark #root .bg-amber-50,
+.dark #root .bg-amber-100 {
+  background-color: rgba(120, 53, 15, 0.32);
+}
+
+.dark #root .text-amber-700,
+.dark #root .text-amber-600 {
+  color: #fcd34d;
+}
+
+.dark #root .bg-red-50,
+.dark #root .bg-red-100 {
+  background-color: rgba(127, 29, 29, 0.32);
+}
+
+.dark #root .border-red-200,
+.dark #root .border-red-100 {
+  border-color: rgba(248, 113, 113, 0.32);
+}
+
+.dark #root .text-red-700,
+.dark #root .text-red-600 {
+  color: #fca5a5;
+}
+
+.dark #root .bg-emerald-100 {
+  background-color: rgba(6, 95, 70, 0.36);
+}
+
+.dark #root .text-emerald-700,
+.dark #root .text-emerald-600 {
+  color: #6ee7b7;
+}
+
+.dark #root .bg-blue-100 {
+  background-color: rgba(30, 64, 175, 0.36);
+}
+
+.dark #root .text-blue-700,
+.dark #root .text-blue-600 {
+  color: #bfdbfe;
+}
+
+.dark #root .shadow-blue-100,
+.dark #root .shadow-blue-200 {
+  box-shadow: none;
+}
+
+#root textarea[placeholder*='studentId,amountDue'] {
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+#root textarea[placeholder*='studentId,amountDue']::placeholder {
+  white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  #root textarea[placeholder*='studentId,amountDue'] {
+    min-height: 14rem;
+    font-size: 0.75rem;
+  }
+
+  #root button,
+  #root select,
+  #root input,
+  #root textarea {
+    touch-action: manipulation;
+  }
+}
+
+.dark #root .recharts-tooltip-wrapper,
+.dark #root .recharts-default-tooltip {
+  color: #e2e8f0 !important;
+}
+
+.dark #root .recharts-default-tooltip {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+}
