@@ -316,7 +316,12 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const requestUserDelete = async (profile: UserProfile) => {
     const uid = profile.uid || profile.id;
     if (!uid || !isAdmin) return;
-    if (!window.confirm(`Request deletion for ${profile.email || 'this user'}? This deactivates the account.`)) return;
+    if (
+      !window.confirm(
+        `Request deletion for ${profile.email || 'this user'}? This deactivates the account.`
+      )
+    )
+      return;
 
     try {
       await usersService.delete(uid);
