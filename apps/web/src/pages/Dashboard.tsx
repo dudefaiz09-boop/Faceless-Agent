@@ -128,16 +128,18 @@ export function DashboardPage() {
     order: { field: 'createdAt', ascending: false },
     limit: 4,
   });
-  const { data: users, error: usersError, loading: usersLoading } = useDocuments<DashboardUser>('users');
+  const {
+    data: users,
+    error: usersError,
+    loading: usersLoading,
+  } = useDocuments<DashboardUser>('users');
   const userRole = (role as UserRole) || 'student';
   const copy = roleCopy[userRole] || roleCopy.student;
 
   const { studentCount, teacherCount } = React.useMemo(
     () => ({
-      studentCount: users.filter((u) => u.role === 'student' || u.roles?.includes('student'))
-        .length,
-      teacherCount: users.filter((u) => u.role === 'teacher' || u.roles?.includes('teacher'))
-        .length,
+      studentCount: users.filter((u) => u.role === 'student' || u.roles?.includes('student')).length,
+      teacherCount: users.filter((u) => u.role === 'teacher' || u.roles?.includes('teacher')).length,
     }),
     [users]
   );
@@ -375,9 +377,7 @@ export function DashboardPage() {
                       : 'border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70'
                   )}
                 >
-                  <p className="font-black text-slate-900 dark:text-white">
-                    {announcement.title}
-                  </p>
+                  <p className="font-black text-slate-900 dark:text-white">{announcement.title}</p>
                   <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500 dark:text-slate-400">
                     {announcement.content}
                   </p>
