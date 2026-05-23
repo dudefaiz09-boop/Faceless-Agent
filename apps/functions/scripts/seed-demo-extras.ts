@@ -1,6 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
-import { createHash } from 'node:crypto';
 
 config({ path: '../../.env', quiet: true });
 config({ quiet: true });
@@ -89,11 +88,6 @@ const feePaymentExamples = [
     method: 'demo_receipt',
   },
 ];
-
-function deterministicUuid(input: string) {
-  const hash = createHash('sha256').update(input).digest('hex').slice(0, 32);
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
-}
 
 function getSupabase() {
   const supabaseUrl = process.env.SUPABASE_URL;
