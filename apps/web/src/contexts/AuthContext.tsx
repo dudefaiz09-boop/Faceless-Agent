@@ -401,6 +401,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     permissions,
   };
 
+  const hasLibrarianRole = roles.includes(ROLES.LIBRARIAN);
+
   const value = {
     user,
     role,
@@ -423,7 +425,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     canManageAttendance:
       hasPermission(permissionUser, 'markAttendance') || !!permissions.manageAttendance,
     canManageAssignments: !!permissions.manageAssignments,
-    canManageLibrary: hasPermission(permissionUser, 'manageLibrary'),
+    canManageLibrary: hasPermission(permissionUser, 'manageLibrary') || hasLibrarianRole,
     canManageFees: hasPermission(permissionUser, 'manageFees'),
     canManagePerformance:
       hasPermission(permissionUser, 'viewReports') || !!permissions.managePerformance,

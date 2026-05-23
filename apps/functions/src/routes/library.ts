@@ -1,8 +1,8 @@
+import type { Request, Response, NextFunction } from 'express';
 import { Router } from 'express';
 import { db } from '../lib/documents.js';
 import { createNotification } from '../lib/notifications.js';
 import { logger } from '@educonnect/logger';
-import { requirePermission } from '../middleware/permissions.js';
 import {
   borrowHistoryParamsSchema,
   borrowResourceSchema,
@@ -59,6 +59,23 @@ type NotificationTargets = {
 
 function hasLibraryAccess(user: NonNullable<Express.Request['user']>) {
   return user.isAdmin || user.permissions?.manageLibrary || user.roles?.includes('librarian');
+}
+
+function requireLibraryManager(req: Request, res: Response, next: NextFunction) {
+  const user = req.user;
+
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  if (!hasLibraryAccess(user)) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Library manager or librarian access is required.',
+    });
+  }
+
+  return next();
 }
 
 function canSeeResource(resource: LibraryResourceWithId, user: Express.Request['user']) {
@@ -145,7 +162,7 @@ router.get('/books', async (req, res, next) => {
   }
 });
 
-router.post('/upload', requirePermission('manageLibrary'), async (req, res, next) => {
+router.post('/upload', requireLibraryManager, async (req, res, next) => {
   try {
     const user = req.user!;
     const parsedBody = uploadLibraryResourceSchema.parse(req.body);
@@ -346,7 +363,7 @@ router.post('/return', async (req, res, next) => {
   }
 });
 
-router.put('/resources/:id', requirePermission('manageLibrary'), async (req, res, next) => {
+router.put('/resources/:id', requireLibraryManager, async (req, res, next) => {
   try {
     const user = req.user!;
     const { id } = resourceIdParamsSchema.parse(req.params);
@@ -393,7 +410,7 @@ router.put('/resources/:id', requirePermission('manageLibrary'), async (req, res
   }
 });
 
-router.delete('/resources/:id', requirePermission('manageLibrary'), async (req, res, next) => {
+router.delete('/resources/:id', requireLibraryManager, async (req, res, next) => {
   try {
     const user = req.user!;
     const { id } = resourceIdParamsSchema.parse(req.params);
