@@ -8,7 +8,10 @@ test.describe('role auth state setup @pr @full', () => {
     test(`create ${role} browser state`, async ({ page }) => {
       const { email, password } = getRoleCredentials(role);
 
-      test.skip(!email || !password, `Missing ${role} QA credentials; skipping storage state creation.`);
+      test.skip(
+        !email || !password,
+        `Missing ${role} QA credentials; skipping storage state creation.`
+      );
 
       await mkdir('qa/.auth', { recursive: true });
       await loginAsRole(page, role);
