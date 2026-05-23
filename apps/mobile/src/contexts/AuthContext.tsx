@@ -8,6 +8,7 @@ import {
   type Role,
 } from '@educonnect/shared';
 import { authProfileService, setMobileTenantId } from '../lib/api-client';
+import { ENV } from '../config/env';
 import { supabase } from '../lib/supabase';
 
 interface MobileUser {
@@ -20,6 +21,7 @@ interface MobileUser {
 interface AuthContextType {
   user: MobileUser | null;
   loading: boolean;
+  profileError: string | null;
   schoolId: string | null;
   classId: string | null;
   classIds: string[];
@@ -51,6 +53,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  profileError: null,
   schoolId: null,
   classId: null,
   classIds: [],
@@ -93,6 +96,7 @@ function toMobileUser(user: SupabaseUser, accessToken: string | null): MobileUse
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
   const [classIds, setClassIds] = useState<string[]>([]);
@@ -118,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setManagedTenantIds([]);
     setRoles([]);
     setPermissions({});
+    setProfileError(null);
   };
 
   const applySession = async (session: Session | null) => {
@@ -129,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setUser(toMobileUser(session.user, session.access_token));
+    setProfileError(null);
 
     try {
       const profile = await authProfileService.getProfile();
@@ -157,10 +163,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         appMetadata.managedTenantIds ||
         [];
       const nextRoles = profile.roles || appMetadata.roles || (profile.role ? [profile.role] : []);
-      const profileClassIds = profile.classIds || appMetadata.classIds || [];
-      const nextClassId = profile.classId || appMetadata.classId || profileClassIds[0] || null;
+      const nextClassId = profile.classId || appMetadata.classId || null;
       const nextClassIds =
-        profileClassIds.length > 0 ? profileClassIds : nextClassId ? [nextClassId] : [];
+        profile.classIds || appMetadata.classIds || (nextClassId ? [nextClassId] : []);
       setSchoolId(nextSchoolId);
       setMobileTenantId(nextSchoolId);
       setClassId(nextClassId);
@@ -173,8 +178,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setManagedTenantIds(nextManagedTenantIds);
       setRoles(nextRoles);
       setPermissions(profile.permissions || appMetadata.permissions || {});
+
+      if (__DEV__) {
+        console.info('[Auth] Loaded mobile profile context:', {
+          apiBaseUrl: ENV.API_BASE_URL,
+          userId: session.user.id,
+          email: session.user.email,
+          tenantId: nextSchoolId,
+          role: nextRoles[0] || null,
+          roles: nextRoles,
+          classId: nextClassId,
+          classIds: nextClassIds,
+          linkedStudentIds: profile.linkedStudentIds || appMetadata.linkedStudentIds || [],
+          assignedModules: profile.assignedModules || appMetadata.assignedModules || [],
+        });
+      }
     } catch (error) {
-      console.error('[Auth] Failed to fetch API profile:', (error as Error).message);
+      const message = error instanceof Error ? error.message : 'Unknown profile error';
+      setProfileError(message);
+      console.error('[Auth] Failed to fetch API profile:', {
+        apiBaseUrl: ENV.API_BASE_URL,
+        userId: session.user.id,
+        email: session.user.email,
+        message,
+      });
     } finally {
       setLoading(false);
     }
@@ -204,7 +231,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) throw new Error(getAuthErrorMessage(error));
     if (!data.session) throw new Error('Sign in did not return a valid session. Please try again.');
   };
@@ -263,6 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         loading,
+        profileError,
         schoolId,
         classId,
         classIds,

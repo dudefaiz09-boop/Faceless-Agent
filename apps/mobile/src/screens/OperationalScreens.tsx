@@ -137,6 +137,10 @@ function parseDate(value?: string) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function resolveClassId(primaryClassId: string | null, availableClassIds: string[]) {
+  return primaryClassId || availableClassIds[0] || '';
+}
+
 function getBorrowDueState(record?: BorrowRecord): BorrowDueState | null {
   if (!record || record.status !== 'borrowed') return null;
 
@@ -187,7 +191,7 @@ function useApiData<T>(key: unknown[], loader: () => Promise<T>, enabled = true)
 export function AttendanceScreen() {
   const { user, canManageAttendance, classId, classIds } = useAuth();
   const [mode, setMode] = useState<'history' | 'class'>(canManageAttendance ? 'class' : 'history');
-  const selectedClass = classId || classIds[0] || '';
+  const selectedClass = resolveClassId(classId, classIds);
   const selectedDate = todayIso();
 
   const query = useApiData<AttendanceRecord[]>(
@@ -196,7 +200,7 @@ export function AttendanceScreen() {
       mode === 'class' && canManageAttendance
         ? (attendanceService.list(selectedClass, selectedDate) as Promise<AttendanceRecord[]>)
         : (attendanceService.history(user!.uid) as Promise<AttendanceRecord[]>),
-    Boolean(user?.uid) && (mode !== 'class' || Boolean(selectedClass))
+    Boolean(user?.uid) && (mode !== 'class' || !canManageAttendance || Boolean(selectedClass))
   );
 
   const records = query.data || [];
@@ -237,12 +241,7 @@ export function AttendanceScreen() {
         <StatCard title="Late" value={String(late)} detail="Needs follow-up" tone="amber" />
         <StatCard title="Absent" value={String(absent)} detail="Not present" tone="red" />
       </View>
-      {mode === 'class' && !selectedClass ? (
-        <EmptyState
-          title="Class context missing"
-          body="Your profile did not include a class assignment. Refresh after the school links your class."
-        />
-      ) : query.isLoading ? (
+      {query.isLoading ? (
         <LoadingState title="Syncing attendance" />
       ) : query.isError ? (
         <ErrorState
@@ -278,7 +277,7 @@ export function AttendanceScreen() {
               />
               <Text style={styles.cardTitle}>{item.date || selectedDate}</Text>
               <Text style={styles.cardContent}>Student: {item.studentId}</Text>
-              <Text style={styles.cardDate}>Class {item.classId || selectedClass}</Text>
+              <Text style={styles.cardDate}>Class {item.classId || selectedClass || 'N/A'}</Text>
             </Card>
           )}
         />
@@ -289,7 +288,7 @@ export function AttendanceScreen() {
 
 export function FeesScreen() {
   const { user, isStudent, canManageFees, classId, classIds } = useAuth();
-  const selectedClass = classId || classIds[0] || '';
+  const selectedClass = resolveClassId(classId, classIds);
   const query = useApiData<FeeAccountResponse | FeeReport>(
     ['mobile-fees', user?.uid, isStudent, canManageFees, selectedClass],
     () =>
@@ -327,11 +326,6 @@ export function FeesScreen() {
         <EmptyState
           title="Fees unavailable"
           body="Your role can view this module only when fee access is granted."
-        />
-      ) : !isStudent && !selectedClass ? (
-        <EmptyState
-          title="Class context missing"
-          body="Your profile did not include a class assignment. Fee reports need a seeded class ID."
         />
       ) : query.isLoading ? (
         <LoadingState title="Loading fee records" />
@@ -509,7 +503,7 @@ export function LibraryScreen() {
 
 export function PerformanceScreen() {
   const { user, isStudent, canManagePerformance, classId, classIds } = useAuth();
-  const selectedClass = classId || classIds[0] || '';
+  const selectedClass = resolveClassId(classId, classIds);
   const query = useApiData<PerformanceRecord[] | PerformanceReport>(
     ['mobile-performance', user?.uid, isStudent, selectedClass],
     () =>
@@ -536,11 +530,6 @@ export function PerformanceScreen() {
         <EmptyState
           title="Performance unavailable"
           body="Your role needs reporting access for this module."
-        />
-      ) : !isStudent && !selectedClass ? (
-        <EmptyState
-          title="Class context missing"
-          body="Your profile did not include a class assignment. Performance reports need a seeded class ID."
         />
       ) : query.isLoading ? (
         <LoadingState title="Loading performance records" />
