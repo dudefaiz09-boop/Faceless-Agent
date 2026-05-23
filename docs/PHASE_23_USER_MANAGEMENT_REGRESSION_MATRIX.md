@@ -2,21 +2,43 @@
 
 ## Purpose
 
-This matrix defines the minimum user-management checks that should pass before the user lifecycle is considered demo-ready.
+This document defines the minimum user-management checks that should pass before the user
+lifecycle is considered demo-ready.
 
 ## Role access matrix
 
-| Actor role  | List users          | Create user | Update user | Change role | Delete request | View audit logs |
-| ----------- | ------------------- | ----------- | ----------- | ----------- | -------------- | --------------- |
-| Super admin | Yes, managed tenants | Yes         | Yes         | Yes         | Yes            | Yes             |
-| Admin       | Yes, active tenant  | Yes         | Yes         | Yes         | Yes            | Yes             |
-| Principal   | Read-only if allowed | No          | No          | No          | No             | No              |
-| Teacher     | No                  | No          | No          | No          | No             | No              |
-| Student     | No                  | No          | No          | No          | No             | No              |
-| Parent      | No                  | No          | No          | No          | No             | No              |
-| Librarian   | No                  | No          | No          | No          | No             | No              |
-| Accountant  | No                  | No          | No          | No          | No             | No              |
-| Staff       | No                  | No          | No          | No          | No             | No              |
+Super admin:
+
+- Can list users across managed tenants.
+- Can create users.
+- Can update users.
+- Can change roles.
+- Can request user deletion.
+- Can view audit logs.
+
+Admin:
+
+- Can list users in the active tenant.
+- Can create users.
+- Can update users.
+- Can change roles.
+- Can request user deletion.
+- Can view audit logs.
+
+Principal:
+
+- May have read-only visibility when explicitly allowed.
+- Cannot create, update, role-change, or delete-request users.
+- Cannot view user-management audit logs unless explicitly allowed.
+
+Teacher, student, parent, librarian, accountant, and staff:
+
+- Cannot list users.
+- Cannot create users.
+- Cannot update users.
+- Cannot change roles.
+- Cannot request user deletion.
+- Cannot view user-management audit logs.
 
 ## Tenant checks
 
