@@ -43,6 +43,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Format check
         run: pnpm format:check
+      - name: Shared API boundary audit
+        run: pnpm audit:web-shared-api
       - name: Lint
         run: pnpm lint
       - name: Test
