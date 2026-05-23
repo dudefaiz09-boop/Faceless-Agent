@@ -14,6 +14,7 @@ function Run-Step {
   }
 }
 
+Run-Step "Validate Android environment" @('powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/check-android-env.ps1')
 Run-Step "Install dependencies" @('corepack', 'pnpm', 'install', '--frozen-lockfile')
 Run-Step "Check formatting" @('corepack', 'pnpm', 'format:check')
 Run-Step "Audit web shared API boundaries" @('corepack', 'pnpm', 'audit:web-shared-api')
