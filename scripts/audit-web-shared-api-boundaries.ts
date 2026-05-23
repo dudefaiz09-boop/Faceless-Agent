@@ -21,7 +21,9 @@ async function main() {
   for (const check of checks) {
     const content = await readFile(check.file, 'utf8');
     const hasServiceImport = check.allowedImports.some((line) => content.includes(line));
-    const discouragedHits = check.discouragedPatterns.filter((pattern) => content.includes(pattern));
+    const discouragedHits = check.discouragedPatterns.filter((pattern) =>
+      content.includes(pattern)
+    );
 
     console.log(`\n${check.file}`);
     console.log(`- shared service import: ${hasServiceImport ? 'yes' : 'no'}`);
