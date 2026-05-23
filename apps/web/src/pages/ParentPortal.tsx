@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../lib/api-client';
+import { parentPortalService } from '../lib/api-client';
 import {
   Baby,
   GraduationCap,
@@ -83,43 +83,31 @@ export const ParentPortal = () => {
       if (!selectedStudentId) return;
       setLoading(true);
       try {
-        // Fetch student profile
-        const profileResponse = await apiClient.request<StudentProfileResponse>(
-          `/api/students/${selectedStudentId}`
-        );
+        const profileResponse =
+          (await parentPortalService.studentProfile(selectedStudentId)) as StudentProfileResponse;
         const profile = unwrapStudentProfile(profileResponse);
         setStudentData(profile);
 
-        // Fetch attendance
-        const att = await apiClient.request<AttendanceRecord[]>(
-          `/api/attendance/history/${selectedStudentId}`
-        );
-        setAttendance(att);
+        const [att, feeData, performanceData, ass, subs] = (await parentPortalService.studentBundle(
+          selectedStudentId,
+          profile.classId
+        )) as [
+          AttendanceRecord[],
+          FeeResponse,
+          PerformanceRecord[],
+          Assignment[],
+          Submission[],
+        ];
 
-        const feeData = await apiClient.request<FeeResponse>(`/api/fees/${selectedStudentId}`);
+        setAttendance(att);
         setFees(feeData.fees || []);
         setPayments(feeData.payments || []);
-
-        const performanceData = await apiClient.request<PerformanceRecord[]>(
-          `/api/performance/${selectedStudentId}`
-        );
         setPerformance(performanceData || []);
+        setAssignments(ass || []);
 
-        // Fetch assignments for student's class
-        if (profile.classId) {
-          const ass = await apiClient.request<Assignment[]>(`/api/assignments/${profile.classId}`);
-          setAssignments(ass);
-
-          const subs = await apiClient.request<Submission[]>(
-            `/api/assignments/history/${selectedStudentId}`
-          );
-          const subMap: Record<string, Submission> = {};
-          subs.forEach((s) => (subMap[s.assignmentId] = s));
-          setSubmissions(subMap);
-        } else {
-          setAssignments([]);
-          setSubmissions({});
-        }
+        const subMap: Record<string, Submission> = {};
+        subs.forEach((s) => (subMap[s.assignmentId] = s));
+        setSubmissions(subMap);
       } catch (err) {
         console.error('Failed to fetch parent portal data:', err);
       } finally {
