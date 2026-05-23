@@ -170,7 +170,9 @@ function toAuthenticatedUser(user: SupabaseUser, accessToken: string | null): Au
 }
 
 function compactStringArray(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
 }
 
 function resolveRoles(profile: UserProfileData, appMetadata: Record<string, unknown>) {
@@ -263,7 +265,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setManagedTenantIds(nextManagedTenantIds);
 
       const nextRoles = resolveRoles(profile, appMetadata);
-      const nextPermissions = profile.permissions || (appMetadata.permissions as Record<string, boolean>) || {};
+      const nextPermissions =
+        profile.permissions || (appMetadata.permissions as Record<string, boolean>) || {};
       const profileTenantId =
         profile.tenantId ||
         profile.tenant_id ||
@@ -295,8 +298,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (nextClassId ? [nextClassId] : []);
       setClassId(nextClassId);
       setClassIds(nextClassIds);
-      setSubjectIds(profile.subjectIds || profile.subject_ids || compactStringArray(appMetadata.subjectIds));
-      setSectionIds(profile.sectionIds || profile.section_ids || compactStringArray(appMetadata.sectionIds));
+      setSubjectIds(
+        profile.subjectIds || profile.subject_ids || compactStringArray(appMetadata.subjectIds)
+      );
+      setSectionIds(
+        profile.sectionIds || profile.section_ids || compactStringArray(appMetadata.sectionIds)
+      );
       setAssignedModules(
         profile.assignedModules ||
           profile.assigned_modules ||
