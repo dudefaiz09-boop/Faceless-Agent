@@ -5,7 +5,7 @@ import { prRoutes, screenshotRoutes } from './routes';
 
 const visualRoutes = process.env.QA_FULL_VISUAL === 'true' ? screenshotRoutes : prRoutes;
 
-test.describe('Percy visual checks @pr @full', () => {
+test.describe('Percy visual checks @visual', () => {
   let authenticated = false;
 
   test.beforeEach(async ({ page }) => {
