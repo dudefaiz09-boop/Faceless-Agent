@@ -4,16 +4,18 @@ Run the backend/API smoke tests after the demo seed has been applied and the API
 
 ```bash
 DEMO_API_SMOKE_BASE_URL=http://localhost:3000 \
-SUPABASE_URL=... \
-SUPABASE_ANON_KEY=... \
+SUPABASE_URL=<project-url> \
+SUPABASE_ANON_KEY=<anon-key> \
+DEMO_API_SMOKE_PASSWORD=<demo-user-password> \
 pnpm demo:api-smoke
 ```
 
-Optional variables:
+Required variables:
 
-- `DEMO_API_SMOKE_PASSWORD` overrides the default demo password, `Test@123456`.
-- `API_BASE_URL` or `NEXT_PUBLIC_API_URL` can be used instead of `DEMO_API_SMOKE_BASE_URL`.
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, or `VITE_SUPABASE_ANON_KEY` can be used for CI environments that already expose public Supabase client settings.
+- `DEMO_API_SMOKE_BASE_URL`, `API_BASE_URL`, or `NEXT_PUBLIC_API_URL` points at the running backend API.
+- `SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL` points at the seeded Supabase project.
+- `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, or `VITE_SUPABASE_ANON_KEY` signs in the demo users.
+- `DEMO_API_SMOKE_PASSWORD` provides the seeded demo user password.
 
 The command signs in with seeded demo users through Supabase Auth, calls the real protected API endpoints, scopes every request with `x-school-id`, and prints one PASS/FAIL line per tenant, role, and module. Secret values are only read from environment variables and are not printed.
 
