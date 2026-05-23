@@ -189,6 +189,9 @@ export class ApiClient {
         if (tenantId && !headers.has('x-school-id')) {
           headers.set('x-school-id', tenantId);
         }
+        if (tenantId && !headers.has('x-tenant-id')) {
+          headers.set('x-tenant-id', tenantId);
+        }
         if (!headers.has('Content-Type')) {
           headers.set('Content-Type', 'application/json');
         }
