@@ -1,0 +1,75 @@
+/*
+ * Assignment workflow hardening.
+ *
+ * This layer keeps assignment cards, empty/error states, submission panels, and
+ * grading controls readable while the page is gradually refactored to explicit
+ * component-level dark-mode classes.
+ */
+
+.dark #root .bg-violet-50 {
+  background-color: rgba(76, 29, 149, 0.25);
+}
+
+.dark #root .border-violet-100 {
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.dark #root .text-violet-700,
+.dark #root .text-violet-600 {
+  color: #c4b5fd;
+}
+
+.dark #root .bg-emerald-50 {
+  background-color: rgba(6, 78, 59, 0.32);
+}
+
+.dark #root .border-emerald-100 {
+  border-color: rgba(16, 185, 129, 0.32);
+}
+
+.dark #root .text-emerald-800,
+.dark #root .text-emerald-600 {
+  color: #6ee7b7;
+}
+
+.dark #root .bg-blue-50,
+.dark #root .bg-blue-100 {
+  background-color: rgba(30, 64, 175, 0.28);
+}
+
+.dark #root .border-blue-100 {
+  border-color: rgba(59, 130, 246, 0.36);
+}
+
+.dark #root .text-blue-900,
+.dark #root .text-blue-800,
+.dark #root .text-blue-600 {
+  color: #bfdbfe;
+}
+
+.dark #root .border-slate-50,
+.dark #root .border-slate-100,
+.dark #root .border-slate-200 {
+  border-color: rgba(51, 65, 85, 0.86);
+}
+
+.dark #root .shadow-blue-50,
+.dark #root .shadow-blue-100 {
+  box-shadow: none;
+}
+
+#root textarea,
+#root input,
+#root select {
+  min-width: 0;
+}
+
+#root .line-clamp-2 {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1024px) {
+  #root .lg\:grid-cols-3 {
+    gap: 1rem;
+  }
+}
