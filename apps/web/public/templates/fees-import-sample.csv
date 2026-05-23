@@ -1,0 +1,4 @@
+studentId,amountDue,dueDate,status,amountPaid
+example_learner_001,5000,2026-06-30,pending,0
+example_learner_002,4500,2026-06-15,paid,4500
+example_learner_003,5000,2026-06-20,partial,2500
