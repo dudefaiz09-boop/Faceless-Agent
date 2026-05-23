@@ -103,7 +103,10 @@ function getBorrowDueState(record: BorrowRecord): BorrowDueState {
   }
 
   if (daysUntilDue <= 2) {
-    return { label: daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} days`, tone: 'due-soon' };
+    return {
+      label: daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} days`,
+      tone: 'due-soon',
+    };
   }
 
   return { label: `Due in ${daysUntilDue} days`, tone: 'borrowed' };
