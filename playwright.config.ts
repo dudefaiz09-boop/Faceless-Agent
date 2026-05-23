@@ -62,7 +62,12 @@ export default defineConfig({
       name: 'tablet-chromium',
       dependencies: ['auth-setup'],
       testIgnore: /auth\.setup\.ts/,
-      use: { ...devices['iPad (gen 7)'], viewport: { width: 768, height: 1024 } },
+      use: {
+        ...devices['Desktop Chrome'],
+        isMobile: true,
+        hasTouch: true,
+        viewport: { width: 768, height: 1024 },
+      },
     },
     {
       name: 'mobile-chromium',
