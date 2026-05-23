@@ -17,14 +17,18 @@ for (const role of qaRoles) {
     });
 
     for (const route of protectedRoutes) {
-      test(`${role} ${canRoleAccessRoute(role, route) ? 'can access' : 'is blocked from'} ${route.name}`, async ({ page }) => {
+      const accessLabel = canRoleAccessRoute(role, route) ? 'can access' : 'is blocked from';
+
+      test(`${role} ${accessLabel} ${route.name}`, async ({ page }) => {
         const getConsoleErrors = attachConsoleErrorGuard(page);
         const shouldHaveAccess = canRoleAccessRoute(role, route);
 
         await visitRoute(page, route);
         await assertAccessState(page, shouldHaveAccess);
 
-        expect(getConsoleErrors(), `${role}/${route.name} should not emit console/page errors`).toEqual([]);
+        expect(getConsoleErrors(), `${role}/${route.name} should not emit console/page errors`).toEqual(
+          []
+        );
       });
     }
 
