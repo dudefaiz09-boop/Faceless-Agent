@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "test": "turbo test && jest",
     "verify": "bash scripts/verify-all.sh",
+    "validate:android:win": "powershell -ExecutionPolicy Bypass -File scripts/check-android-env.ps1",
     "validate:release": "bash scripts/validate-release.sh",
     "validate:release:win": "powershell -ExecutionPolicy Bypass -File scripts/validate-release.ps1",
     "smoke:web-api": "tsx scripts/smoke-web-api.ts",
