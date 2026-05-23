@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { AttendanceRecord, Assignment, Submission } from '@educonnect/shared';
+import type { AttendanceRecord } from '@educonnect/shared';
 import {
   assignmentsService,
   attendanceService,
@@ -111,6 +111,18 @@ type StudentProfile = {
   section?: string;
 };
 
+type ParentAssignmentSummary = {
+  id: string;
+  title: string;
+  dueDate?: string;
+};
+
+type ParentSubmissionSummary = {
+  id: string;
+  assignmentId?: string;
+  status?: string;
+};
+
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -151,6 +163,16 @@ function getBorrowDueState(record?: BorrowRecord): BorrowDueState | null {
   if (daysUntilDue <= 2) return { label: `Due in ${daysUntilDue} days`, tone: 'amber' };
 
   return { label: `Due in ${daysUntilDue} days`, tone: 'green' };
+}
+
+function loadParentAssignments(classId: string) {
+  const assignments = assignmentsService.getAssignments(classId);
+  return assignments as unknown as Promise<ParentAssignmentSummary[]>;
+}
+
+function loadParentSubmissions(studentId: string) {
+  const submissions = assignmentsService.getMyHistory(studentId);
+  return submissions as unknown as Promise<ParentSubmissionSummary[]>;
 }
 
 function useApiData<T>(key: unknown[], loader: () => Promise<T>, enabled = true) {
@@ -590,14 +612,16 @@ export function ParentPortalScreen() {
       const profile = (
         'data' in profileResponse && profileResponse.data ? profileResponse.data : profileResponse
       ) as StudentProfile;
+      const assignmentRequest = profile.classId
+        ? loadParentAssignments(profile.classId)
+        : Promise.resolve<ParentAssignmentSummary[]>([]);
+
       const [attendance, fees, performance, assignments, submissions] = await Promise.all([
         attendanceService.history(selectedStudentId) as Promise<AttendanceRecord[]>,
         feesService.getStudentAccount(selectedStudentId) as Promise<FeeAccountResponse>,
         performanceService.student(selectedStudentId) as Promise<PerformanceRecord[]>,
-        profile.classId
-          ? (assignmentsService.getAssignments(profile.classId) as Promise<Assignment[]>)
-          : Promise.resolve([]),
-        assignmentsService.getMyHistory(selectedStudentId) as Promise<Submission[]>,
+        assignmentRequest,
+        loadParentSubmissions(selectedStudentId),
       ]);
       return { profile, attendance, fees, performance, assignments, submissions };
     },
