@@ -185,9 +185,9 @@ function useApiData<T>(key: unknown[], loader: () => Promise<T>, enabled = true)
 }
 
 export function AttendanceScreen() {
-  const { user, canManageAttendance, classId } = useAuth();
+  const { user, canManageAttendance, classId, classIds } = useAuth();
   const [mode, setMode] = useState<'history' | 'class'>(canManageAttendance ? 'class' : 'history');
-  const selectedClass = classId || '10A';
+  const selectedClass = classId || classIds[0] || '10A';
   const selectedDate = todayIso();
 
   const query = useApiData<AttendanceRecord[]>(
@@ -283,8 +283,8 @@ export function AttendanceScreen() {
 }
 
 export function FeesScreen() {
-  const { user, isStudent, canManageFees, classId } = useAuth();
-  const selectedClass = classId || '10A';
+  const { user, isStudent, canManageFees, classId, classIds } = useAuth();
+  const selectedClass = classId || classIds[0] || '10A';
   const query = useApiData<FeeAccountResponse | FeeReport>(
     ['mobile-fees', user?.uid, isStudent, canManageFees, selectedClass],
     () =>
@@ -498,8 +498,8 @@ export function LibraryScreen() {
 }
 
 export function PerformanceScreen() {
-  const { user, isStudent, canManagePerformance, classId } = useAuth();
-  const selectedClass = classId || '10A';
+  const { user, isStudent, canManagePerformance, classId, classIds } = useAuth();
+  const selectedClass = classId || classIds[0] || '10A';
   const query = useApiData<PerformanceRecord[] | PerformanceReport>(
     ['mobile-performance', user?.uid, isStudent, selectedClass],
     () =>
