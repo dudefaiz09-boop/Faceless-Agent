@@ -1,0 +1,4 @@
+email,role,password,permissions,classId,classIds,linkedStudentIds,tenantId,displayName
+learner.import@example.test,student,Test@123456,"viewOwnRecords,viewAssignments",A1,"A1,A2",,tenant-a,Imported Learner
+teacher.import@example.test,teacher,Test@123456,"markAttendance,createAssignments",A1,A1,,tenant-a,Imported Teacher
+parent.import@example.test,parent,Test@123456,viewOwnRecords,,,"learner-user-id-1",tenant-a,Imported Parent
