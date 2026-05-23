@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "test": "turbo test && jest",
     "verify": "bash scripts/verify-all.sh",
+    "validate:release": "bash scripts/validate-release.sh",
     "smoke:web-api": "tsx scripts/smoke-web-api.ts",
     "qa:web-matrix": "tsx scripts/export-web-qa-matrix.ts",
     "release:checklist": "tsx scripts/export-release-checklist.ts",
