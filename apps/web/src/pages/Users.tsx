@@ -313,23 +313,23 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     }
   };
 
-  const deactivateUser = async (profile: UserProfile) => {
+  const requestUserDelete = async (profile: UserProfile) => {
     const uid = profile.uid || profile.id;
     if (!uid || !isAdmin) return;
-    if (!window.confirm(`Deactivate ${profile.email || 'this user'}?`)) return;
+    if (!window.confirm(`Request deletion for ${profile.email || 'this user'}? This deactivates the account.`)) return;
 
     try {
-      await usersService.deactivate(uid);
+      await usersService.delete(uid);
       await reload();
       toast({
         tone: 'success',
-        title: 'User deactivated',
-        description: `${profile.email || 'The user'} was marked inactive.`,
+        title: 'Delete requested',
+        description: `${profile.email || 'The user'} was deactivated and logged for review.`,
       });
     } catch (error) {
       toast({
         tone: 'error',
-        title: 'Deactivate failed',
+        title: 'Delete request failed',
         description: (error as Error).message,
       });
     }
@@ -627,10 +627,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
                       Manage
                     </button>
                     <button
-                      onClick={() => deactivateUser(profile)}
+                      onClick={() => requestUserDelete(profile)}
                       className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-100"
                     >
-                      Deactivate
+                      Delete Request
                     </button>
                   </>
                 )}
