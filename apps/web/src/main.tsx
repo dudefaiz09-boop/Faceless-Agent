@@ -6,6 +6,7 @@ import App from './App.tsx';
 import { ToastProvider } from './components/saas/ToastProvider.tsx';
 import './index.css';
 import './dark-compat.css';
+import './web-ux-hardening.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
