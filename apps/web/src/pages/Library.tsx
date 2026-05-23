@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../lib/api-client';
+import { libraryService } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Book,
@@ -99,7 +99,7 @@ export const LibraryPage = () => {
 
   const loadResources = useCallback(async () => {
     try {
-      const data = await apiClient.request<LibraryResource[]>('/api/library/resources', {});
+      const data = (await libraryService.resources()) as LibraryResource[];
       setResources(data);
     } catch (error) {
       console.error(error);
@@ -109,10 +109,10 @@ export const LibraryPage = () => {
   }, []);
 
   const loadMyHistory = useCallback(async () => {
+    if (!user?.uid) return;
+
     try {
-      const data = await apiClient.request<BorrowRecord[]>(
-        `/api/library/borrow/history/${user?.uid}`
-      );
+      const data = (await libraryService.borrowHistory(user.uid)) as BorrowRecord[];
       setBorrowHistory(data);
     } catch (error) {
       console.error(error);
@@ -174,15 +174,9 @@ export const LibraryPage = () => {
       };
 
       if (editingResource) {
-        await apiClient.request(`/api/library/resources/${editingResource.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload),
-        });
+        await libraryService.updateResource(editingResource.id, payload);
       } else {
-        await apiClient.request('/api/library/upload', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        await libraryService.upload(payload);
       }
 
       setIsUploadModalOpen(false);
@@ -242,10 +236,7 @@ export const LibraryPage = () => {
 
   const borrowBook = async (resourceId: string) => {
     try {
-      await apiClient.request('/api/library/borrow', {
-        method: 'POST',
-        body: JSON.stringify({ resourceId }),
-      });
+      await libraryService.borrow({ resourceId });
       toast({
         tone: 'success',
         title: 'Book borrowed',
@@ -263,10 +254,7 @@ export const LibraryPage = () => {
 
   const returnBook = async (recordId: string) => {
     try {
-      await apiClient.request('/api/library/return', {
-        method: 'POST',
-        body: JSON.stringify({ recordId }),
-      });
+      await libraryService.returnBook({ recordId });
       loadMyHistory();
       toast({
         tone: 'success',
@@ -290,7 +278,7 @@ export const LibraryPage = () => {
     if (!window.confirm(`Delete "${resource.title}" from the catalog?`)) return;
 
     try {
-      await apiClient.request(`/api/library/resources/${resource.id}`, { method: 'DELETE' });
+      await libraryService.deleteResource(resource.id);
       await loadResources();
       toast({
         tone: 'success',
