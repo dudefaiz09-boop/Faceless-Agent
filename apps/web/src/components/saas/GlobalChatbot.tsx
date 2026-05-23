@@ -17,7 +17,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
-import { DEMO_TENANT_IDS, getActiveTenantId, isDemoMode, setStoredTenantId } from '../../lib/tenant';
+import {
+  DEMO_TENANT_IDS,
+  getActiveTenantId,
+  isDemoMode,
+  setStoredTenantId,
+} from '../../lib/tenant';
 import { cn } from '../../lib/utils';
 
 interface ChatLog {
@@ -106,14 +111,7 @@ const contextModules = [
 ] as const;
 
 export const GlobalChatbot = () => {
-  const {
-    role,
-    schoolId,
-    managedTenantIds,
-    isAdmin,
-    isTeacher,
-    canManageAssignments,
-  } = useAuth();
+  const { role, schoolId, managedTenantIds, isAdmin, isTeacher, canManageAssignments } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<(typeof modes)[number]['key']>('chat');
