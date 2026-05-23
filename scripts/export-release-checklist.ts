@@ -34,13 +34,37 @@ const rows = [
   ['build', 'mobile', 'Mobile lint passes', 'pnpm --filter mobile lint', 'yes'],
   ['build', 'mobile', 'Mobile tests pass', 'pnpm --filter mobile test', 'yes'],
   ['build', 'android', 'Debug APK builds', 'pnpm --filter mobile build:android', 'yes'],
-  ['demo', 'seed', 'Demo data is seeded and verified', 'pnpm --filter @educonnect/functions demo:ready', 'yes'],
+  [
+    'demo',
+    'seed',
+    'Demo data is seeded and verified',
+    'pnpm --filter @educonnect/functions demo:ready',
+    'yes',
+  ],
   ['smoke', 'api', 'API smoke test passes', 'pnpm smoke:web-api', 'yes'],
   ['qa', 'web', 'Web QA matrix generated', 'pnpm qa:web-matrix', 'yes'],
-  ['qa', 'roles', 'Role-by-role demo QA is complete', 'docs/PHASE_6_WEB_PRODUCT_QA_RUNBOOK.md', 'yes'],
+  [
+    'qa',
+    'roles',
+    'Role-by-role demo QA is complete',
+    'docs/PHASE_6_WEB_PRODUCT_QA_RUNBOOK.md',
+    'yes',
+  ],
   ['qa', 'android', 'APK installed and core flows tested on device', 'manual evidence', 'yes'],
-  ['release', 'github', 'No open critical PRs or release-blocking issues remain', 'GitHub PR/Issues review', 'yes'],
-  ['release', 'vercel', 'Vercel failures are not build-rate-limit-only or are accepted', 'Vercel status evidence', 'yes'],
+  [
+    'release',
+    'github',
+    'No open critical PRs or release-blocking issues remain',
+    'GitHub PR/Issues review',
+    'yes',
+  ],
+  [
+    'release',
+    'vercel',
+    'Vercel failures are not build-rate-limit-only or are accepted',
+    'Vercel status evidence',
+    'yes',
+  ],
 ];
 
 function csv(values: string[][]) {
