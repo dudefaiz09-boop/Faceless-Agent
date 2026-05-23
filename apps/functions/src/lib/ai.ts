@@ -4,8 +4,11 @@ import { OfflineAiProvider } from './ai-providers/offline.provider.js';
 const openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
 const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+type AiProviderPreference = 'auto' | 'openrouter' | 'gemini' | 'offline';
+
 /**
- * Prioritized list of approved free OpenRouter models for fallback.
+ * Prioritized list of approved free OpenRouter models for startup/demo mode.
+ * Keep this list conservative: only free models should be accepted by OPENROUTER_MODEL.
  */
 export const FREE_MODEL_PRIORITY = [
   'google/gemma-3-4b-it:free',
@@ -17,6 +20,7 @@ export const FREE_MODEL_PRIORITY = [
 export const FREE_OPENROUTER_MODELS = new Set([...FREE_MODEL_PRIORITY, 'openrouter/auto']);
 
 const DEFAULT_FREE_MODEL = FREE_MODEL_PRIORITY[0];
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
 function getOpenRouterApiKey(): string {
   return process.env.OPENROUTER_API_KEY || '';
@@ -26,12 +30,20 @@ function getGeminiApiKey(): string {
   return process.env.GEMINI_API_KEY || '';
 }
 
+function getProviderPreference(): AiProviderPreference {
+  const configured = (process.env.AI_PROVIDER || 'auto').toLowerCase();
+  if (configured === 'openrouter' || configured === 'gemini' || configured === 'offline') {
+    return configured;
+  }
+  return 'auto';
+}
+
 function getGeminiModel(): string {
-  return process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
 }
 
 function getHttpReferer(): string {
-  return process.env.PUBLIC_APP_URL || 'http://localhost:5173';
+  return process.env.PUBLIC_APP_URL || process.env.CORS_ORIGINS?.split(',')[0] || 'http://localhost:5173';
 }
 
 function sanitizeFreeModel(model?: string): string {
@@ -39,7 +51,17 @@ function sanitizeFreeModel(model?: string): string {
   return FREE_OPENROUTER_MODELS.has(model) ? model : DEFAULT_FREE_MODEL;
 }
 
+function shouldTryOpenRouterFirst() {
+  const preference = getProviderPreference();
+  return preference === 'auto' || preference === 'openrouter';
+}
+
+function shouldTryGeminiFirst() {
+  return getProviderPreference() === 'gemini';
+}
+
 export function isAiEnabled() {
+  if (getProviderPreference() === 'offline') return false;
   return Boolean(getOpenRouterApiKey() || getGeminiApiKey());
 }
 
@@ -50,16 +72,33 @@ export function getOpenRouterModel() {
 export function getAiRuntimeStatus() {
   const hasOpenRouterKey = Boolean(getOpenRouterApiKey());
   const hasGeminiKey = Boolean(getGeminiApiKey());
-  const model = getOpenRouterModel();
-  const provider = hasOpenRouterKey ? 'openrouter' : hasGeminiKey ? 'gemini' : 'offline';
+  const configuredProvider = getProviderPreference();
+  const openRouterModel = getOpenRouterModel();
+  const geminiModel = getGeminiModel();
+
+  const activeProvider = configuredProvider === 'offline'
+    ? 'offline'
+    : configuredProvider === 'gemini' && hasGeminiKey
+      ? 'gemini'
+      : configuredProvider === 'openrouter' && hasOpenRouterKey
+        ? 'openrouter'
+        : hasOpenRouterKey
+          ? 'openrouter'
+          : hasGeminiKey
+            ? 'gemini'
+            : 'offline';
 
   return {
-    enabled: hasOpenRouterKey || hasGeminiKey,
-    provider,
-    model: hasOpenRouterKey ? model : hasGeminiKey ? getGeminiModel() : 'offline',
-    mode: hasOpenRouterKey || hasGeminiKey ? 'live' : 'offline-fallback',
+    enabled: activeProvider !== 'offline',
+    configuredProvider,
+    provider: activeProvider,
+    model: activeProvider === 'openrouter' ? openRouterModel : activeProvider === 'gemini' ? geminiModel : 'offline',
+    fallbackProvider: activeProvider === 'openrouter' && hasGeminiKey ? 'gemini' : activeProvider === 'gemini' && hasOpenRouterKey ? 'openrouter' : 'offline',
+    mode: activeProvider !== 'offline' ? 'live' : 'offline-fallback',
     hasOpenRouterKey,
     hasGeminiKey,
+    openRouterModel,
+    geminiModel,
     freeModelEnforced: true,
     allowedFreeModels: Array.from(FREE_OPENROUTER_MODELS),
     runtime: process.env.VERCEL_URL ? 'vercel' : 'local',
@@ -153,39 +192,29 @@ async function callOpenRouterFreeModel(
   return payload?.choices?.[0]?.message?.content || '';
 }
 
-/**
- * Safe AI content generation.
- * Enforces free OpenRouter models and falls back across the free priority list.
- */
-export async function generateSafeContent(
+async function tryGeminiFallback(
+  systemInstruction: string,
+  userPrompt: string,
+  config: AiGenerationConfig = {}
+): Promise<string | null> {
+  if (!getGeminiApiKey()) return null;
+
+  try {
+    const response = await callGeminiModel(systemInstruction, userPrompt, config);
+    return response.trim() ? response : null;
+  } catch (error) {
+    console.error('[AI] Gemini fallback failed:', error);
+    return null;
+  }
+}
+
+async function tryOpenRouterFreeModels(
   systemInstruction: string,
   userPrompt: string,
   config: AiGenerationConfig = {},
   maxAttempts = FREE_MODEL_PRIORITY.length
-): Promise<string> {
-  const normalizedPrompt = userPrompt.toLowerCase();
-  const premiumKeywords = ['gpt-4', 'gpt4', 'claude-3', 'claude 3', 'gemini pro', 'premium model'];
-
-  if (premiumKeywords.some((keyword) => normalizedPrompt.includes(keyword))) {
-    return 'Only free models are enabled on this platform. Please use your own API key for premium access.';
-  }
-
-  const apiKey = getOpenRouterApiKey();
-  if (!apiKey) {
-    if (getGeminiApiKey()) {
-      try {
-        const response = await callGeminiModel(systemInstruction, userPrompt, config);
-        if (response.trim()) {
-          return response;
-        }
-      } catch (error) {
-        console.error('[AI] Gemini fallback failed:', error);
-      }
-    }
-
-    const offlineProvider = new OfflineAiProvider();
-    return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
-  }
+): Promise<string | null> {
+  if (!getOpenRouterApiKey()) return null;
 
   const requestedModel = getOpenRouterModel();
   const orderedModels = [
@@ -208,16 +237,60 @@ export async function generateSafeContent(
     }
   }
 
-  if (getGeminiApiKey()) {
-    try {
-      const response = await callGeminiModel(systemInstruction, userPrompt, config);
-      if (response.trim()) {
-        return response;
-      }
-    } catch (error) {
-      console.error('[AI] Gemini fallback failed:', error);
-    }
+  return null;
+}
+
+/**
+ * Safe AI content generation.
+ * Startup mode is free-first:
+ * - AI_PROVIDER=auto or openrouter: try approved free OpenRouter models first, then Gemini fallback.
+ * - AI_PROVIDER=gemini: try Gemini first, then approved free OpenRouter fallback.
+ * - AI_PROVIDER=offline or no keys: use deterministic offline fallback.
+ */
+export async function generateSafeContent(
+  systemInstruction: string,
+  userPrompt: string,
+  config: AiGenerationConfig = {},
+  maxAttempts = FREE_MODEL_PRIORITY.length
+): Promise<string> {
+  const normalizedPrompt = userPrompt.toLowerCase();
+  const premiumKeywords = ['gpt-4', 'gpt4', 'claude-3', 'claude 3', 'gemini pro', 'premium model'];
+
+  if (premiumKeywords.some((keyword) => normalizedPrompt.includes(keyword))) {
+    return 'Only approved low-cost/free models are enabled on this platform.';
   }
 
-  return 'The AI service is temporarily overloaded. Please try again shortly.';
+  if (getProviderPreference() === 'offline') {
+    const offlineProvider = new OfflineAiProvider();
+    return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
+  }
+
+  if (shouldTryGeminiFirst()) {
+    const geminiResponse = await tryGeminiFallback(systemInstruction, userPrompt, config);
+    if (geminiResponse) return geminiResponse;
+
+    const openRouterResponse = await tryOpenRouterFreeModels(
+      systemInstruction,
+      userPrompt,
+      config,
+      maxAttempts
+    );
+    if (openRouterResponse) return openRouterResponse;
+  }
+
+  if (shouldTryOpenRouterFirst()) {
+    const openRouterResponse = await tryOpenRouterFreeModels(
+      systemInstruction,
+      userPrompt,
+      config,
+      maxAttempts
+    );
+    if (openRouterResponse) return openRouterResponse;
+
+    const geminiResponse = await tryGeminiFallback(systemInstruction, userPrompt, config);
+    if (geminiResponse) return geminiResponse;
+  }
+
+  const offlineProvider = new OfflineAiProvider();
+  return await offlineProvider.generateContent(systemInstruction, userPrompt, config);
 }
