@@ -94,6 +94,11 @@ interface AuthContextType {
 
 type UserProfileData = {
   status?: string;
+  displayName?: string | null;
+  display_name?: string | null;
+  full_name?: string | null;
+  photoURL?: string | null;
+  avatar_url?: string | null;
   role?: string;
   roles?: string[];
   permissions?: Record<string, boolean>;
@@ -253,6 +258,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       const appMetadata = session.user.app_metadata || {};
+      const profileDisplayName =
+        profile.displayName || profile.display_name || profile.full_name || authUser.displayName;
+      const profilePhotoURL = profile.photoURL || profile.avatar_url || authUser.photoURL;
+
+      setUser({
+        ...authUser,
+        displayName: profileDisplayName,
+        photoURL: profilePhotoURL,
+      });
+
       const nextIsSuperAdmin =
         !!profile.is_super_admin || !!profile.isSuperAdmin || !!appMetadata.isSuperAdmin;
       const nextManagedTenantIds =
