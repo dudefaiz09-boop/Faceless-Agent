@@ -15,9 +15,11 @@ router.put('/', async (req, res, next) => {
     if (displayName) authMetadata.display_name = displayName;
     if (photoURL) authMetadata.avatar_url = photoURL;
 
-    await supabaseAdmin.auth.admin.updateUserById(uid, {
-      user_metadata: authMetadata,
-    });
+    if (Object.keys(authMetadata).length > 0) {
+      await supabaseAdmin.auth.admin.updateUserById(uid, {
+        user_metadata: authMetadata,
+      });
+    }
 
     const profilePatch: Record<string, unknown> = {
       updatedAt: now,
@@ -49,12 +51,15 @@ router.put('/', async (req, res, next) => {
       });
     }
 
-    await supabaseAdmin.from('profiles').upsert({
-      id: uid,
-      display_name: displayName || undefined,
-      avatar_url: photoURL || undefined,
-      updated_at: now,
-    });
+    if (displayName) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          display_name: displayName,
+          updated_at: now,
+        })
+        .eq('id', uid);
+    }
 
     res.json({ success: true, profile: { uid, ...profilePatch } });
   } catch (error) {
