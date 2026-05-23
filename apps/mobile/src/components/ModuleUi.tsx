@@ -11,25 +11,62 @@ import {
 } from 'react-native';
 import { colors } from '../theme';
 
-export const EmptyState = ({ title, body }: { title: string; body: string }) => (
-  <View style={styles.emptyState}>
+type ModuleAction = {
+  label: string;
+  onPress: () => void;
+  accessibilityLabel?: string;
+};
+
+export const EmptyState = ({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: ModuleAction;
+}) => (
+  <View
+    accessibilityRole="summary"
+    accessibilityLabel={`${title}. ${body}`}
+    style={styles.emptyState}
+  >
     <Text style={styles.emptyTitle}>{title}</Text>
     <Text style={styles.emptyBody}>{body}</Text>
+    {action && (
+      <TouchableOpacity
+        accessibilityLabel={action.accessibilityLabel || action.label}
+        accessibilityRole="button"
+        onPress={action.onPress}
+        style={styles.primaryButton}
+      >
+        <Text style={styles.primaryButtonText}>{action.label}</Text>
+      </TouchableOpacity>
+    )}
   </View>
 );
 
 export const LoadingState = ({ title = 'Loading module' }: { title?: string }) => (
-  <View style={styles.emptyState}>
+  <View accessibilityRole="progressbar" accessibilityLabel={title} style={styles.emptyState}>
     <ActivityIndicator color={colors.ai} />
     <Text style={styles.emptyBody}>{title}</Text>
   </View>
 );
 
 export const ErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
-  <View style={styles.emptyState}>
+  <View
+    accessibilityRole="alert"
+    accessibilityLabel={`Could not load data. ${message}`}
+    style={styles.emptyState}
+  >
     <Text style={styles.errorTitle}>Could not load data</Text>
     <Text style={styles.emptyBody}>{message}</Text>
-    <TouchableOpacity style={styles.secondaryButton} onPress={onRetry}>
+    <TouchableOpacity
+      accessibilityLabel="Retry loading module data"
+      accessibilityRole="button"
+      style={styles.secondaryButton}
+      onPress={onRetry}
+    >
       <Text style={styles.secondaryButtonText}>Retry</Text>
     </TouchableOpacity>
   </View>
@@ -60,7 +97,11 @@ export const StatCard = ({
               : styles.statIconPrimary;
 
   return (
-    <View style={styles.statCard}>
+    <View
+      accessibilityLabel={`${title}: ${value}. ${detail}`}
+      accessibilityRole="summary"
+      style={styles.statCard}
+    >
       <View style={styles.statHeader}>
         <Text style={styles.statLabel}>{title}</Text>
         <View style={[styles.statIcon, toneStyle]} />
@@ -82,7 +123,9 @@ export const ModuleHeader = ({
 }) => (
   <View style={styles.moduleHeader}>
     <View style={styles.moduleHeaderText}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>
+        {title}
+      </Text>
       <Text style={styles.sectionSubtitle}>{subtitle}</Text>
     </View>
     {children}
@@ -107,6 +150,7 @@ export const SearchInput = ({
   placeholder: string;
 }) => (
   <TextInput
+    accessibilityLabel={placeholder}
     autoCapitalize="none"
     onChangeText={onChangeText}
     placeholder={placeholder}
@@ -134,7 +178,7 @@ export const Pill = ({
             ? styles.pillViolet
             : styles.pillBlue;
   return (
-    <View style={[styles.pill, style]}>
+    <View accessibilityLabel={label} style={[styles.pill, style]}>
       <Text style={styles.pillText}>{label}</Text>
     </View>
   );
@@ -169,11 +213,13 @@ export const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '900',
+    textAlign: 'center',
   },
   errorTitle: {
     color: colors.danger,
     fontSize: 16,
     fontWeight: '900',
+    textAlign: 'center',
   },
   moduleHeader: {
     alignItems: 'flex-start',
@@ -212,6 +258,18 @@ export const styles = StyleSheet.create({
   },
   pillViolet: {
     backgroundColor: '#25164d',
+  },
+  primaryButton: {
+    backgroundColor: colors.ai,
+    borderRadius: 12,
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 18,
+  },
+  primaryButtonText: {
+    color: '#07111f',
+    fontWeight: '900',
   },
   searchInput: {
     backgroundColor: colors.card,
