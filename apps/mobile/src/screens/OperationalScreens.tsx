@@ -231,6 +231,7 @@ export function AttendanceScreen() {
             <EmptyState
               title="No attendance records"
               body="Records will appear here after they are marked."
+              action={{ label: 'Refresh attendance', onPress: () => void query.refetch() }}
             />
           }
           refreshControl={
@@ -327,6 +328,7 @@ export function FeesScreen() {
             <EmptyState
               title="No fee records"
               body="Fee entries will appear after accounts publishes them."
+              action={{ label: 'Refresh fees', onPress: () => void query.refetch() }}
             />
           }
           refreshControl={
@@ -429,6 +431,11 @@ export function LibraryScreen() {
             <EmptyState
               title="No resources found"
               body="Try another search or refresh the catalog."
+              action={
+                queryText
+                  ? { label: 'Clear search', onPress: () => setQueryText('') }
+                  : { label: 'Refresh catalog', onPress: () => void resourcesQuery.refetch() }
+              }
             />
           }
           refreshControl={
@@ -530,6 +537,7 @@ export function PerformanceScreen() {
             <EmptyState
               title="No performance records"
               body="Scores will appear after they are uploaded."
+              action={{ label: 'Refresh scores', onPress: () => void query.refetch() }}
             />
           }
           refreshControl={
