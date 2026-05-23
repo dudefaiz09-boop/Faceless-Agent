@@ -76,24 +76,35 @@ export function getAiRuntimeStatus() {
   const openRouterModel = getOpenRouterModel();
   const geminiModel = getGeminiModel();
 
-  const activeProvider = configuredProvider === 'offline'
-    ? 'offline'
-    : configuredProvider === 'gemini' && hasGeminiKey
-      ? 'gemini'
-      : configuredProvider === 'openrouter' && hasOpenRouterKey
-        ? 'openrouter'
-        : hasOpenRouterKey
+  const activeProvider =
+    configuredProvider === 'offline'
+      ? 'offline'
+      : configuredProvider === 'gemini' && hasGeminiKey
+        ? 'gemini'
+        : configuredProvider === 'openrouter' && hasOpenRouterKey
           ? 'openrouter'
-          : hasGeminiKey
-            ? 'gemini'
-            : 'offline';
+          : hasOpenRouterKey
+            ? 'openrouter'
+            : hasGeminiKey
+              ? 'gemini'
+              : 'offline';
 
   return {
     enabled: activeProvider !== 'offline',
     configuredProvider,
     provider: activeProvider,
-    model: activeProvider === 'openrouter' ? openRouterModel : activeProvider === 'gemini' ? geminiModel : 'offline',
-    fallbackProvider: activeProvider === 'openrouter' && hasGeminiKey ? 'gemini' : activeProvider === 'gemini' && hasOpenRouterKey ? 'openrouter' : 'offline',
+    model:
+      activeProvider === 'openrouter'
+        ? openRouterModel
+        : activeProvider === 'gemini'
+          ? geminiModel
+          : 'offline',
+    fallbackProvider:
+      activeProvider === 'openrouter' && hasGeminiKey
+        ? 'gemini'
+        : activeProvider === 'gemini' && hasOpenRouterKey
+          ? 'openrouter'
+          : 'offline',
     mode: activeProvider !== 'offline' ? 'live' : 'offline-fallback',
     hasOpenRouterKey,
     hasGeminiKey,
