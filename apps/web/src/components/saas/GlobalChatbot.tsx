@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../lib/api-client';
+import { getActiveTenantId, setStoredTenantId } from '../../lib/tenant';
 import { cn } from '../../lib/utils';
 
 interface ChatLog {
@@ -55,11 +56,15 @@ function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
   const message = error?.message || String(err || '');
   const errorData = error?.data || {};
 
+  if (message === 'AI_TENANT_CONTEXT_MISSING') {
+    return 'AI request failed: no active school is selected. Switch/select a tenant, then retry.';
+  }
+
   if (
     status === 400 &&
     (message.toLowerCase().includes('tenant') || message.toLowerCase().includes('school'))
   ) {
-    return 'AI request failed: school context was not sent. Sign out and sign back in, then retry.';
+    return 'AI request failed: school context was not sent. Select a school or refresh the page, then retry.';
   }
 
   if (status === 401 || message.toLowerCase().includes('unauthorized')) {
@@ -101,7 +106,14 @@ const contextModules = [
 ] as const;
 
 export const GlobalChatbot = () => {
-  const { role, isAdmin, isTeacher, canManageAssignments } = useAuth();
+  const {
+    role,
+    schoolId,
+    managedTenantIds,
+    isAdmin,
+    isTeacher,
+    canManageAssignments,
+  } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<(typeof modes)[number]['key']>('chat');
@@ -117,6 +129,31 @@ export const GlobalChatbot = () => {
   const [error, setError] = useState<string | null>(null);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const resolveAiTenantId = useCallback(() => {
+    const activeTenantId = getActiveTenantId(schoolId);
+    if (activeTenantId) return activeTenantId;
+
+    const firstManagedTenantId = managedTenantIds[0];
+    if (firstManagedTenantId) {
+      setStoredTenantId(firstManagedTenantId);
+      return firstManagedTenantId;
+    }
+
+    return null;
+  }, [managedTenantIds, schoolId]);
+
+  const getAiHeaders = useCallback(() => {
+    const tenantId = resolveAiTenantId();
+    if (!tenantId) {
+      throw new Error('AI_TENANT_CONTEXT_MISSING');
+    }
+
+    return {
+      'x-school-id': tenantId,
+      'x-user-role': role || 'student',
+    };
+  }, [resolveAiTenantId, role]);
 
   const rolePrompts = useMemo(
     () => ({
@@ -134,12 +171,20 @@ export const GlobalChatbot = () => {
 
   const loadAiStatus = useCallback(async () => {
     try {
-      const status = await apiClient.request<AiStatus>('/api/ai/status');
+      const tenantId = resolveAiTenantId();
+      const status = await apiClient.request<AiStatus>('/api/ai/status', {
+        headers: tenantId
+          ? {
+              'x-school-id': tenantId,
+              'x-user-role': role || 'student',
+            }
+          : undefined,
+      });
       setAiStatus(status);
     } catch (err) {
       console.error('Error loading AI status:', err);
     }
-  }, []);
+  }, [resolveAiTenantId, role]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -183,10 +228,12 @@ export const GlobalChatbot = () => {
     setLogs(tempLogs);
 
     try {
+      const aiHeaders = getAiHeaders();
       let data: AiQueryResponse;
       try {
         data = await apiClient.request<AiQueryResponse>('/api/ai/context-query', {
           method: 'POST',
+          headers: aiHeaders,
           body: JSON.stringify({
             query: currentQuery,
             mode,
@@ -197,6 +244,7 @@ export const GlobalChatbot = () => {
         console.warn('Contextual AI failed, falling back to basic query:', contextErr);
         data = await apiClient.request<AiQueryResponse>('/api/ai/query', {
           method: 'POST',
+          headers: aiHeaders,
           body: JSON.stringify({ query: currentQuery, mode }),
         });
       }
