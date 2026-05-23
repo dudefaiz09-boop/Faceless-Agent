@@ -16,6 +16,7 @@
     "smoke:web-api": "tsx scripts/smoke-web-api.ts",
     "qa:web-matrix": "tsx scripts/export-web-qa-matrix.ts",
     "release:checklist": "tsx scripts/export-release-checklist.ts",
+    "audit:web-shared-api": "tsx scripts/audit-web-shared-api-boundaries.ts",
     "build:web": "corepack pnpm --filter @educonnect/web build",
     "build:api": "corepack pnpm --filter @educonnect/functions build",
     "test:mobile": "corepack pnpm --filter mobile test",
