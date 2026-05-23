@@ -1,9 +1,18 @@
+const webEnv = [
+  'VITE_ENVIRONMENT=${VITE_ENVIRONMENT:-preview}',
+  'VITE_DEMO_MODE=${VITE_DEMO_MODE:-true}',
+  'VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-https://example.supabase.co}',
+  'VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-qa-placeholder-anon-key}',
+  'VITE_SUPABASE_UPLOADS_BUCKET=${VITE_SUPABASE_UPLOADS_BUCKET:-educonnect-uploads}',
+  'VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api}',
+].join(' ');
+
 module.exports = {
   ci: {
     collect: {
       startServerCommand:
         process.env.LHCI_START_SERVER_COMMAND ||
-        'pnpm --filter @educonnect/web build && pnpm --filter @educonnect/web preview --host 127.0.0.1 --port 4173',
+        `${webEnv} pnpm --filter @educonnect/web build && ${webEnv} pnpm --filter @educonnect/web preview --host 127.0.0.1 --port 4173`,
       startServerReadyPattern: 'Local:',
       startServerReadyTimeout: 120000,
       url: [
