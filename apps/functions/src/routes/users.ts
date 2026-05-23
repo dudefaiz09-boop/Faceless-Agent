@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { createManagedUser, updateManagedUser, writeAuditLog } from '../lib/user-management.js';
 import { auth, db } from '../lib/documents.js';
-import { requireAnyRole, requirePermission } from '../middleware/permissions.js';
+import { requirePermission } from '../middleware/permissions.js';
 import {
   auditLogsQuerySchema,
   bulkManagedUsersSchema,
@@ -46,19 +46,42 @@ type AuditLogRecord = {
   [key: string]: unknown;
 };
 
+function canManageTenant(req: Request, tenantId?: string | null) {
+  if (!tenantId) return false;
+  if (tenantId === req.tenantId) return true;
+  return Boolean(req.user!.isSuperAdmin && req.user!.managedTenantIds?.includes(tenantId));
+}
+
+function assertCanManageTenant(req: Request, tenantId?: string | null) {
+  if (!canManageTenant(req, tenantId)) {
+    throw Object.assign(new Error('Tenant access denied'), { statusCode: 403 });
+  }
+}
+
+function getProfileTenantId(profile: Record<string, unknown>) {
+  return String(profile.tenantId || profile.schoolId || '');
+}
+
+async function loadManagedProfile(req: Request, uid: string) {
+  const userRef = db.collection('users').doc(uid);
+  const snapshot = await userRef.get();
+
+  if (!snapshot.exists) {
+    throw Object.assign(new Error('User profile not found'), { statusCode: 404 });
+  }
+
+  const profile = snapshot.data() || {};
+  assertCanManageTenant(req, getProfileTenantId(profile));
+
+  return profile;
+}
+
 router.get('/', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const { tenantId, role, status, search, limit } = listUsersQuerySchema.parse(req.query);
 
     const requestedTenantId = tenantId || req.tenantId;
-    const canSwitchTenant =
-      Boolean(req.user!.isSuperAdmin) &&
-      Boolean(requestedTenantId) &&
-      Boolean(req.user!.managedTenantIds?.includes(requestedTenantId));
-
-    if (requestedTenantId !== req.tenantId && !canSwitchTenant) {
-      return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
-    }
+    assertCanManageTenant(req, requestedTenantId);
 
     const snapshot = await db.collection('users').where('tenantId', '==', requestedTenantId).get();
 
@@ -94,7 +117,7 @@ router.get('/', requirePermission('manageUsers'), async (req, res, next) => {
   }
 });
 
-router.get('/tenants', requireAnyRole(['admin', 'super_admin']), async (req, res, next) => {
+router.get('/tenants', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const allowedTenantIds = req.user!.isSuperAdmin
       ? req.user!.managedTenantIds || []
@@ -192,9 +215,11 @@ router.put('/profile', async (req, res, next) => {
 router.post('/create', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const parsedBody = createManagedUserSchema.parse(req.body);
+    const targetTenantId = parsedBody.tenantId || req.tenantId;
+    assertCanManageTenant(req, targetTenantId);
 
     const profile = await createManagedUser(
-      { ...parsedBody, tenantId: parsedBody.tenantId || req.tenantId },
+      { ...parsedBody, tenantId: targetTenantId },
       actorFromRequest(req)
     );
 
@@ -211,12 +236,13 @@ router.post('/bulk-import', requirePermission('manageUsers'), async (req, res, n
     const results = [];
     for (const user of users) {
       try {
-        const payload = {
-          ...user,
-          tenantId: user.tenantId || req.tenantId,
-        };
+        const targetTenantId = user.tenantId || req.tenantId;
+        assertCanManageTenant(req, targetTenantId);
 
-        const profile = await createManagedUser(payload, actorFromRequest(req));
+        const profile = await createManagedUser(
+          { ...user, tenantId: targetTenantId },
+          actorFromRequest(req)
+        );
         results.push({ success: true, uid: profile.uid, email: profile.email });
       } catch (error) {
         results.push({
@@ -240,12 +266,13 @@ router.post('/import-csv', requirePermission('manageUsers'), async (req, res, ne
     const results = [];
     for (const user of users) {
       try {
-        const payload = {
-          ...user,
-          tenantId: user.tenantId || req.tenantId,
-        };
+        const targetTenantId = user.tenantId || req.tenantId;
+        assertCanManageTenant(req, targetTenantId);
 
-        const profile = await createManagedUser(payload, actorFromRequest(req));
+        const profile = await createManagedUser(
+          { ...user, tenantId: targetTenantId },
+          actorFromRequest(req)
+        );
         results.push({ success: true, uid: profile.uid, email: profile.email });
       } catch (error) {
         results.push({
@@ -266,6 +293,11 @@ router.put('/:uid', requirePermission('manageUsers'), async (req, res, next) => 
   try {
     const { uid } = userParamsSchema.parse(req.params);
     const parsedBody = updateManagedUserSchema.parse(req.body);
+    await loadManagedProfile(req, uid);
+
+    if (parsedBody.tenantId) {
+      assertCanManageTenant(req, parsedBody.tenantId);
+    }
 
     const profile = await updateManagedUser(uid, parsedBody, actorFromRequest(req));
 
@@ -278,6 +310,7 @@ router.put('/:uid', requirePermission('manageUsers'), async (req, res, next) => 
 router.patch('/:uid/deactivate', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const { uid } = userParamsSchema.parse(req.params);
+    await loadManagedProfile(req, uid);
 
     const profile = await updateManagedUser(
       uid,
@@ -292,9 +325,10 @@ router.patch('/:uid/deactivate', requirePermission('manageUsers'), async (req, r
   }
 });
 
-router.delete('/:uid', requireAnyRole(['admin', 'super_admin']), async (req, res, next) => {
+router.delete('/:uid', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const { uid } = userParamsSchema.parse(req.params);
+    await loadManagedProfile(req, uid);
 
     const profile = await updateManagedUser(
       uid,
