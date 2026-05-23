@@ -7,7 +7,7 @@ A comprehensive education management system connecting students, parents, and te
 - **Frontend:** React 19, Vite, Tailwind CSS, Lucide React, Framer Motion
 - **Backend:** Node.js, Express, Supabase Admin, Google Generative AI
 - **Mobile:** React Native, Supabase
-- **Testing:** Jest, Supertest, Playwright, Artillery
+- **Testing:** Jest, Supertest, Playwright, axe, Lighthouse CI, Percy
 - **CI/CD:** GitHub Actions, Vercel, Supabase migrations
 
 ## Architecture
@@ -113,11 +113,25 @@ Run the monorepo test pipeline:
 pnpm test
 ```
 
-Run UI tests:
+Run fast PR UI/UX QA:
 
 ```bash
-pnpm exec playwright test
+pnpm qa:pr
 ```
+
+Run the full UI/UX audit:
+
+```bash
+pnpm qa:full
+```
+
+Run role-based access checks:
+
+```bash
+pnpm qa:roles
+```
+
+See [docs/UI_UX_QA.md](./docs/UI_UX_QA.md) for Playwright, axe, Lighthouse, Percy, role test user, environment, and GitHub secret setup.
 
 ## Security
 
