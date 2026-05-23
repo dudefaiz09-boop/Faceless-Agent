@@ -77,7 +77,9 @@ describe('backend tenant isolation policies', () => {
 
     it('allows fee management for admin, accountant, or explicit manageFees permission only', () => {
       expect(canManageFees({ ...baseUser, isAdmin: true })).toBe(true);
-      expect(canManageFees({ ...baseUser, role: 'accountant', roles: ['accountant'] })).toBe(true);
+      expect(canManageFees({ ...baseUser, role: 'accountant', roles: ['accountant'] })).toBe(
+        true
+      );
       expect(canManageFees({ ...baseUser, permissions: { manageFees: true } })).toBe(true);
       expect(canManageFees(baseUser)).toBe(false);
     });
@@ -100,7 +102,9 @@ describe('backend tenant isolation policies', () => {
 
   describe('assignments', () => {
     it('allows teachers and admins to manage tenant assignments', () => {
-      expect(canManageAssignments({ ...baseUser, role: 'teacher', roles: ['teacher'] })).toBe(true);
+      expect(canManageAssignments({ ...baseUser, role: 'teacher', roles: ['teacher'] })).toBe(
+        true
+      );
       expect(canManageAssignments({ ...baseUser, isAdmin: true })).toBe(true);
       expect(canManageAssignments(baseUser)).toBe(false);
     });
@@ -123,18 +127,22 @@ describe('backend tenant isolation policies', () => {
         linkedStudentIds: ['student-1'],
       };
 
-      expect(canViewStudentAssignments({ ...baseUser, uid: 'student-1' }, 'student-1')).toBe(true);
-      expect(canViewStudentAssignments(parent, 'student-1')).toBe(true);
-      expect(canViewStudentAssignments(parent, 'student-2')).toBe(false);
-      expect(canViewStudentAssignments({ ...baseUser, permissions: { viewReports: true } }, 'student-2')).toBe(
+      expect(canViewStudentAssignments({ ...baseUser, uid: 'student-1' }, 'student-1')).toBe(
         true
       );
+      expect(canViewStudentAssignments(parent, 'student-1')).toBe(true);
+      expect(canViewStudentAssignments(parent, 'student-2')).toBe(false);
+      expect(
+        canViewStudentAssignments({ ...baseUser, permissions: { viewReports: true } }, 'student-2')
+      ).toBe(true);
     });
   });
 
   describe('attendance', () => {
     it('requires attendance permission to mark attendance', () => {
-      expect(canMarkAttendance({ ...baseUser, permissions: { markAttendance: true } })).toBe(true);
+      expect(canMarkAttendance({ ...baseUser, permissions: { markAttendance: true } })).toBe(
+        true
+      );
       expect(canMarkAttendance({ ...baseUser, role: 'admin', roles: ['admin'] })).toBe(true);
       expect(canMarkAttendance(baseUser)).toBe(false);
     });
@@ -160,7 +168,9 @@ describe('backend tenant isolation policies', () => {
 
   describe('library', () => {
     it('allows library writes for librarian, admin, or manageLibrary permission only', () => {
-      expect(canManageLibrary({ ...baseUser, role: 'librarian', roles: ['librarian'] })).toBe(true);
+      expect(canManageLibrary({ ...baseUser, role: 'librarian', roles: ['librarian'] })).toBe(
+        true
+      );
       expect(canManageLibrary({ ...baseUser, isAdmin: true })).toBe(true);
       expect(canManageLibrary({ ...baseUser, permissions: { manageLibrary: true } })).toBe(true);
       expect(canManageLibrary(baseUser)).toBe(false);
