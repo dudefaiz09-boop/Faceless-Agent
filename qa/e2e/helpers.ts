@@ -1,12 +1,28 @@
 import { expect, type Page, type TestInfo } from '@playwright/test';
-import type { QaRoute } from './routes';
+import type { QaRole, QaRoute } from './routes';
 
 const ignoredConsoleFragments = [
   'Failed to load resource: the server responded with a status of 404',
   'favicon',
   'Supabase',
-  'Invalid web environment configuration',
+  'Auth session missing',
 ];
+
+export function storageStatePath(role: QaRole) {
+  return `qa/.auth/${role}.json`;
+}
+
+export function getRoleCredentials(role: QaRole) {
+  const prefix = `WEB_QA_${role.toUpperCase().replace(/-/g, '_')}`;
+  const email = process.env[`${prefix}_EMAIL`];
+  const password = process.env[`${prefix}_PASSWORD`];
+  return { email, password };
+}
+
+export function hasRoleCredentials(role: QaRole) {
+  const { email, password } = getRoleCredentials(role);
+  return Boolean(email && password);
+}
 
 export function attachConsoleErrorGuard(page: Page) {
   const errors: string[] = [];
@@ -25,7 +41,28 @@ export function attachConsoleErrorGuard(page: Page) {
   return () => errors;
 }
 
-export async function loginIfConfigured(page: Page) {
+export async function loginAsRole(page: Page, role: QaRole) {
+  const { email, password } = getRoleCredentials(role);
+
+  if (!email || !password) {
+    throw new Error(`Missing test credentials for ${role}. Set WEB_QA_${role.toUpperCase()}_EMAIL and WEB_QA_${role.toUpperCase()}_PASSWORD.`);
+  }
+
+  await page.goto('/auth/login');
+  await page.getByLabel(/email/i).fill(email);
+  await page.getByLabel(/password/i).fill(password);
+  await page.getByRole('button', { name: /sign in/i }).click();
+  await page.waitForLoadState('networkidle');
+  await expect(page).not.toHaveURL(/\/auth\/login/);
+}
+
+export async function loginFirstConfiguredRole(page: Page) {
+  const role = process.env.WEB_QA_DEFAULT_ROLE as QaRole | undefined;
+  if (role && hasRoleCredentials(role)) {
+    await loginAsRole(page, role);
+    return true;
+  }
+
   const email = process.env.WEB_QA_EMAIL;
   const password = process.env.WEB_QA_PASSWORD;
 
@@ -59,6 +96,18 @@ export async function assertRouteLoaded(page: Page, route: QaRoute, authenticate
 
   if (route.name === 'login') {
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
+  }
+}
+
+export async function assertAccessState(page: Page, shouldHaveAccess: boolean) {
+  const body = page.locator('body');
+  await expect(body).toBeVisible();
+  await expect(body).not.toContainText(/Something went wrong|Application error|Invalid web environment/i);
+
+  if (shouldHaveAccess) {
+    await expect(body).not.toContainText(/Access denied/i);
+  } else {
+    await expect(body).toContainText(/Access denied/i);
   }
 }
 
