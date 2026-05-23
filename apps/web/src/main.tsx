@@ -9,6 +9,7 @@ import './dark-compat.css';
 import './web-ux-hardening.css';
 import './assignment-workflow-hardening.css';
 import './fees-workflow-hardening.css';
+import './library-parent-hardening.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
