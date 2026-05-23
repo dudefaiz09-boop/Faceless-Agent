@@ -59,6 +59,14 @@ jobs:
         run: pnpm turbo build --filter @educonnect/functions
       - name: Build Web
         run: pnpm turbo build --filter @educonnect/web
+      - name: Generate release checklist
+        run: pnpm release:checklist
+      - name: Upload release checklist
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-checklist
+          path: audit/generated/release-readiness-checklist.csv
+          if-no-files-found: error
 
   android-build:
     runs-on: ubuntu-latest
