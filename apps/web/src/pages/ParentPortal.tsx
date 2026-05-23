@@ -84,22 +84,15 @@ export const ParentPortal = () => {
       setLoading(true);
       try {
         const profileResponse = (await parentPortalService.studentProfile(
-          selectedStudentId,
+          selectedStudentId
         )) as StudentProfileResponse;
         const profile = unwrapStudentProfile(profileResponse);
         setStudentData(profile);
 
-        const [att, feeData, performanceData, ass, subs] =
-          (await parentPortalService.studentBundle(
-            selectedStudentId,
-            profile.classId,
-          )) as [
-            AttendanceRecord[],
-            FeeResponse,
-            PerformanceRecord[],
-            Assignment[],
-            Submission[],
-          ];
+        const [att, feeData, performanceData, ass, subs] = (await parentPortalService.studentBundle(
+          selectedStudentId,
+          profile.classId
+        )) as [AttendanceRecord[], FeeResponse, PerformanceRecord[], Assignment[], Submission[]];
 
         setAttendance(att);
         setFees(feeData.fees || []);
