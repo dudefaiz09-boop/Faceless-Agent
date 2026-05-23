@@ -5,6 +5,7 @@ import { queryClient } from './lib/query-client';
 import App from './App.tsx';
 import { ToastProvider } from './components/saas/ToastProvider.tsx';
 import './index.css';
+import './dark-compat.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
