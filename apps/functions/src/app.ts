@@ -24,6 +24,7 @@ import { AiController } from './features/ai/ai.controller.js';
 
 // Legacy Routes (Pending Refactor)
 import authProfileRouter from './routes/auth-profile.js';
+import ownProfileRouter from './routes/own-profile.js';
 import announcementsRouter from './routes/announcements.js';
 import attendanceRouter from './routes/attendance.js';
 import assignmentsRouter from './routes/assignments.js';
@@ -192,10 +193,11 @@ app.use('/api', publicRouter);
 // 4. Protected Router
 const protectedRouter = express.Router();
 
-// Apply authentication first so bootstrap routes can resolve the user's tenant seed.
+// Apply authentication first so bootstrap/profile routes can resolve the user before tenant scoping.
 protectedRouter.use(authMiddleware);
 protectedRouter.use(requireAuth);
 protectedRouter.use('/auth', authProfileRouter);
+protectedRouter.use('/users/profile', ownProfileRouter);
 protectedRouter.use(tenantMiddleware);
 protectedRouter.use(idempotencyMiddleware);
 
