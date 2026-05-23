@@ -26,6 +26,8 @@ type AttendanceDayRecord = {
   date?: string;
   classId?: string;
   records?: AttendanceEntry[];
+  tenantId?: string;
+  schoolId?: string | null;
 };
 
 function canViewAttendance(user: NonNullable<Express.Request['user']>) {
@@ -45,6 +47,13 @@ function canViewStudentAttendance(user: NonNullable<Express.Request['user']>, st
     canViewAttendance(user) ||
     (user.permissions?.viewOwnRecords && user.linkedStudentIds?.includes(studentId))
   );
+}
+
+function isTenantAttendance(
+  record: Pick<AttendanceDayRecord, 'tenantId' | 'schoolId'>,
+  tenantId?: string
+) {
+  return record.tenantId === tenantId || record.schoolId === tenantId;
 }
 
 const requireAttendanceViewer = requireAnyPermission([
@@ -90,7 +99,13 @@ router.get('/history/:uid', async (req, res, next) => {
     }
 
     const userDoc = await db.collection('users').doc(uid).get();
-    const classId = userDoc.exists ? userDoc.data()?.classId : null;
+    const userData = userDoc.exists ? userDoc.data() || {} : {};
+
+    if (userDoc.exists && userData.tenantId !== req.tenantId && userData.schoolId !== req.tenantId) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
+    }
+
+    const classId = userData.classId;
 
     if (!classId) return res.json([]);
 
@@ -171,13 +186,20 @@ router.post('/mark', requirePermission('markAttendance'), async (req, res, next)
     const { classId, date, records } = markAttendanceSchema.parse(req.body);
 
     const docId = `${classId}_${date}`;
+    const attendanceRef = db.collection('attendance').doc(docId);
+    const existing = await attendanceRef.get();
+
+    if (existing.exists && !isTenantAttendance(existing.data() as AttendanceDayRecord, req.tenantId)) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
+    }
+
     const normalizedRecords = records.map((record) => ({
       studentId: record.studentId,
       studentName: record.studentName || '',
       status: record.status,
     }));
 
-    await db.collection('attendance').doc(docId).set({
+    await attendanceRef.set({
       tenantId: req.tenantId,
       schoolId: req.tenantId,
       classId,

@@ -43,6 +43,8 @@ type SubmissionRecord = {
   status?: string;
   grade?: string | number | null;
   feedback?: string | null;
+  tenantId?: string;
+  schoolId?: string | null;
   [key: string]: unknown;
 };
 
@@ -69,6 +71,13 @@ function isTenantAssignment(
   tenantId?: string
 ) {
   return assignment.tenantId === tenantId || assignment.schoolId === tenantId;
+}
+
+function isTenantSubmission(
+  submission: Pick<SubmissionRecord, 'tenantId' | 'schoolId'>,
+  tenantId?: string
+) {
+  return submission.tenantId === tenantId || submission.schoolId === tenantId;
 }
 
 // Get assignment analytics for a class
@@ -138,6 +147,17 @@ router.get(
   async (req, res, next) => {
     try {
       const { assignmentId } = assignmentSubmissionsParamsSchema.parse(req.params);
+
+      const assignmentDoc = await db.collection('assignments').doc(assignmentId).get();
+      const assignment = assignmentDoc.exists ? (assignmentDoc.data() as AssignmentRecord) : null;
+
+      if (!assignment) {
+        return res.status(404).json({ error: 'Assignment not found' });
+      }
+
+      if (!isTenantAssignment(assignment, req.tenantId)) {
+        return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
+      }
 
       const snapshot = await db
         .collection('submissions')
@@ -412,13 +432,29 @@ router.post('/recheck', requirePermission('manageAssignments'), async (req, res,
     const assignmentDoc = await db.collection('assignments').doc(assignmentId).get();
     const assignment = assignmentDoc.exists ? (assignmentDoc.data() as AssignmentRecord) : null;
 
-    if (assignment && !isTenantAssignment(assignment, req.tenantId)) {
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    if (!isTenantAssignment(assignment, req.tenantId)) {
       return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
     }
 
     const docId = `${assignmentId}_${studentId}`;
+    const submissionRef = db.collection('submissions').doc(docId);
+    const submissionDoc = await submissionRef.get();
 
-    await db.collection('submissions').doc(docId).update({
+    if (!submissionDoc.exists) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const submission = submissionDoc.data() as SubmissionRecord;
+
+    if (!isTenantSubmission(submission, req.tenantId)) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Tenant access denied' });
+    }
+
+    await submissionRef.update({
       teacherScore,
       teacherFeedback,
       grade: teacherScore,
@@ -430,7 +466,7 @@ router.post('/recheck', requirePermission('manageAssignments'), async (req, res,
     });
 
     await emitAssignmentNotification({
-      title: `Grade returned: ${assignment?.title || 'Assignment'}`,
+      title: `Grade returned: ${assignment.title || 'Assignment'}`,
       message: teacherFeedback || `Your teacher published a final score of ${teacherScore}.`,
       type: 'assignment',
       href: '/assignments',
