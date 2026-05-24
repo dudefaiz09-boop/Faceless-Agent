@@ -1,53 +1,92 @@
-import { lazy, Suspense, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useState, Suspense, lazy } from 'react';
 import {
-  Baby,
-  BarChart3,
-  Bell,
-  BookOpen,
-  Calendar,
-  CreditCard,
-  GraduationCap,
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  useLocation,
+  Navigate,
+} from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import {
   LayoutDashboard,
+  Users,
+  Calendar,
+  MessageSquare,
+  Bell,
   Library,
+  BookOpen,
+  CreditCard,
+  BarChart3,
   LogOut,
   Menu,
-  MessageSquare,
+  GraduationCap,
+  Baby,
   Shield,
-  Users,
 } from 'lucide-react';
-import type React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from './lib/utils';
+import { ModuleGuard } from './components/ModuleGuard';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
 import { canAccessModule, type ModuleKey } from '@educonnect/shared';
+import { CommandPalette } from './components/saas/CommandPalette';
+import { NotificationDropdown } from './components/saas/NotificationDropdown';
+import { ThemeToggle } from './components/saas/ThemeToggle';
 import { GlobalChatbot } from './components/saas/GlobalChatbot';
 import { ProfileModal } from './components/saas/ProfileModal';
-import { CommandPalette } from './components/ui/CommandPalette';
+import { DashboardPage } from './pages/Dashboard';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
-import { ModuleErrorBoundary } from './components/ui/ModuleErrorBoundary';
-import { ModuleGuard } from './components/ui/ModuleGuard';
-import { NotificationDropdown } from './components/ui/NotificationDropdown';
-import { ThemeToggle } from './components/ui/ThemeToggle';
-import { useAuth } from './hooks/useAuth';
-import { cn } from './lib/utils';
-import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 
-const DashboardPage = lazy(() => import('./pages/Dashboard'));
-const AnnouncementsPage = lazy(() => import('./pages/Announcements'));
-const AttendancePage = lazy(() => import('./pages/Attendance'));
-const AssignmentsPage = lazy(() => import('./pages/Assignments'));
-const ChatPage = lazy(() => import('./pages/Chat'));
-const LibraryPage = lazy(() => import('./pages/Library'));
-const FeesPage = lazy(() => import('./pages/Fees'));
-const PerformancePage = lazy(() => import('./pages/Performance'));
-const ParentPortal = lazy(() => import('./pages/ParentPortal'));
-const StudentsPage = lazy(() => import('./pages/Students'));
-const TeachersPage = lazy(() => import('./pages/Teachers'));
-const AllUsersPage = lazy(() => import('./pages/AllUsers'));
+// --- Lazy loaded pages ---
+const AnnouncementsPage = lazy(() =>
+  import('./pages/Announcements').then((m) => ({ default: m.AnnouncementsPage }))
+);
+const AttendancePage = lazy(() =>
+  import('./pages/Attendance').then((m) => ({ default: m.AttendancePage }))
+);
+const UsersPage = lazy(() => import('./pages/Users').then((m) => ({ default: m.UsersPage })));
+const StudentsPage = lazy(() =>
+  import('./pages/Students').then((m) => ({ default: m.StudentsPage }))
+);
+const TeachersPage = lazy(() =>
+  import('./pages/Teachers').then((m) => ({ default: m.TeachersPage }))
+);
+const AssignmentsPage = lazy(() =>
+  import('./pages/Assignments').then((m) => ({ default: m.AssignmentsPage }))
+);
+const ChatPage = lazy(() => import('./pages/Chat').then((m) => ({ default: m.ChatPage })));
+const LibraryPage = lazy(() => import('./pages/Library').then((m) => ({ default: m.LibraryPage })));
+const FeesPage = lazy(() => import('./pages/Fees').then((m) => ({ default: m.FeesPage })));
+const PerformancePage = lazy(() =>
+  import('./pages/Performance').then((m) => ({ default: m.PerformancePage }))
+);
+const ParentPortal = lazy(() =>
+  import('./pages/ParentPortal').then((m) => ({ default: m.ParentPortal }))
+);
 
-// --- Navigation Item ---
+const NotFoundPage = () => (
+  <div className="flex min-h-[60vh] items-center justify-center p-6">
+    <div className="max-w-md text-center">
+      <h1 className="text-4xl font-black text-slate-950 dark:text-white">404</h1>
+      <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        This EduConnect module or page does not exist.
+      </p>
+      <Link
+        to="/"
+        className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
+      >
+        Go to dashboard
+      </Link>
+    </div>
+  </div>
+);
+
+// --- Components ---
 
 const SidebarLink = ({
   to,
@@ -61,25 +100,21 @@ const SidebarLink = ({
   label: string;
   active: boolean;
   onNavigate?: () => void;
-}) => {
-  return (
-    <a
-      href={to}
-      onClick={onNavigate}
-      className={cn(
-        'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group',
-        active
-          ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-200/50 dark:shadow-none'
-          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-white'
-      )}
-    >
-      <Icon size={20} className={cn(active ? 'text-white' : 'group-hover:scale-110 transition-transform')} />
-      <span className="font-semibold text-sm">{label}</span>
-    </a>
-  );
-};
-
-// --- Layout ---
+}) => (
+  <Link
+    to={to}
+    onClick={onNavigate}
+    className={cn(
+      'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
+      active
+        ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+    )}
+  >
+    <Icon size={20} className="shrink-0" />
+    <span className="font-medium truncate">{label}</span>
+  </Link>
+);
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, role, assignedModules, signOut } = useAuth();
@@ -412,10 +447,11 @@ const AppContent = () => {
               path="/all-users"
               element={
                 <ModuleGuard module="allUsers">
-                  <AllUsersPage />
+                  <UsersPage type="all" />
                 </ModuleGuard>
               }
             />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
       </ModuleErrorBoundary>
@@ -423,4 +459,14 @@ const AppContent = () => {
   );
 };
 
-export default AppContent;
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
+  );
+}
