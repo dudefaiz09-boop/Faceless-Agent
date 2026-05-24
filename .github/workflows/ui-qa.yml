@@ -126,6 +126,7 @@ jobs:
         run: pnpm test:visual
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          QA_FULL_VISUAL: true
           VITE_ENVIRONMENT: preview
           VITE_DEMO_MODE: true
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
