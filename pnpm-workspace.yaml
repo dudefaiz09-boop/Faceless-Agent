@@ -1,6 +1,8 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+onlyBuiltDependencies:
+  - '@percy/core'
 allowBuilds:
   '@google/genai': false
   esbuild: false
