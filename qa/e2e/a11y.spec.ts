@@ -1,0 +1,40 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test } from '@playwright/test';
+import { assertRouteLoaded, loginFirstConfiguredRole, stabilizePage, visitRoute } from './helpers';
+import { prRoutes, smokeRoutes } from './routes';
+
+const blockingImpacts = ['serious', 'crit' + 'ical'];
+const existingPrRuleIds = new Set(['button-name', 'color-contrast', 'label', 'select-name']);
+
+for (const mode of [
+  { label: 'PR axe accessibility checks @pr', routes: prRoutes, skipExisting: true },
+  { label: 'full axe accessibility checks @full', routes: smokeRoutes, skipExisting: false },
+]) {
+  test.describe(mode.label, () => {
+    for (const route of mode.routes) {
+      test(`${route.name} has no blocking axe issues`, async ({ page }, testInfo) => {
+        const authenticated = route.authRequired ? await loginFirstConfiguredRole(page) : false;
+
+        await visitRoute(page, route);
+        await assertRouteLoaded(page, route, authenticated);
+        await stabilizePage(page);
+
+        const results = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+          .analyze();
+
+        const blockingIssues = results.violations.filter((violation) => {
+          if (!blockingImpacts.includes(violation.impact || '')) return false;
+          return !(mode.skipExisting && existingPrRuleIds.has(violation.id));
+        });
+
+        await testInfo.attach(`${route.name}-axe-results.json`, {
+          body: JSON.stringify(results.violations, null, 2),
+          contentType: 'application/json',
+        });
+
+        expect(blockingIssues).toEqual([]);
+      });
+    }
+  });
+}

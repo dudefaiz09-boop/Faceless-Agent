@@ -27,6 +27,14 @@ const PROVIDERS: Record<AiModule, AiModuleProvider> = {
   library: new LibraryProvider(),
 };
 
+function resolveHeaderValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function resolveFallbackRole(req?: Request) {
+  return resolveHeaderValue(req?.headers['x-user-role']) || 'student';
+}
+
 export class AiContextService {
   /**
    * Resolve user context using AsyncLocalStorage.
@@ -44,31 +52,32 @@ export class AiContextService {
       // Fallback
     }
 
-    const tenantId = req?.tenantId || (req?.headers['x-school-id'] as string);
-
-    if (!user) {
-      throw new Error('AI request failed because school context was not sent.');
-    }
+    const tenantId =
+      req?.tenantId ||
+      resolveHeaderValue(req?.headers['x-school-id']) ||
+      resolveHeaderValue(req?.headers['x-tenant-id']);
 
     if (!tenantId) {
       throw new Error('AI request failed because tenant context was not sent.');
     }
 
+    const fallbackRole = resolveFallbackRole(req);
+
     const context: UserContext = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role || user.roles?.[0] || 'student',
-      roles: user.roles || [],
-      schoolId: tenantId || user.schoolId,
-      classId: user.classId,
-      classIds: user.classIds || [],
-      linkedStudentIds: user.linkedStudentIds || [],
-      permissions: user.permissions || {},
+      uid: user?.uid || `tenant:${tenantId}:ai-user`,
+      email: user?.email,
+      displayName: user?.displayName,
+      role: user?.role || user?.roles?.[0] || fallbackRole,
+      roles: user?.roles || [fallbackRole],
+      schoolId: tenantId || user?.schoolId,
+      classId: user?.classId,
+      classIds: user?.classIds || [],
+      linkedStudentIds: user?.linkedStudentIds || [],
+      permissions: user?.permissions || {},
     };
 
     // Identity Resolution: Fetch full profile from Supabase if critical fields are missing
-    if (!context.role || context.classIds.length === 0) {
+    if (user?.uid && (!context.role || context.classIds.length === 0)) {
       try {
         const supabase = getSupabaseAdmin();
         const { data: profile, error } = await supabase

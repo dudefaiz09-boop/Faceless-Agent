@@ -9,11 +9,32 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, leftIcon, rightIcon, className, ...props }, ref) => {
+  (
+    {
+      label,
+      error,
+      leftIcon,
+      rightIcon,
+      className,
+      id,
+      name,
+      'aria-describedby': describedBy,
+      ...props
+    },
+    ref
+  ) => {
+    const generatedId = React.useId();
+    const inputId = id || name || generatedId;
+    const errorId = error ? `${inputId}-error` : undefined;
+    const ariaDescribedBy = [describedBy, errorId].filter(Boolean).join(' ') || undefined;
+
     return (
       <div className="space-y-1.5 w-full">
         {label && (
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 dark:text-slate-400">
+          <label
+            htmlFor={inputId}
+            className="text-xs font-bold text-slate-500 uppercase tracking-wide ml-1 dark:text-slate-400"
+          >
             {label}
           </label>
         )}
@@ -25,6 +46,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
           <input
             ref={ref}
+            id={inputId}
+            name={name}
+            aria-describedby={ariaDescribedBy}
+            aria-invalid={error ? true : undefined}
             className={cn(
               'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all duration-200',
               'placeholder:text-slate-400',
@@ -46,7 +71,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-rose-500 ml-1 font-medium">{error}</p>}
+        {error && (
+          <p id={errorId} className="text-xs text-rose-500 ml-1 font-medium">
+            {error}
+          </p>
+        )}
       </div>
     );
   }

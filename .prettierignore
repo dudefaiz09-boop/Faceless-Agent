@@ -3,3 +3,9 @@ apps/functions/src/features/ai/ai.service.ts
 apps/functions/src/features/ai/ai.controller.ts
 apps/functions/src/app.ts
 supabase/migrations/*.sql
+apps/functions/src/lib/ai.ts
+apps/web/src/components/saas/GlobalChatbot.tsx
+scripts/validate-demo-env.ts
+qa/e2e/roles.spec.ts
+qa/e2e/screenshots.spec.ts
+README.md

@@ -137,6 +137,10 @@ function parseDate(value?: string) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function resolveClassId(primaryClassId: string | null, availableClassIds: string[]) {
+  return primaryClassId || availableClassIds[0] || '';
+}
+
 function getBorrowDueState(record?: BorrowRecord): BorrowDueState | null {
   if (!record || record.status !== 'borrowed') return null;
 
@@ -187,7 +191,7 @@ function useApiData<T>(key: unknown[], loader: () => Promise<T>, enabled = true)
 export function AttendanceScreen() {
   const { user, canManageAttendance, classId, classIds } = useAuth();
   const [mode, setMode] = useState<'history' | 'class'>(canManageAttendance ? 'class' : 'history');
-  const selectedClass = classId || classIds[0] || '10A';
+  const selectedClass = resolveClassId(classId, classIds);
   const selectedDate = todayIso();
 
   const query = useApiData<AttendanceRecord[]>(
@@ -196,7 +200,7 @@ export function AttendanceScreen() {
       mode === 'class' && canManageAttendance
         ? (attendanceService.list(selectedClass, selectedDate) as Promise<AttendanceRecord[]>)
         : (attendanceService.history(user!.uid) as Promise<AttendanceRecord[]>),
-    Boolean(user?.uid)
+    Boolean(user?.uid) && (mode !== 'class' || !canManageAttendance || Boolean(selectedClass))
   );
 
   const records = query.data || [];
@@ -273,7 +277,7 @@ export function AttendanceScreen() {
               />
               <Text style={styles.cardTitle}>{item.date || selectedDate}</Text>
               <Text style={styles.cardContent}>Student: {item.studentId}</Text>
-              <Text style={styles.cardDate}>Class {item.classId || selectedClass}</Text>
+              <Text style={styles.cardDate}>Class {item.classId || selectedClass || 'N/A'}</Text>
             </Card>
           )}
         />
@@ -284,14 +288,14 @@ export function AttendanceScreen() {
 
 export function FeesScreen() {
   const { user, isStudent, canManageFees, classId, classIds } = useAuth();
-  const selectedClass = classId || classIds[0] || '10A';
+  const selectedClass = resolveClassId(classId, classIds);
   const query = useApiData<FeeAccountResponse | FeeReport>(
     ['mobile-fees', user?.uid, isStudent, canManageFees, selectedClass],
     () =>
       isStudent
         ? (feesService.getStudentAccount(user!.uid) as Promise<FeeAccountResponse>)
         : (feesService.getClassReport(selectedClass) as Promise<FeeReport>),
-    Boolean(user?.uid) && (isStudent || canManageFees)
+    Boolean(user?.uid) && (isStudent || (canManageFees && Boolean(selectedClass)))
   );
 
   const account = query.data as FeeAccountResponse | undefined;
@@ -499,14 +503,14 @@ export function LibraryScreen() {
 
 export function PerformanceScreen() {
   const { user, isStudent, canManagePerformance, classId, classIds } = useAuth();
-  const selectedClass = classId || classIds[0] || '10A';
+  const selectedClass = resolveClassId(classId, classIds);
   const query = useApiData<PerformanceRecord[] | PerformanceReport>(
     ['mobile-performance', user?.uid, isStudent, selectedClass],
     () =>
       isStudent
         ? (performanceService.student(user!.uid) as Promise<PerformanceRecord[]>)
         : (performanceService.report(selectedClass) as Promise<PerformanceReport>),
-    Boolean(user?.uid) && (isStudent || canManagePerformance)
+    Boolean(user?.uid) && (isStudent || (canManagePerformance && Boolean(selectedClass)))
   );
   const report = query.data as PerformanceReport | undefined;
   const records = isStudent ? ((query.data || []) as PerformanceRecord[]) : report?.records || [];

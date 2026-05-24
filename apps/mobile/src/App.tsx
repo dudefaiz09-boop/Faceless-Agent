@@ -18,6 +18,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { queryClient } from './lib/query-client';
 import { supabase, supabaseConfigured } from './lib/supabase';
+import { AiAssistantScreen } from './screens/AiAssistantScreen';
 import { ChatScreen } from './screens/ChatScreen';
 import {
   AnnouncementsScreen,
@@ -69,6 +70,13 @@ const modules: ModuleDefinition[] = [
     label: 'Assignments',
     shortLabel: 'Work',
     description: 'Class work, due dates, and submissions.',
+    group: 'primary',
+  },
+  {
+    key: 'aiAssistant',
+    label: 'AI Assistant',
+    shortLabel: 'AI',
+    description: 'Role-aware assistant and academic support.',
     group: 'primary',
   },
   {
@@ -592,6 +600,8 @@ const ModuleContent = ({
       return <AttendanceScreen />;
     case 'assignments':
       return <AssignmentsModuleScreen />;
+    case 'aiAssistant':
+      return <AiAssistantScreen />;
     case 'chat':
       return <ChatScreen />;
     case 'library':
@@ -685,7 +695,13 @@ const AppContent = () => {
 
   if (!user) return <AuthScreen mode={authMode} onModeChange={setAuthMode} />;
 
-  const primaryTabOrder: ModuleKey[] = ['dashboard', 'announcements', 'assignments', 'chat'];
+  const primaryTabOrder: ModuleKey[] = [
+    'dashboard',
+    'announcements',
+    'assignments',
+    'aiAssistant',
+    'chat',
+  ];
   const primaryTabs = primaryTabOrder
     .map((key) => modulesForUser.find((item) => item.key === key))
     .filter((item): item is ModuleDefinition => Boolean(item));
@@ -719,8 +735,8 @@ const AppContent = () => {
             <Text style={styles.roleText}>{roles.length ? roles.join(' / ') : role}</Text>
           </View>
           <TouchableOpacity
-            onPress={handleLogout}
             disabled={signingOut}
+            onPress={handleLogout}
             style={styles.logoutButton}
           >
             <Text style={styles.logoutText}>{signingOut ? '...' : 'Sign out'}</Text>
@@ -731,8 +747,8 @@ const AppContent = () => {
       <View style={styles.content}>
         <ModuleContent
           activeModule={resolvedActiveModule}
-          onOpenModule={setActiveModule}
           modulesForUser={modulesForUser}
+          onOpenModule={setActiveModule}
           onOpenProfile={() => setActiveModule('profile')}
           onOpenSettings={() => setActiveModule('settings')}
           onSignOut={handleLogout}
@@ -742,11 +758,10 @@ const AppContent = () => {
 
       <View style={styles.bottomTabs}>
         <FlatList
-          horizontal
-          data={bottomTabs}
-          keyExtractor={(item) => item.key}
           contentContainerStyle={styles.bottomTabList}
-          showsHorizontalScrollIndicator={false}
+          data={bottomTabs}
+          horizontal
+          keyExtractor={(item) => item.key}
           renderItem={({ item }) => {
             const isActive = resolvedActiveModule === item.key;
             return (
@@ -760,6 +775,7 @@ const AppContent = () => {
               </TouchableOpacity>
             );
           }}
+          showsHorizontalScrollIndicator={false}
         />
       </View>
     </SafeAreaView>
@@ -777,12 +793,17 @@ const App = () => (
 );
 
 const styles = StyleSheet.create({
-  activeBottomTab: {
-    backgroundColor: colors.primary,
+  activeBottomTab: { backgroundColor: colors.primary },
+  activeBottomTabText: { color: colors.text },
+  authLinks: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'center',
+    marginTop: 18,
   },
-  activeBottomTabText: {
-    color: colors.text,
-  },
+  authLinkText: { color: '#8bb7ff', fontSize: 13, fontWeight: '900' },
   bottomTab: {
     alignItems: 'center',
     backgroundColor: colors.card,
@@ -795,14 +816,8 @@ const styles = StyleSheet.create({
     minWidth: 82,
     paddingHorizontal: 12,
   },
-  bottomTabList: {
-    paddingHorizontal: 14,
-  },
-  bottomTabText: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '900',
-  },
+  bottomTabList: { paddingHorizontal: 14 },
+  bottomTabText: { color: colors.muted, fontSize: 12, fontWeight: '900' },
   bottomTabs: {
     backgroundColor: '#07101f',
     borderTopColor: colors.line,
@@ -827,10 +842,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
-  brandBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
+  brandBlock: { flex: 1, minWidth: 0 },
   brandSubtitle: {
     color: '#4f8cff',
     fontSize: 11,
@@ -838,11 +850,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textTransform: 'capitalize',
   },
-  brandTitle: {
-    color: colors.text,
-    fontSize: 26,
-    fontWeight: '900',
-  },
+  brandTitle: { color: colors.text, fontSize: 26, fontWeight: '900' },
   button: {
     alignItems: 'center',
     backgroundColor: colors.primary,
@@ -852,29 +860,15 @@ const styles = StyleSheet.create({
     minHeight: 54,
     paddingHorizontal: 20,
   },
-  buttonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  centered: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    padding: 28,
-  },
+  buttonText: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  centered: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 28 },
   configBody: {
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
   },
-  configItem: {
-    color: '#fecaca',
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 8,
-  },
+  configItem: { color: '#fecaca', fontSize: 13, lineHeight: 19, marginBottom: 8 },
   configList: {
     alignSelf: 'stretch',
     backgroundColor: colors.dangerSoft,
@@ -891,36 +885,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
-  container: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-  },
-  disabledButton: {
-    opacity: 0.55,
-  },
-  error: {
-    color: colors.danger,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  authLinks: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-    justifyContent: 'center',
-    marginTop: 18,
-  },
-  authLinkText: {
-    color: '#8bb7ff',
-    fontSize: 13,
-    fontWeight: '900',
-  },
+  container: { backgroundColor: colors.background, flex: 1 },
+  content: { flex: 1, paddingHorizontal: 16, paddingTop: 14 },
+  disabledButton: { opacity: 0.55 },
+  error: { color: colors.danger, marginTop: 10, textAlign: 'center' },
   groupLabel: {
     color: colors.ai,
     fontSize: 11,
@@ -940,15 +908,8 @@ const styles = StyleSheet.create({
     minHeight: 54,
     paddingHorizontal: 16,
   },
-  loadingText: {
-    color: colors.muted,
-    marginTop: 12,
-  },
-  loginContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
+  loadingText: { color: colors.muted, marginTop: 12 },
+  loginContainer: { flex: 1, justifyContent: 'center', padding: 24 },
   loginPanel: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -965,20 +926,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  logoutText: {
-    color: '#fda4af',
-    fontSize: 12,
-    fontWeight: '900',
+  logoutText: { color: '#fda4af', fontSize: 12, fontWeight: '900' },
+  metaBox: {
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    padding: 12,
   },
-  moduleDescription: {
+  metaGrid: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  metaLabel: {
     color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 3,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
-  moduleGroup: {
-    marginTop: 22,
-  },
+  metaValue: { color: colors.text, fontSize: 13, fontWeight: '800', marginTop: 4 },
+  moduleDescription: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 3 },
+  moduleGroup: { marginTop: 22 },
   moduleIcon: {
     alignItems: 'center',
     backgroundColor: colors.primarySoft,
@@ -987,11 +953,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 42,
   },
-  moduleIconText: {
-    color: colors.ai,
-    fontSize: 16,
-    fontWeight: '900',
-  },
+  moduleIconText: { color: colors.ai, fontSize: 16, fontWeight: '900' },
   moduleRow: {
     alignItems: 'center',
     backgroundColor: colors.card,
@@ -1003,42 +965,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 14,
   },
-  moduleRowText: {
-    flex: 1,
-  },
-  moduleTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  metaBox: {
-    backgroundColor: colors.cardSoft,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    flex: 1,
-    padding: 12,
-  },
-  metaGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  metaLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  metaValue: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  moreContent: {
-    paddingBottom: 30,
-  },
+  moduleRowText: { flex: 1 },
+  moduleTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  moreContent: { paddingBottom: 30 },
   offlineBanner: {
     backgroundColor: colors.warningSoft,
     borderBottomColor: '#7c5a12',
@@ -1046,14 +975,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
-  offlineBody: {
-    color: colors.warning,
-    fontSize: 12,
+  offlineBody: { color: colors.warning, fontSize: 12 },
+  offlineTitle: { color: colors.warning, fontSize: 13, fontWeight: '900' },
+  profileAvatar: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    borderRadius: 28,
+    height: 56,
+    justifyContent: 'center',
+    marginTop: 18,
+    width: 56,
   },
-  offlineTitle: {
-    color: colors.warning,
-    fontSize: 13,
-    fontWeight: '900',
+  profileAvatarText: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  profileCaption: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 16,
+  },
+  profileEmail: { color: colors.muted, fontSize: 14, fontWeight: '700', marginTop: 4 },
+  profileName: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  profilePanel: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 16,
   },
   roleText: {
     color: colors.ai,
@@ -1069,63 +1019,14 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 4,
   },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  profileAvatar: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primary,
-    borderRadius: 28,
-    height: 56,
-    justifyContent: 'center',
-    marginTop: 18,
-    width: 56,
-  },
-  profileAvatarText: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  profileCaption: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 18,
-    marginTop: 16,
-  },
-  profileEmail: {
-    color: colors.muted,
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  profileName: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  profilePanel: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 22,
-    borderWidth: 1,
-    marginTop: 14,
-    padding: 16,
-  },
+  sectionTitle: { color: colors.text, fontSize: 28, fontWeight: '900' },
   settingsBadge: {
     backgroundColor: colors.primarySoft,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  settingsBadgeText: {
-    color: colors.ai,
-    fontSize: 11,
-    fontWeight: '900',
-  },
+  settingsBadgeText: { color: colors.ai, fontSize: 11, fontWeight: '900' },
   settingsRow: {
     alignItems: 'center',
     borderBottomColor: colors.border,
@@ -1134,25 +1035,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
   },
-  signOutIcon: {
-    backgroundColor: colors.dangerSoft,
-  },
-  signOutIconText: {
-    color: colors.danger,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  successText: {
-    color: colors.success,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-  },
+  signOutIcon: { backgroundColor: colors.dangerSoft },
+  signOutIconText: { color: colors.danger, fontSize: 16, fontWeight: '900' },
+  successText: { color: colors.success, marginTop: 10, textAlign: 'center' },
+  subtitle: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center' },
   title: {
     color: colors.text,
     fontSize: 38,
@@ -1170,11 +1056,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  userName: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '900',
-  },
+  userName: { color: colors.text, fontSize: 13, fontWeight: '900' },
   userPill: {
     alignItems: 'center',
     backgroundColor: colors.card,
@@ -1187,9 +1069,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 9,
   },
-  userTextBlock: {
-    flexShrink: 1,
-  },
+  userTextBlock: { flexShrink: 1 },
 });
 
 export default App;

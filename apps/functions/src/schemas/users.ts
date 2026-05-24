@@ -3,6 +3,10 @@ import { ALL_MODULES, ALL_PERMISSIONS, ALL_ROLES } from '@educonnect/shared';
 
 const nonEmptyString = z.string().trim().min(1);
 const optionalNonEmptyString = nonEmptyString.optional();
+const optionalUrlString = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().url().optional()
+);
 
 const roleSchema = z.enum(ALL_ROLES);
 const moduleSchema = z.enum(ALL_MODULES);
@@ -17,12 +21,15 @@ const permissionsSchema = z.union([z.array(permissionSchema), permissionMapSchem
 export const updateOwnProfileSchema = z
   .object({
     displayName: optionalNonEmptyString,
-    photoURL: z.string().url().optional(),
+    photoURL: optionalUrlString,
   })
   .strict()
-  .refine((value) => Object.keys(value).length > 0, {
-    message: 'At least one profile field is required.',
-  });
+  .refine(
+    (value) => Object.keys(value).some((key) => value[key as keyof typeof value] !== undefined),
+    {
+      message: 'At least one profile field is required.',
+    }
+  );
 
 export const createManagedUserSchema = z
   .object({

@@ -87,3 +87,40 @@
 .dark .disabled\:bg-slate-100:disabled {
   background-color: rgba(30, 41, 59, 0.85) !important;
 }
+
+/* ------------------------------------------------------------------------
+ * Extended dark mode compatibility rules
+ *
+ * Some legacy pages still rely on Tailwind's translucent white or light
+ * utility classes (e.g. bg-white/90, bg-slate-50/70) for backgrounds and
+ * borders. These look washed out in dark mode and were not originally
+ * covered by this compatibility layer. To ensure consistent readability
+ * across the app, override any class containing a translucent white or light
+ * background so it uses a dark base color with the same opacity.
+ *
+ * This selector uses a substring match on the class attribute to avoid
+ * enumerating every possible opacity suffix (50, 60, 70, 75, 80, 85, 90, 95).
+ * Tailwind sets `--tw-bg-opacity` on these classes, so we reuse that
+ * variable to preserve the intended transparency while swapping out the RGB.
+ * ----------------------------------------------------------------------*/
+
+/* Override any translucent light background utilities by preserving
+ * their opacity while swapping to a dark base colour. Prettier
+ * consistently uses double quotes in attribute selectors. */
+.dark [class*='bg-white/'],
+.dark [class*='bg-slate-50/'],
+.dark [class*='bg-slate-100/'],
+.dark [class*='bg-slate-200/'],
+.dark [class*='bg-blue-50/'],
+.dark [class*='bg-amber-50/'],
+.dark [class*='bg-red-50/'],
+.dark [class*='bg-emerald-50/'] {
+  background-color: rgb(15 23 42 / var(--tw-bg-opacity)) !important;
+}
+
+/* Override translucent white borders in dark mode. Tailwind's border
+ * opacity variables are not always set, so we fall back to full opacity.
+ * Prettier consistently uses double quotes in attribute selectors. */
+.dark [class*='border-white/'] {
+  border-color: rgb(51 65 85 / var(--tw-border-opacity, 1)) !important;
+}
