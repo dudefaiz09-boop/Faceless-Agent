@@ -9,3 +9,5 @@ scripts/validate-demo-env.ts
 qa/e2e/roles.spec.ts
 qa/e2e/screenshots.spec.ts
 README.md
+apps/web/public/robots.txt
+apps/web/public/favicon.svg

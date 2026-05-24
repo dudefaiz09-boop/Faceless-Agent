@@ -9,6 +9,8 @@ const ignoredConsoleFragments = [
   'favicon',
   'Supabase',
   'Auth session missing',
+  'Too many requests from this IP',
+  'ApiServerError: Too many requests',
 ];
 
 export function storageStatePath(role: QaRole) {

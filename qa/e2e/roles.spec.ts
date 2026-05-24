@@ -40,7 +40,11 @@ for (const role of qaRoles) {
 
     test(`${role} can log out`, async ({ page }) => {
       await page.goto("/");
-      await page.getByRole("button", { name: /sign out/i }).click();
+      const signOutButton = page.getByRole("button", { name: /sign out/i });
+      if (!(await signOutButton.isVisible())) {
+        await page.getByRole("button", { name: /open navigation menu/i }).click();
+      }
+      await signOutButton.click();
       await expect(page).toHaveURL(/\/auth\/login/);
     });
   });

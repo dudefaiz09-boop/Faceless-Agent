@@ -2,6 +2,26 @@ export class UsersService {
   constructor(client) {
     this.client = client;
   }
+  list(params) {
+    const query = new URLSearchParams();
+    if (params?.tenantId) query.set('tenantId', params.tenantId);
+    if (params?.role) query.set('role', params.role);
+    if (params?.status) query.set('status', params.status);
+    if (params?.search) query.set('search', params.search);
+    if (params?.limit) query.set('limit', String(params.limit));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.client.get(`/users${suffix}`);
+  }
+  listTenants() {
+    return this.client.get('/users/tenants');
+  }
+  listAuditLogs(params) {
+    const query = new URLSearchParams();
+    if (params?.targetUid) query.set('targetUid', params.targetUid);
+    if (params?.limit) query.set('limit', String(params.limit));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return this.client.get(`/users/audit-logs${suffix}`);
+  }
   updateProfile(data) {
     return this.client.put('/users/profile', data, { retry: 0 });
   }
@@ -16,6 +36,9 @@ export class UsersService {
   }
   deactivate(uid) {
     return this.client.request(`/users/${uid}/deactivate`, { method: 'PATCH', retry: 0 });
+  }
+  delete(uid) {
+    return this.client.request(`/users/${uid}`, { method: 'DELETE', retry: 0 });
   }
   bulkImport(users, idempotencyKey) {
     return this.client.post(
