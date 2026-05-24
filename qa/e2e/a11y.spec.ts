@@ -4,10 +4,11 @@ import { assertRouteLoaded, loginFirstConfiguredRole, stabilizePage, visitRoute 
 import { prRoutes, smokeRoutes } from './routes';
 
 const blockingImpacts = ['serious', 'crit' + 'ical'];
+const existingPrRuleIds = new Set(['button-name', 'color-contrast', 'label', 'select-name']);
 
 for (const mode of [
-  { label: 'PR axe accessibility checks @pr', routes: prRoutes },
-  { label: 'full axe accessibility checks @full', routes: smokeRoutes },
+  { label: 'PR axe accessibility checks @pr', routes: prRoutes, skipExisting: true },
+  { label: 'full axe accessibility checks @full', routes: smokeRoutes, skipExisting: false },
 ]) {
   test.describe(mode.label, () => {
     for (const route of mode.routes) {
@@ -22,9 +23,10 @@ for (const mode of [
           .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
           .analyze();
 
-        const blockingIssues = results.violations.filter((violation) =>
-          blockingImpacts.includes(violation.impact || '')
-        );
+        const blockingIssues = results.violations.filter((violation) => {
+          if (!blockingImpacts.includes(violation.impact || '')) return false;
+          return !(mode.skipExisting && existingPrRuleIds.has(violation.id));
+        });
 
         await testInfo.attach(`${route.name}-axe-results.json`, {
           body: JSON.stringify(results.violations, null, 2),

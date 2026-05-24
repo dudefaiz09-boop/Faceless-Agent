@@ -258,13 +258,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 relative z-0">
         <header className="h-20 bg-white/75 border-b border-white/80 flex items-center justify-between px-6 lg:px-10 backdrop-blur-xl dark:bg-slate-950/75 dark:border-slate-800 sticky top-0 z-30">
-          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600">
+          <button
+            aria-label="Open navigation menu"
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden p-2 text-slate-600"
+          >
             <Menu size={24} />
           </button>
 
-          <button className="hidden md:flex h-11 min-w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-semibold text-slate-400 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500">
+          <button className="hidden md:flex h-11 min-w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-left text-sm font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
             <span className="flex-1">Search or press command palette</span>
-            <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+            <kbd className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
               Ctrl K
             </kbd>
           </button>

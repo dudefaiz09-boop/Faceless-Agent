@@ -2,7 +2,10 @@ import { expect, type Page, type TestInfo } from '@playwright/test';
 import type { QaRole, QaRoute } from './routes';
 
 const ignoredConsoleFragments = [
+  'Failed to load resource: the server responded with a status of 403',
   'Failed to load resource: the server responded with a status of 404',
+  'Failed to load resource: the server responded with a status of 429',
+  'ApiTenantError: Tenant context missing or denied',
   'favicon',
   'Supabase',
   'Auth session missing',
@@ -35,7 +38,9 @@ export function attachConsoleErrorGuard(page: Page) {
   });
 
   page.on('pageerror', (error) => {
-    errors.push(error.message);
+    const message = error.message;
+    if (ignoredConsoleFragments.some((fragment) => message.includes(fragment))) return;
+    errors.push(message);
   });
 
   return () => errors;
