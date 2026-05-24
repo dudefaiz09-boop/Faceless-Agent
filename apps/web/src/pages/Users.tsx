@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ALL_MODULES,
@@ -155,7 +155,8 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
   const [saving, setSaving] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const debouncedSearch = useDebounce(search, 300);
-  const { data: allUsers, loading, reload } = usersService.list;
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
@@ -166,7 +167,10 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
 
   useEffect(() => {
     if (isSuperAdmin && managedTenantIds.length > 0) {
-      usersService.listTenants.then((records) => setTenants(records)).catch(() => setTenants([]));
+      usersService
+        .listTenants()
+        .then((records) => setTenants(Array.isArray(records) ? records : []))
+        .catch(() => setTenants([]));
     }
   }, [isSuperAdmin, managedTenantIds]);
 
@@ -200,6 +204,42 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     const allowedIds = tenantOptions.map((tenant) => tenant.id);
     return targetTenantId && allowedIds.includes(targetTenantId) ? targetTenantId : activeTenantId;
   }, [activeTenantId, targetTenantId, tenantOptions]);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const records = (await usersService.list({
+        tenantId: activeTenantId || undefined,
+        limit: 500,
+      })) as UserProfile[];
+
+      setAllUsers(Array.isArray(records) ? records : []);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      toast({
+        tone: 'error',
+        title: 'Users unavailable',
+        description: error instanceof Error ? error.message : 'Unable to load user records.',
+      });
+      setAllUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTenantId, toast]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void reload();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reload]);
 
   const handleTenantChange = (tenantId: string) => {
     if (!tenantOptions.some((tenant) => tenant.id === tenantId)) return;

@@ -60,8 +60,18 @@
   scrollbar-width: thin;
 }
 
+#root .text-slate-400,
+#root .text-slate-500 {
+  color: #45556c;
+}
+
 .dark #root .overflow-x-auto {
   scrollbar-color: #475569 transparent;
+}
+
+.dark #root .text-slate-400,
+.dark #root .text-slate-500 {
+  color: #cbd5e1;
 }
 
 .dark #root [role='dialog'] {

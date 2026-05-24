@@ -7,6 +7,7 @@ export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
     build: {
+      sourcemap: true,
       rollupOptions: {
         output: {
           manualChunks(id) {
