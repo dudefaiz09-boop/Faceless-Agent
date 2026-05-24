@@ -258,7 +258,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 relative z-0">
         <header className="h-20 bg-white/75 border-b border-white/80 flex items-center justify-between px-6 lg:px-10 backdrop-blur-xl dark:bg-slate-950/75 dark:border-slate-800 sticky top-0 z-30">
-          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600">
+          <button
+            aria-label="Open navigation menu"
+            onClick={() => setIsSidebarOpen(true)}
+            className="lg:hidden p-2 text-slate-600"
+          >
             <Menu size={24} />
           </button>
 
