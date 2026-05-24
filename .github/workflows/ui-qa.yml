@@ -81,6 +81,22 @@ jobs:
           WEB_QA_DEFAULT_ROLE: admin
           WEB_QA_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
           WEB_QA_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}
+          WEB_QA_ADMIN_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
+          WEB_QA_ADMIN_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}
+          WEB_QA_PRINCIPAL_EMAIL: ${{ secrets.WEB_QA_PRINCIPAL_EMAIL }}
+          WEB_QA_PRINCIPAL_PASSWORD: ${{ secrets.WEB_QA_PRINCIPAL_PASSWORD }}
+          WEB_QA_TEACHER_EMAIL: ${{ secrets.WEB_QA_TEACHER_EMAIL }}
+          WEB_QA_TEACHER_PASSWORD: ${{ secrets.WEB_QA_TEACHER_PASSWORD }}
+          WEB_QA_STUDENT_EMAIL: ${{ secrets.WEB_QA_STUDENT_EMAIL }}
+          WEB_QA_STUDENT_PASSWORD: ${{ secrets.WEB_QA_STUDENT_PASSWORD }}
+          WEB_QA_PARENT_EMAIL: ${{ secrets.WEB_QA_PARENT_EMAIL }}
+          WEB_QA_PARENT_PASSWORD: ${{ secrets.WEB_QA_PARENT_PASSWORD }}
+          WEB_QA_LIBRARIAN_EMAIL: ${{ secrets.WEB_QA_LIBRARIAN_EMAIL }}
+          WEB_QA_LIBRARIAN_PASSWORD: ${{ secrets.WEB_QA_LIBRARIAN_PASSWORD }}
+          WEB_QA_ACCOUNTANT_EMAIL: ${{ secrets.WEB_QA_ACCOUNTANT_EMAIL }}
+          WEB_QA_ACCOUNTANT_PASSWORD: ${{ secrets.WEB_QA_ACCOUNTANT_PASSWORD }}
+          WEB_QA_STAFF_EMAIL: ${{ secrets.WEB_QA_STAFF_EMAIL }}
+          WEB_QA_STAFF_PASSWORD: ${{ secrets.WEB_QA_STAFF_PASSWORD }}
       - name: Upload full UI QA reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -118,3 +134,5 @@ jobs:
           WEB_QA_DEFAULT_ROLE: admin
           WEB_QA_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
           WEB_QA_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}
+          WEB_QA_ADMIN_EMAIL: ${{ secrets.WEB_QA_ADMIN_EMAIL }}
+          WEB_QA_ADMIN_PASSWORD: ${{ secrets.WEB_QA_ADMIN_PASSWORD }}
