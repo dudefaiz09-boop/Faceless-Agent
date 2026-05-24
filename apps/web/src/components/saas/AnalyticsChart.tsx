@@ -1,14 +1,5 @@
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { useEffect, useRef, useState } from 'react';
 
 interface AnalyticsChartProps {
   title: string;
@@ -26,6 +17,31 @@ export function AnalyticsChart({
   variant = 'area',
 }: AnalyticsChartProps) {
   const Chart = variant === 'bar' ? BarChart : AreaChart;
+  const chartFrameRef = useRef<HTMLDivElement>(null);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const node = chartFrameRef.current;
+    if (!node) return;
+
+    const updateSize = () => {
+      const rect = node.getBoundingClientRect();
+      const width = Math.floor(rect.width);
+      const height = Math.floor(rect.height);
+
+      if (width > 0 && height > 0) {
+        setChartSize((current) =>
+          current.width === width && current.height === height ? current : { width, height }
+        );
+      }
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <section className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur">
@@ -33,9 +49,14 @@ export function AnalyticsChart({
         <h2 className="text-lg font-black text-slate-950">{title}</h2>
         <p className="text-sm font-medium text-slate-500">{subtitle}</p>
       </div>
-      <div className="h-72 min-h-[18rem] w-full min-w-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <Chart data={data} margin={{ left: -20, right: 8, top: 10, bottom: 0 }}>
+      <div ref={chartFrameRef} className="h-72 min-h-[18rem] w-full min-w-0">
+        {chartSize.width > 0 && chartSize.height > 0 && (
+          <Chart
+            data={data}
+            width={chartSize.width}
+            height={chartSize.height}
+            margin={{ left: -20, right: 8, top: 10, bottom: 0 }}
+          >
             <defs>
               <linearGradient id={`${dataKey}-gradient`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#2563eb" stopOpacity={0.36} />
@@ -70,7 +91,7 @@ export function AnalyticsChart({
               />
             )}
           </Chart>
-        </ResponsiveContainer>
+        )}
       </div>
     </section>
   );

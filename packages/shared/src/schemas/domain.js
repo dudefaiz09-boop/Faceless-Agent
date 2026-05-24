@@ -1,6 +1,16 @@
 import { z } from 'zod';
+const TimestampObjectSchema = z.custom((value) => {
+  if (!value || typeof value !== 'object' || !('toDate' in value)) return false;
+  const toDate = value.toDate;
+  if (typeof toDate !== 'function') return false;
+  try {
+    return toDate.call(value) instanceof Date;
+  } catch {
+    return false;
+  }
+});
 export const TimestampValueSchema = z.union([
-  z.object({ toDate: z.function().returns(z.date()) }),
+  TimestampObjectSchema,
   z.string(),
   z.number(),
   z.null(),
