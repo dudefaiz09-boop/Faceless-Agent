@@ -12,15 +12,10 @@ for (const mode of [
   { label: 'full smoke checks @full', routes: smokeRoutes },
 ]) {
   test.describe(mode.label, () => {
-    let authenticated = false;
-
-    test.beforeEach(async ({ page }) => {
-      authenticated = await loginFirstConfiguredRole(page);
-    });
-
     for (const route of mode.routes) {
       test(`${route.name} loads without crashing`, async ({ page }) => {
         const getConsoleErrors = attachConsoleErrorGuard(page);
+        const authenticated = route.authRequired ? await loginFirstConfiguredRole(page) : false;
 
         await visitRoute(page, route);
         await assertRouteLoaded(page, route, authenticated);
