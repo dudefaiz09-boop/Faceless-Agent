@@ -80,5 +80,10 @@
   },
   "dependencies": {
     "esbuild": "^0.20.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@percy/core"
+    ]
   }
 }
