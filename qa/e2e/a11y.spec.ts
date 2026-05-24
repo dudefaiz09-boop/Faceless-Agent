@@ -10,14 +10,10 @@ for (const mode of [
   { label: 'full axe accessibility checks @full', routes: smokeRoutes },
 ]) {
   test.describe(mode.label, () => {
-    let authenticated = false;
-
-    test.beforeEach(async ({ page }) => {
-      authenticated = await loginFirstConfiguredRole(page);
-    });
-
     for (const route of mode.routes) {
       test(`${route.name} has no blocking axe issues`, async ({ page }, testInfo) => {
+        const authenticated = route.authRequired ? await loginFirstConfiguredRole(page) : false;
+
         await visitRoute(page, route);
         await assertRouteLoaded(page, route, authenticated);
         await stabilizePage(page);
