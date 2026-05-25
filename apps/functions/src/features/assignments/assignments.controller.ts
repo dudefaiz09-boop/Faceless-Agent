@@ -94,7 +94,7 @@ export class AssignmentsController {
 
   static async recheck(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await AssignmentsRepository.recheck(
+      await AssignmentsRepository.recheck(
         req.body,
         { uid: req.user!.uid, email: req.user!.email, schoolId: req.user!.schoolId },
         req.tenantId!

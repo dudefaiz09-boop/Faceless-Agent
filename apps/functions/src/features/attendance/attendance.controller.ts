@@ -44,7 +44,7 @@ export class AttendanceController {
       if (!canViewStudentAttendance(req.user!, uid)) {
         throw new AppError('Forbidden', 403);
       }
-      const history = await AttendanceRepository.getHistory(uid, req.tenantId!, req.user!.uid);
+      const history = await AttendanceRepository.getHistory(uid, req.tenantId!);
       res.json(history);
     } catch (error) {
       next(error);

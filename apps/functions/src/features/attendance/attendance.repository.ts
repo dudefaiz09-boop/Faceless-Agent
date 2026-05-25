@@ -37,7 +37,7 @@ export class AttendanceRepository {
     });
   }
 
-  static async getHistory(uid: string, tenantId: string, requesterUid: string) {
+  static async getHistory(uid: string, tenantId: string) {
     const userDoc = await db.collection('users').doc(uid).get();
     const userData = userDoc.exists ? userDoc.data() || {} : {};
 

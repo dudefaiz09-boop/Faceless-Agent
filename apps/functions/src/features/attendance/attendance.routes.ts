@@ -3,10 +3,7 @@ import { AttendanceController } from './attendance.controller.js';
 import { validate } from '../../middleware/validate.js';
 import {
   markAttendanceSchema,
-  attendanceListParamsSchema,
-  attendanceListQuerySchema,
   attendanceReportParamsSchema,
-  attendanceReportQuerySchema,
   attendanceHistoryParamsSchema,
 } from './attendance.validation.js';
 import { requireAnyPermission, requirePermission } from '../../middleware/permissions.js';

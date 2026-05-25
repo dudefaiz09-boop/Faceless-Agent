@@ -3,13 +3,10 @@ import { AssignmentsController } from './assignments.controller.js';
 import { validate } from '../../middleware/validate.js';
 import {
   createAssignmentSchema,
-  assignmentListParamsSchema,
-  assignmentListQuerySchema,
   assignmentIdParamsSchema,
   assignmentSubmissionsParamsSchema,
   assignmentHistoryParamsSchema,
   assignmentClassReportParamsSchema,
-  submitAssignmentSchema,
   recheckAssignmentSchema,
 } from './assignments.validation.js';
 import { requireAnyPermission, requirePermission } from '../../middleware/permissions.js';

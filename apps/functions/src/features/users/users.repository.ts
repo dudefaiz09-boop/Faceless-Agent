@@ -15,10 +15,6 @@ function assertCanManageTenant(req: Request, tenantId?: string | null) {
   if (!canManageTenant(req, tenantId)) throw new AppError('Tenant access denied', 403);
 }
 
-function getProfileTenantId(profile: Record<string, unknown>) {
-  return String(profile.tenantId || profile.schoolId || '');
-}
-
 export class UsersRepository {
   static async list(
     query: { tenantId?: string; role?: string; status?: string; search?: string; limit?: number },
@@ -71,7 +67,7 @@ export class UsersRepository {
   static async updateOwnProfile(
     uid: string,
     data: { displayName?: string; photoURL?: string },
-    email?: string
+    _email?: string
   ) {
     const supabaseAdmin = auth.getSupabaseAdmin();
     const updateData: Record<string, unknown> = {};
@@ -95,7 +91,7 @@ export class UsersRepository {
     }
   }
 
-  static async create(data: any, actor: Actor) {
+  static async create(data: Record<string, unknown>, actor: Actor) {
     return createManagedUser({ ...data, tenantId: data.tenantId }, actor);
   }
 

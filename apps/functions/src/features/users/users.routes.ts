@@ -2,8 +2,6 @@ import { Router } from 'express';
 import { UsersController } from './users.controller.js';
 import { validate } from '../../middleware/validate.js';
 import {
-  listUsersQuerySchema,
-  auditLogsQuerySchema,
   createManagedUserSchema,
   bulkManagedUsersSchema,
   updateManagedUserSchema,

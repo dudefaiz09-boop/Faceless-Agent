@@ -39,8 +39,6 @@ type UserRecord = {
   tenantId?: string;
   schoolId?: string | null;
 };
-type Actor = { uid: string; email?: string; schoolId?: string | null };
-
 function directConversationId(left: string, right: string) {
   return `direct_${[left, right].sort().join('_')}`;
 }
