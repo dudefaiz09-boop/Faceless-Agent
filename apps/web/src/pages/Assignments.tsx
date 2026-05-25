@@ -434,7 +434,7 @@ export const AssignmentsPage = () => {
                   <code className="break-all font-mono">{getApiBaseUrlDiagnostic()}</code>
                 </p>
               )}
-              <p className="max-w-md text-sm text-red-500 dark:text-red-300">
+              <p className="max-w-md text-sm text-red-700 dark:text-red-300">
                 The assignment list is still safe to retry. Empty classes will show an empty state
                 instead of crashing.
               </p>
@@ -503,10 +503,10 @@ export const AssignmentsPage = () => {
                           <span className="flex items-center gap-1">
                             <Users size={12} /> {classes.length ? classes.join(', ') : 'All'}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                             {subject}
                           </span>
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-600 dark:bg-blue-950/50 dark:text-blue-200">
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
                             {submissionCount} submissions
                           </span>
                         </div>

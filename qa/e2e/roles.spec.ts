@@ -3,6 +3,7 @@ import {
   assertAccessState,
   attachConsoleErrorGuard,
   hasRoleCredentials,
+  stabilizePage,
   storageStatePath,
   visitRoute,
 } from "./helpers";
@@ -54,6 +55,8 @@ for (const role of qaRoles) {
 
     test(`${role} can log out`, async ({ page }) => {
       await page.goto("/");
+      await stabilizePage(page);
+
       const signOutButton = page.getByRole("button", { name: /sign out/i });
       const menuButton = page.getByRole("button", { name: /open navigation menu/i });
 
@@ -67,6 +70,7 @@ for (const role of qaRoles) {
       if (!(await isInViewport(page, signOutButton)) && (await menuButton.isVisible())) {
         await menuButton.click();
         await expect(signOutButton).toBeVisible();
+        await expect.poll(() => isInViewport(page, signOutButton)).toBe(true);
       }
 
       await Promise.all([

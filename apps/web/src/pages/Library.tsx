@@ -464,7 +464,7 @@ export const LibraryPage = () => {
           <div className="bg-blue-600 p-8 rounded-3xl text-white shadow-xl shadow-blue-100 space-y-4 relative overflow-hidden">
             <div className="relative z-10">
               <h4 className="font-bold text-lg mb-2">Need a book?</h4>
-              <p className="text-blue-100 text-sm leading-relaxed">
+              <p className="text-white text-sm leading-relaxed">
                 If you can&apos;t find what you&apos;re looking for, request a resource from the
                 librarian.
               </p>

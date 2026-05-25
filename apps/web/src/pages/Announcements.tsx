@@ -324,7 +324,7 @@ export const AnnouncementsPage = () => {
                         >
                           {announcement.priority || 'normal'}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
                           {announcement.category || 'general'}
                         </span>
                       </div>
@@ -341,6 +341,7 @@ export const AnnouncementsPage = () => {
                     </div>
                     {(isAdmin || announcement.authorId === user?.uid) && (
                       <button
+                        aria-label={`Delete announcement ${announcement.title || 'Untitled announcement'}`}
                         onClick={() => deleteAnnouncement(announcement.id)}
                         className="rounded-2xl bg-red-50 p-3 text-red-600 opacity-0 transition group-hover:opacity-100"
                       >

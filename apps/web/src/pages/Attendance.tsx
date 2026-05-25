@@ -411,7 +411,7 @@ export const AttendancePage = () => {
                 <p className="text-xs font-bold text-emerald-700">
                   Last synced: {formatDistanceToNow(lastSyncTime, { addSuffix: true })}
                 </p>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
                   Realtime enabled
                 </span>
               </div>
@@ -480,7 +480,7 @@ export const AttendancePage = () => {
                 <h3 className="font-bold text-slate-900 flex items-center gap-2">
                   <CheckSquare size={20} className="text-blue-600" />
                   Mark Attendance
-                  <span className="bg-blue-100 text-blue-600 text-[10px] px-2 py-0.5 rounded-full">
+                  <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full">
                     {filteredStudents.length} Students
                   </span>
                 </h3>
@@ -527,7 +527,7 @@ export const AttendancePage = () => {
                           <tr key={studentId} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-xs">
+                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-xs">
                                   {(s.displayName || '?')[0]}
                                 </div>
                                 <div>

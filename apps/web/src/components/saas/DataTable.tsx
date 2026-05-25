@@ -23,7 +23,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} aria-label="Scrollable data table">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-slate-50/80 dark:bg-slate-950/70">
