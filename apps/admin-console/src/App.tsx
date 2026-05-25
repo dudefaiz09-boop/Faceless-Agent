@@ -76,8 +76,12 @@ export const AdminApp = () => {
 
   // Health Check State
   const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error'>(() => apiBase ? 'checking' : 'error');
-  const [dbStatus, setDbStatus] = useState<'checking' | 'synced' | 'error'>(() => apiBase ? 'checking' : 'error');
+  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error'>(() =>
+    apiBase ? 'checking' : 'error'
+  );
+  const [dbStatus, setDbStatus] = useState<'checking' | 'synced' | 'error'>(() =>
+    apiBase ? 'checking' : 'error'
+  );
 
   useEffect(() => {
     if (!apiBase) return;
