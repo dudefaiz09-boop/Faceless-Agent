@@ -147,19 +147,17 @@ export class FeesRepository {
     const amountDue = Number(fee.amountDue || 0);
     const nextPaid = Math.min(currentPaid + amount, amountDue);
 
-    const paymentRef = await db
-      .collection('payments')
-      .add({
-        tenantId,
-        schoolId: tenantId,
-        feeId,
-        studentId: fee.studentId,
-        amount,
-        method,
-        paidAt: now,
-        receiptUrl: `/fees/receipts/${feeId}`,
-        recordedBy: actor.uid,
-      });
+    const paymentRef = await db.collection('payments').add({
+      tenantId,
+      schoolId: tenantId,
+      feeId,
+      studentId: fee.studentId,
+      amount,
+      method,
+      paidAt: now,
+      receiptUrl: `/fees/receipts/${feeId}`,
+      recordedBy: actor.uid,
+    });
     await feeRef.update({
       amountPaid: nextPaid,
       status: feeStatus(amountDue, nextPaid),

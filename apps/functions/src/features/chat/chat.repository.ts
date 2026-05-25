@@ -219,19 +219,17 @@ export class ChatRepository {
     );
     if (participants.length < 2)
       throw new AppError('Group chats require at least two participants', 400);
-    const ref = await db
-      .collection('conversations')
-      .add({
-        participants,
-        type: 'group',
-        name: data.name,
-        lastMessage: '',
-        schoolId: tenantId,
-        tenantId,
-        createdAt: now,
-        updatedAt: now,
-        createdBy: user.uid,
-      });
+    const ref = await db.collection('conversations').add({
+      participants,
+      type: 'group',
+      name: data.name,
+      lastMessage: '',
+      schoolId: tenantId,
+      tenantId,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: user.uid,
+    });
     return {
       id: ref.id,
       participants,
@@ -289,27 +287,22 @@ export class ChatRepository {
     const participants = Array.isArray(conversation.participants)
       ? conversation.participants
       : [user.uid];
-    const messageRef = await db
-      .collection(`conversations/${conversationId}/messages`)
-      .add({
-        senderId: user.uid,
-        senderName: displayName(user),
-        text: data.text,
-        sentAt: now,
-        readBy: [user.uid],
-        status: 'sent',
-        schoolId: tenantId,
-        tenantId,
-      });
-    await db
-      .collection('conversations')
-      .doc(conversationId)
-      .update({
-        lastMessage: data.text,
-        lastMessageAt: now,
-        lastSenderId: user.uid,
-        updatedAt: now,
-      });
+    const messageRef = await db.collection(`conversations/${conversationId}/messages`).add({
+      senderId: user.uid,
+      senderName: displayName(user),
+      text: data.text,
+      sentAt: now,
+      readBy: [user.uid],
+      status: 'sent',
+      schoolId: tenantId,
+      tenantId,
+    });
+    await db.collection('conversations').doc(conversationId).update({
+      lastMessage: data.text,
+      lastMessageAt: now,
+      lastSenderId: user.uid,
+      updatedAt: now,
+    });
     const recipients = participants.filter((p) => p !== user.uid);
     if (recipients.length > 0) {
       try {
