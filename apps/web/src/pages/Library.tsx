@@ -431,14 +431,14 @@ export const LibraryPage = () => {
         <div className="lg:w-64 space-y-6 shrink-0">
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+              <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
                 Search
               </label>
               <SearchBar value={search} onChange={setSearch} placeholder="Title, tags..." />
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <Filter size={14} />
                 Subject
               </label>
@@ -505,7 +505,7 @@ export const LibraryPage = () => {
                       <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
                         <Book size={24} />
                       </div>
-                      <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
+                      <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
                         {res.subject}
                       </span>
                     </div>
@@ -518,7 +518,7 @@ export const LibraryPage = () => {
                         {res.tags.slice(0, 3).map((tag) => (
                           <span
                             key={tag}
-                            className="text-[10px] text-slate-400 font-bold flex items-center gap-1"
+                            className="text-[10px] text-slate-500 font-bold flex items-center gap-1"
                           >
                             <Tag size={10} /> {tag}
                           </span>
@@ -527,21 +527,21 @@ export const LibraryPage = () => {
                     </div>
 
                     <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-400 text-xs font-bold">
+                      <div className="flex items-center gap-2 text-slate-500 text-xs font-bold">
                         <GraduationCap size={14} />
                         Grade {res.grade}
                       </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => window.open(res.fileUrl, '_blank')}
-                          className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                          className="p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                         >
                           <Download size={18} />
                         </button>
                         {isStudent && (
                           <button
                             onClick={() => borrowBook(res.id)}
-                            className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            className="p-2.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
                             title="Borrow Physical Book"
                           >
                             <Layers size={18} />
@@ -550,7 +550,7 @@ export const LibraryPage = () => {
                         {canManageLibrary && (
                           <button
                             onClick={() => startEdit(res)}
-                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                             title="Edit resource"
                           >
                             <Edit2 size={18} />
@@ -559,7 +559,7 @@ export const LibraryPage = () => {
                         {canManageLibrary && (
                           <button
                             onClick={() => deleteResource(res)}
-                            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            className="p-2.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                             title="Delete resource"
                           >
                             <Trash2 size={18} />
@@ -615,7 +615,7 @@ export const LibraryPage = () => {
                             <p className="font-bold text-slate-900">
                               Resource ID: {record.resourceId.slice(-6)}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-slate-500">
                               Borrowed: {formatTimestamp(record.borrowedAt)}
                             </p>
                             {record.dueAt && record.status === 'borrowed' && (
@@ -686,10 +686,11 @@ export const LibraryPage = () => {
               </h3>
               <form onSubmit={handleUpload} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
                     Title
                   </label>
                   <input
+                    aria-label="Library resource title"
                     required
                     value={uploadData.title}
                     onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
@@ -698,10 +699,11 @@ export const LibraryPage = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
                       Subject
                     </label>
                     <input
+                      aria-label="Library resource subject"
                       required
                       value={uploadData.subject}
                       onChange={(e) => setUploadData({ ...uploadData, subject: e.target.value })}
@@ -710,10 +712,11 @@ export const LibraryPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
                       Grade
                     </label>
                     <input
+                      aria-label="Library resource grade"
                       required
                       value={uploadData.grade}
                       onChange={(e) => setUploadData({ ...uploadData, grade: e.target.value })}
@@ -723,7 +726,7 @@ export const LibraryPage = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
                     File upload
                   </label>
                   <FileUpload
@@ -734,10 +737,11 @@ export const LibraryPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
                     Tags (comma separated)
                   </label>
                   <input
+                    aria-label="Library resource tags"
                     value={uploadData.tags}
                     onChange={(e) => setUploadData({ ...uploadData, tags: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl outline-none"
@@ -757,7 +761,7 @@ export const LibraryPage = () => {
                       setIsUploadModalOpen(false);
                       setEditingResource(null);
                     }}
-                    className="px-6 bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                    className="px-6 bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
                   >
                     Cancel
                   </button>

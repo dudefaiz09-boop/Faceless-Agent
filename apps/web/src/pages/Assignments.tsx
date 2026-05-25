@@ -496,7 +496,7 @@ export const AssignmentsPage = () => {
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">
+                        <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500 uppercase tracking-widest dark:text-slate-500">
                           <span className="flex items-center gap-1">
                             <CalendarIcon size={12} /> Due {assignment.dueDate || 'TBD'}
                           </span>
@@ -534,7 +534,7 @@ export const AssignmentsPage = () => {
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-200 shadow-sm">
                   <GraduationCap size={32} />
                 </div>
-                <p className="text-slate-400 font-medium max-w-[200px]">
+                <p className="text-slate-500 font-medium max-w-[200px]">
                   Select an assignment to view details and{' '}
                   {isStudent ? 'submit work' : 'grade submissions'}.
                 </p>
@@ -555,7 +555,7 @@ export const AssignmentsPage = () => {
                   </p>
                   {selectedAssignment.attachments && selectedAssignment.attachments.length > 0 && (
                     <div className="pt-2">
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">
                         Worksheet / Reference File
                       </span>
                       {selectedAssignment.attachments.map((url, i) => (
@@ -638,10 +638,11 @@ export const AssignmentsPage = () => {
                     ) : (
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                             Your Answer
                           </label>
                           <textarea
+                            aria-label="Assignment submission answer"
                             rows={5}
                             placeholder="Type your submission here..."
                             value={submissionContent}
@@ -694,7 +695,7 @@ export const AssignmentsPage = () => {
                     ) : (
                       <div className="space-y-3">
                         {submissions.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">No submissions yet.</p>
+                          <p className="text-xs text-slate-500 italic">No submissions yet.</p>
                         ) : (
                           submissions.map((sub) => (
                             <div
@@ -752,6 +753,7 @@ export const AssignmentsPage = () => {
                                       Final Grade to Publish
                                     </label>
                                     <input
+                                      aria-label="Final grade to publish"
                                       placeholder="e.g. 8.5"
                                       defaultValue={sub.grade || ''}
                                       className="w-full bg-white border border-slate-200 px-3 py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 font-bold"
@@ -769,6 +771,7 @@ export const AssignmentsPage = () => {
                                       Final Teacher Feedback
                                     </label>
                                     <textarea
+                                      aria-label="Final teacher feedback"
                                       rows={3}
                                       placeholder="Enter final feedback to publish to student..."
                                       defaultValue={sub.feedback || ''}
@@ -854,20 +857,22 @@ export const AssignmentsPage = () => {
               </h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                     Title
                   </label>
                   <input
+                    aria-label="Assignment title"
                     value={newAssignment.title}
                     onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                     Description
                   </label>
                   <textarea
+                    aria-label="Assignment description"
                     rows={4}
                     value={newAssignment.description}
                     onChange={(e) =>
@@ -877,10 +882,11 @@ export const AssignmentsPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                     Subject
                   </label>
                   <input
+                    aria-label="Assignment subject"
                     value={newAssignment.subject}
                     onChange={(e) =>
                       setNewAssignment({ ...newAssignment, subject: e.target.value })
@@ -890,10 +896,11 @@ export const AssignmentsPage = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                       Due Date
                     </label>
                     <input
+                      aria-label="Assignment due date"
                       type="date"
                       value={newAssignment.dueDate}
                       onChange={(e) =>
@@ -903,10 +910,11 @@ export const AssignmentsPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                       Class
                     </label>
                     <select
+                      aria-label="Assignment class"
                       value={newAssignment.classId}
                       onChange={(e) =>
                         setNewAssignment({ ...newAssignment, classId: e.target.value })
@@ -937,7 +945,7 @@ export const AssignmentsPage = () => {
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                  className="px-6 bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
                 >
                   Cancel
                 </button>

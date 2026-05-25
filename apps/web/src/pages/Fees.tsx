@@ -441,7 +441,7 @@ export const FeesPage = () => {
               </h4>
               <div className="space-y-3">
                 {payments.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No payments recorded yet.</p>
+                  <p className="text-xs text-slate-500 italic">No payments recorded yet.</p>
                 ) : (
                   payments.map((p) => (
                     <div
@@ -452,7 +452,7 @@ export const FeesPage = () => {
                         <p className="font-bold text-slate-900 text-sm">
                           {formatCurrency(p.amount)}
                         </p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">
                           {formatDate(p.paidAt)}
                         </p>
                       </div>
@@ -478,7 +478,7 @@ export const FeesPage = () => {
               </div>
             ) : fees.length === 0 ? (
               <div className="bg-white p-20 rounded-3xl border border-dashed border-slate-200 text-center">
-                <p className="text-slate-400 font-medium">No fee records found for your account.</p>
+                <p className="text-slate-500 font-medium">No fee records found for your account.</p>
               </div>
             ) : (
               <div className="grid gap-4">
@@ -499,7 +499,7 @@ export const FeesPage = () => {
                         <DollarSign size={24} />
                       </div>
                       <div>
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                        <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">
                           Quarterly Tuition Fee
                         </p>
                         <div className="flex items-center gap-3">
@@ -521,7 +521,7 @@ export const FeesPage = () => {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right hidden sm:block">
-                        <p className="text-[10px] font-black text-slate-400 uppercase">Due Date</p>
+                        <p className="text-[10px] font-black text-slate-500 uppercase">Due Date</p>
                         <p className="font-bold text-slate-700">{fee.dueDate}</p>
                       </div>
                       {fee.status !== 'paid' && (
@@ -545,7 +545,7 @@ export const FeesPage = () => {
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
               <div className="space-y-3">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   <Users size={14} />
                   Filter Class
                 </label>
@@ -570,13 +570,13 @@ export const FeesPage = () => {
                   <span className="text-sm font-bold text-slate-600 group-hover:text-blue-600">
                     Download Excel
                   </span>
-                  <Download size={16} className="text-slate-400" />
+                  <Download size={16} className="text-slate-500" />
                 </button>
                 <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group">
                   <span className="text-sm font-bold text-slate-600 group-hover:text-blue-600">
                     Send Reminders
                   </span>
-                  <Send size={16} className="text-slate-400" />
+                  <Send size={16} className="text-slate-500" />
                 </button>
               </div>
             </div>
@@ -626,7 +626,7 @@ export const FeesPage = () => {
                   </div>
                 </div>
                 {loading ? (
-                  <div className="p-20 text-center text-slate-400">Loading data...</div>
+                  <div className="p-20 text-center text-slate-500">Loading data...</div>
                 ) : (
                   <DataTable
                     columns={feeColumns}
@@ -727,7 +727,7 @@ export const FeesPage = () => {
                 </div>
                 <button
                   onClick={() => setIsUploadModalOpen(false)}
-                  className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
+                  className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
                 >
                   <X size={20} />
                 </button>
@@ -748,11 +748,12 @@ export const FeesPage = () => {
               ) : (
                 <form onSubmit={handleUpload} className="space-y-6">
                   <div className="space-y-3">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                       <FileText size={14} />
                       Paste CSV Records
                     </label>
                     <textarea
+                      aria-label="Paste fee CSV records"
                       required
                       rows={8}
                       value={uploadText}
@@ -761,6 +762,7 @@ export const FeesPage = () => {
                       className="w-full bg-slate-50 border border-slate-200 p-6 rounded-3xl text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 transition-all font-mono text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
                     <input
+                      aria-label="Choose fee CSV file"
                       ref={fileInputRef}
                       type="file"
                       accept=".csv,text/csv"
@@ -783,7 +785,7 @@ export const FeesPage = () => {
                         Download Sample CSV
                       </button>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase text-center tracking-wider">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase text-center tracking-wider">
                       Format: studentId, amountDue, dueDate, status, amountPaid
                     </p>
                   </div>
@@ -811,7 +813,7 @@ export const FeesPage = () => {
                     <button
                       type="button"
                       onClick={() => setIsUploadModalOpen(false)}
-                      className="px-8 bg-slate-100 text-slate-500 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all"
+                      className="px-8 bg-slate-100 text-slate-600 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all"
                     >
                       Cancel
                     </button>

@@ -254,7 +254,7 @@ export const AnnouncementsPage = () => {
           </div>
         )}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
           <input
             aria-label="Search announcements"
             value={search}
@@ -264,7 +264,7 @@ export const AnnouncementsPage = () => {
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
           <select
             aria-label="Filter announcement category"
             value={categoryFilter}
@@ -331,7 +331,7 @@ export const AnnouncementsPage = () => {
                       <h2 className="text-2xl font-black tracking-tight text-slate-950 group-hover:text-blue-700">
                         {announcement.title || 'Untitled announcement'}
                       </h2>
-                      <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+                      <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-500">
                         {announcement.authorName || 'EduConnect'} •{' '}
                         {formatDistanceToNow(
                           new Date(announcement.createdAt || announcement.timestamp || renderedAt),
@@ -431,10 +431,11 @@ export const AnnouncementsPage = () => {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2 md:col-span-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">
                     Title
                   </span>
                   <input
+                    aria-label="Announcement title"
                     required
                     value={form.title}
                     onChange={(event) => setForm({ ...form, title: event.target.value })}
@@ -442,10 +443,11 @@ export const AnnouncementsPage = () => {
                   />
                 </label>
                 <label className="space-y-2 md:col-span-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">
                     Content
                   </span>
                   <textarea
+                    aria-label="Announcement content"
                     required
                     rows={7}
                     value={form.content}
@@ -469,10 +471,11 @@ export const AnnouncementsPage = () => {
                   onChange={(value) => setForm({ ...form, category: value })}
                 />
                 <label className="space-y-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">
                     Priority
                   </span>
                   <select
+                    aria-label="Announcement priority"
                     value={form.priority}
                     onChange={(event) =>
                       setForm({ ...form, priority: event.target.value as Announcement['priority'] })
@@ -499,6 +502,7 @@ export const AnnouncementsPage = () => {
               <div className="mt-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-2">
                 <label className="flex items-center gap-3 text-sm font-black text-slate-700">
                   <input
+                    aria-label="Pin announcement"
                     type="checkbox"
                     checked={form.pinned}
                     onChange={(event) => setForm({ ...form, pinned: event.target.checked })}
@@ -507,6 +511,7 @@ export const AnnouncementsPage = () => {
                 </label>
                 <label className="flex items-center gap-3 text-sm font-black text-slate-700">
                   <input
+                    aria-label="Schedule announcement"
                     type="checkbox"
                     checked={form.isScheduled}
                     onChange={(event) => setForm({ ...form, isScheduled: event.target.checked })}
@@ -516,6 +521,7 @@ export const AnnouncementsPage = () => {
                 </label>
                 {form.isScheduled && (
                   <input
+                    aria-label="Scheduled announcement date and time"
                     type="datetime-local"
                     value={form.scheduledFor}
                     onChange={(event) => setForm({ ...form, scheduledFor: event.target.value })}
@@ -551,8 +557,9 @@ function FormInput({
 }) {
   return (
     <label className="space-y-2">
-      <span className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</span>
+      <span className="text-xs font-black uppercase tracking-widest text-slate-500">{label}</span>
       <input
+        aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"

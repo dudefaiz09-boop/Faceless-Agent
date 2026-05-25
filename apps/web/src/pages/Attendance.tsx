@@ -420,13 +420,13 @@ export const AttendancePage = () => {
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                   Select Class
                 </label>
                 <div className="relative">
                   <Users
                     size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                   />
                   <select
                     aria-label="Select attendance class"
@@ -444,13 +444,13 @@ export const AttendancePage = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                   Date
                 </label>
                 <div className="relative">
                   <CalendarIcon
                     size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                   />
                   <input
                     aria-label="Select attendance date"
@@ -463,7 +463,7 @@ export const AttendancePage = () => {
               </div>
 
               <div className="md:col-span-1 lg:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                   Search Student
                 </label>
                 <SearchBar
@@ -511,10 +511,10 @@ export const AttendancePage = () => {
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="text-left bg-slate-50/30">
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                           Student
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">
                           Status
                         </th>
                       </tr>
@@ -527,14 +527,14 @@ export const AttendancePage = () => {
                           <tr key={studentId} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs">
+                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-xs">
                                   {(s.displayName || '?')[0]}
                                 </div>
                                 <div>
                                   <p className="font-bold text-slate-800 text-sm">
                                     {s.displayName || 'Unnamed Student'}
                                   </p>
-                                  <p className="text-xs text-slate-400">{s.email}</p>
+                                  <p className="text-xs text-slate-500">{s.email}</p>
                                 </div>
                               </div>
                             </td>
@@ -618,7 +618,7 @@ export const AttendancePage = () => {
                 <div className="flex items-center justify-between mb-10">
                   <div>
                     <h3 className="text-xl font-bold text-slate-900">Attendance Trends</h3>
-                    <p className="text-sm text-slate-400 mt-1 uppercase font-black tracking-widest">
+                    <p className="text-sm text-slate-500 mt-1 uppercase font-black tracking-widest">
                       Class {selectedClass} • Last 30 Days
                     </p>
                   </div>
