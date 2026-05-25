@@ -3,6 +3,7 @@ import {
   assertAccessState,
   attachConsoleErrorGuard,
   hasRoleCredentials,
+  loginAsRole,
   stabilizePage,
   storageStatePath,
   visitRoute,
@@ -55,23 +56,26 @@ for (const role of qaRoles) {
 
     test(`${role} can log out`, async ({ page }) => {
       await page.goto("/");
+      await page.waitForLoadState("domcontentloaded");
+
+      if (/\/auth\/login/.test(new URL(page.url()).pathname)) {
+        await loginAsRole(page, role);
+        await page.goto("/");
+        await page.waitForLoadState("domcontentloaded");
+      }
+
       await stabilizePage(page);
 
       const signOutButton = page.getByRole("button", { name: /sign out/i });
       const menuButton = page.getByRole("button", { name: /open navigation menu/i });
-
-      try {
-        await expect(signOutButton).toBeVisible({ timeout: 5_000 });
-      } catch {
-        await menuButton.click();
-        await expect(signOutButton).toBeVisible();
-      }
 
       if (!(await isInViewport(page, signOutButton)) && (await menuButton.isVisible())) {
         await menuButton.click();
         await expect(signOutButton).toBeVisible();
         await expect.poll(() => isInViewport(page, signOutButton)).toBe(true);
       }
+
+      await expect(signOutButton).toBeVisible({ timeout: 10_000 });
 
       await Promise.all([
         page.waitForURL(/\/auth\/login/, { timeout: 15_000 }),
