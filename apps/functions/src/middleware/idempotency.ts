@@ -9,6 +9,13 @@ type CachedResponse = {
 const cache = new Map<string, CachedResponse>();
 const IDEMPOTENCY_TTL_MS = 10 * 60 * 1000;
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of cache) {
+    if (value.expiresAt <= now) cache.delete(key);
+  }
+}, IDEMPOTENCY_TTL_MS);
+
 function cacheKey(req: Request, key: string) {
   return [
     req.tenantId || 'no-tenant',

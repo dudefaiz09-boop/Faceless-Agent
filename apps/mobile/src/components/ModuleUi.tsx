@@ -308,7 +308,7 @@ export const styles = StyleSheet.create({
     fontWeight: '900',
   },
   statCard: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.card,
     borderRadius: 22,
     flexGrow: 1,
     marginBottom: 12,
@@ -316,7 +316,7 @@ export const styles = StyleSheet.create({
     padding: 16,
   },
   statDetail: {
-    color: '#64748b',
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,
@@ -350,13 +350,13 @@ export const styles = StyleSheet.create({
     backgroundColor: '#9333ea',
   },
   statLabel: {
-    color: '#8ba0bd',
+    color: colors.muted,
     fontSize: 11,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   statValue: {
-    color: '#0f172a',
+    color: colors.text,
     fontSize: 30,
     fontWeight: '900',
     marginTop: 10,

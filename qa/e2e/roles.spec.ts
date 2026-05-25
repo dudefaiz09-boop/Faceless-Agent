@@ -55,27 +55,21 @@ for (const role of qaRoles) {
     }
 
     test(`${role} can log out`, async ({ page }) => {
+      await loginAsRole(page, role);
       await page.goto("/");
       await page.waitForLoadState("domcontentloaded");
-
-      if (/\/auth\/login/.test(new URL(page.url()).pathname)) {
-        await loginAsRole(page, role);
-        await page.goto("/");
-        await page.waitForLoadState("domcontentloaded");
-      }
-
       await stabilizePage(page);
 
       const signOutButton = page.getByRole("button", { name: /sign out/i });
       const menuButton = page.getByRole("button", { name: /open navigation menu/i });
+
+      await expect(signOutButton).toBeVisible({ timeout: 10_000 });
 
       if (!(await isInViewport(page, signOutButton)) && (await menuButton.isVisible())) {
         await menuButton.click();
         await expect(signOutButton).toBeVisible();
         await expect.poll(() => isInViewport(page, signOutButton)).toBe(true);
       }
-
-      await expect(signOutButton).toBeVisible({ timeout: 10_000 });
 
       await Promise.all([
         page.waitForURL(/\/auth\/login/, { timeout: 15_000 }),

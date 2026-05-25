@@ -245,7 +245,7 @@ export const ParentPortal = () => {
               <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
                 <CreditCard size={20} className="text-violet-600" />
                 <p className="mt-4 text-2xl font-black text-slate-900">
-                  ${Math.round(pendingFees)}
+                  ₹{Math.round(pendingFees).toLocaleString()}
                 </p>
                 <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   Fee Due

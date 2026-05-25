@@ -1,4 +1,4 @@
-import notificationsRouter from '../apps/functions/src/routes/notifications.ts';
+import notificationsRouter from '../apps/functions/src/features/notifications/notifications.routes.ts';
 
 function findPatchRouteIndex(path: string) {
   // Express exposes route metadata via router.stack layers.

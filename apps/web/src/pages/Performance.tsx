@@ -210,8 +210,7 @@ export const PerformancePage = () => {
       ? Math.round(records.reduce((sum, r) => sum + r.score, 0) / records.length)
       : 0;
 
-  const [randomRank] = useState(() => Math.floor(Math.random() * 100) + 1);
-  const globalRank = report?.globalRank || randomRank;
+  const globalRank = report?.globalRank || 0;
   const filteredRecords = records.filter(
     (record) => {
       const query = scoreSearch.trim().toLowerCase();

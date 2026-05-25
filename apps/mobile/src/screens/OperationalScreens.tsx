@@ -688,7 +688,7 @@ export function ParentPortalScreen() {
       />
       {linkedStudentIds.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalTabs}>
-          {linkedStudentIds.map((id) => (
+          {linkedStudentIds.map((id, idx) => (
             <TouchableOpacity
               key={id}
               onPress={() => setSelectedStudentId(id)}
@@ -697,7 +697,7 @@ export function ParentPortalScreen() {
               <Text
                 style={[styles.segmentText, selectedStudentId === id && styles.segmentTextActive]}
               >
-                {id.slice(0, 8)}
+                Student {idx + 1}
               </Text>
             </TouchableOpacity>
           ))}

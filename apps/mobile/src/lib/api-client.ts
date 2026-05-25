@@ -7,8 +7,6 @@ import {
   ChatService,
   FeesService,
   LibraryService,
-  NotificationsService,
-  ParentPortalService,
   PerformanceService,
   StudentsService,
   UsersService,
@@ -38,8 +36,6 @@ export const authProfileService = new AuthProfileService(apiClient);
 export const chatService = new ChatService(apiClient);
 export const feesService = new FeesService(apiClient);
 export const libraryService = new LibraryService(apiClient);
-export const notificationsService = new NotificationsService(apiClient);
-export const parentPortalService = new ParentPortalService(apiClient);
 export const performanceService = new PerformanceService(apiClient);
 export const studentsService = new StudentsService(apiClient);
 export const usersService = new UsersService(apiClient);

@@ -85,17 +85,30 @@ export const AdminApp = () => {
 
   useEffect(() => {
     if (!apiBase) return;
+    let cancelled = false;
     fetch(`${apiBase}/api/health`, { signal: AbortSignal.timeout(5000) })
       .then((r) => {
-        if (r.ok) setApiStatus('connected');
-        else setApiStatus('error');
+        if (cancelled) return null;
+        if (!r.ok) {
+          setApiStatus('error');
+          setDbStatus('error');
+          return null;
+        }
+        setApiStatus('connected');
         return r.json();
       })
-      .then((data) => setDbStatus(data.status === 'healthy' ? 'synced' : 'error'))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setDbStatus(data.status === 'healthy' ? 'synced' : 'error');
+      })
       .catch(() => {
+        if (cancelled) return;
         setApiStatus('error');
         setDbStatus('error');
       });
+    return () => {
+      cancelled = true;
+    };
   }, [apiBase]);
 
   // School Onboarding Form State
@@ -142,6 +155,9 @@ export const AdminApp = () => {
       } else {
         setSession(currentSession);
         setAuthError('');
+        setLoading(false);
+        loadData();
+        return;
       }
     } catch (err) {
       console.error('Session validation error:', err);
@@ -188,61 +204,47 @@ export const AdminApp = () => {
     await supabase.auth.signOut();
   };
 
-  const loadData = React.useCallback(async () => {
-    if (!session) return;
+  function loadData() {
     setDataLoading(true);
-    try {
-      // 1. Fetch legacy schools from documents
-      const { data: docSchools, error: schoolErr } = await supabase
-        .from('documents')
-        .select('id, data')
-        .eq('collection', 'schools');
-
-      if (schoolErr) throw schoolErr;
-
-      const loadedSchools = (docSchools || []).map((row) => ({
-        id: row.id,
-        name: String(row.data?.name || ''),
-        slug: String(row.data?.slug || ''),
-        status: (row.data?.status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
-        createdAt: String(row.data?.createdAt || ''),
-      }));
-
-      setSchools(loadedSchools);
-
-      // 2. Fetch all users from documents
-      const { data: docUsers, error: userErr } = await supabase
-        .from('documents')
-        .select('id, data')
-        .eq('collection', 'users');
-
-      if (userErr) throw userErr;
-
-      const loadedUsers = (docUsers || []).map((row) => ({
-        id: row.id,
-        email: String(row.data?.email || ''),
-        displayName: String(row.data?.displayName || ''),
-        role: String(row.data?.role || ''),
-        roles: Array.isArray(row.data?.roles) ? row.data.roles : [],
-        schoolId: String(row.data?.schoolId || row.data?.tenantId || ''),
-        status: String(row.data?.status || 'active'),
-        assignedModules: Array.isArray(row.data?.assignedModules) ? row.data.assignedModules : [],
-      }));
-
-      setUsers(loadedUsers);
-    } catch (err) {
-      console.error('Failed to load portal data:', err);
-    } finally {
-      setDataLoading(false);
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (session) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      loadData();
-    }
-  }, [session, loadData]);
+    return supabase
+      .from('documents')
+      .select('id, data')
+      .eq('collection', 'schools')
+      .then(({ data: docSchools, error: schoolErr }) => {
+        if (schoolErr) throw schoolErr;
+        const loadedSchools = (docSchools || []).map((row) => ({
+          id: row.id,
+          name: String(row.data?.name || ''),
+          slug: String(row.data?.slug || ''),
+          status: (row.data?.status === 'inactive' ? 'inactive' : 'active') as
+            | 'active'
+            | 'inactive',
+          createdAt: String(row.data?.createdAt || ''),
+        }));
+        setSchools(loadedSchools);
+        return supabase.from('documents').select('id, data').eq('collection', 'users');
+      })
+      .then(({ data: docUsers, error: userErr }) => {
+        if (userErr) throw userErr;
+        const loadedUsers = (docUsers || []).map((row) => ({
+          id: row.id,
+          email: String(row.data?.email || ''),
+          displayName: String(row.data?.displayName || ''),
+          role: String(row.data?.role || ''),
+          roles: Array.isArray(row.data?.roles) ? row.data.roles : [],
+          schoolId: String(row.data?.schoolId || row.data?.tenantId || ''),
+          status: String(row.data?.status || 'active'),
+          assignedModules: Array.isArray(row.data?.assignedModules) ? row.data.assignedModules : [],
+        }));
+        setUsers(loadedUsers);
+      })
+      .catch((err) => {
+        console.error('Failed to load portal data:', err);
+      })
+      .finally(() => {
+        setDataLoading(false);
+      });
+  }
 
   const handleOnboardSchool = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -410,7 +412,7 @@ export const AdminApp = () => {
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
             >
               {authLoading ? <Loader2 className="animate-spin" size={18} /> : 'Sign In to Console'}
             </button>
@@ -461,7 +463,7 @@ export const AdminApp = () => {
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
                 activeTab === 'dashboard'
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/10'
-                  : 'text-slate-400 hover:bg-slate-850 hover:text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
               <Activity size={18} />
@@ -473,7 +475,7 @@ export const AdminApp = () => {
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
                 activeTab === 'schools'
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/10'
-                  : 'text-slate-400 hover:bg-slate-850 hover:text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
               <School size={18} />
@@ -485,7 +487,7 @@ export const AdminApp = () => {
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
                 activeTab === 'users'
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/10'
-                  : 'text-slate-400 hover:bg-slate-850 hover:text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
               <Users size={18} />
@@ -506,7 +508,7 @@ export const AdminApp = () => {
       {/* Main Panel */}
       <main className="flex-1 overflow-y-auto p-10 relative">
         {/* Header bar */}
-        <header className="flex justify-between items-center mb-10 pb-6 border-b border-slate-850">
+        <header className="flex justify-between items-center mb-10 pb-6 border-b border-slate-800">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-white capitalize">
               {activeTab}
@@ -608,7 +610,7 @@ export const AdminApp = () => {
 
             {/* Quick Actions Panel */}
             <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-3xl shadow-sm">
-              <h2 className="text-lg font-black text-white mb-6">Quick Actions Control Control</h2>
+              <h2 className="text-lg font-black text-white mb-6">Quick Actions</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <button
                   onClick={() => {
@@ -665,7 +667,7 @@ export const AdminApp = () => {
                   setOnboardSuccess(false);
                   setOnboardError('');
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-sm shadow-md transition-all active:scale-98 cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-sm shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 <Plus size={16} />
                 Onboard School
@@ -705,7 +707,7 @@ export const AdminApp = () => {
                       <p className="text-slate-500 text-xs">Slug: {school.slug}</p>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-850 flex justify-between items-center text-xs">
+                    <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
                       <span className="text-slate-400">
                         Users: {users.filter((u) => u.schoolId === school.id).length}
                       </span>
@@ -722,7 +724,7 @@ export const AdminApp = () => {
             {showOnboardModal && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                 <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                  <div className="px-8 py-5 bg-slate-950/40 border-b border-slate-850 flex justify-between items-center">
+                  <div className="px-8 py-5 bg-slate-950/40 border-b border-slate-800 flex justify-between items-center">
                     <h3 className="text-lg font-black text-white">Onboard New School Tenant</h3>
                     <button
                       onClick={() => setShowOnboardModal(false)}
@@ -800,7 +802,7 @@ export const AdminApp = () => {
                           />
                         </div>
 
-                        <div className="border-t border-slate-850 pt-6">
+                        <div className="border-t border-slate-800 pt-6">
                           <h4 className="text-sm font-black text-white mb-4 flex items-center gap-2">
                             <UserPlus size={16} className="text-blue-500" />
                             Primary Admin Credentials
@@ -944,7 +946,7 @@ export const AdminApp = () => {
                       </span>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-850 flex flex-col gap-2 text-xs">
+                    <div className="mt-6 pt-4 border-t border-slate-800 flex flex-col gap-2 text-xs">
                       <div className="flex justify-between">
                         <span className="text-slate-500">School ID:</span>
                         <span className="font-bold text-slate-300 font-mono">
