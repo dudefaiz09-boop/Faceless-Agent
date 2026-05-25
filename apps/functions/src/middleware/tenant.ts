@@ -17,7 +17,7 @@ declare global {
  * Ensures all API calls are strictly scoped to a specific school (tenant).
  */
 export const tenantMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  void resolveTenant(req, next);
+  resolveTenant(req, next).catch(next);
 };
 
 const tenantCache = new Map<string, { active: boolean; expiresAt: number }>();

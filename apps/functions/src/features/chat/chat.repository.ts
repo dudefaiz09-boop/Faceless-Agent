@@ -188,7 +188,7 @@ export class ChatRepository {
   static async createConversation(data: any, user: any, tenantId: string) {
     const now = new Date().toISOString();
     if (data.type === 'direct') {
-      const recipientId = data.recipientId!;
+      const recipientId: string | undefined = data.recipientId;
       if (recipientId === user.uid) throw new AppError('A valid recipientId is required', 400);
       const eligibility = await canMessageUser(user, recipientId, tenantId);
       if (!eligibility.allowed) throw new AppError(eligibility.reason || 'Not authorized', 403);

@@ -13,6 +13,6 @@ appEvents.on('error', (err) => {
 // Example of generic event listener
 appEvents.on('any', (eventName, data) => {
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[Event] ${eventName}:`, data);
+    logger.info({ eventName, data }, 'Application event');
   }
 });

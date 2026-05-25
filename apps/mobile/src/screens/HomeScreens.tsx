@@ -357,7 +357,7 @@ export function DirectoryScreen({ type }: { type: 'student' | 'teacher' | 'all' 
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item.uid || item.id || item.email || Math.random().toString()}
+          keyExtractor={(item) => item.uid || item.id || item.email}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             loading ? null : (

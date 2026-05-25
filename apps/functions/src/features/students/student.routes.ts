@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { StudentController } from './student.controller.js';
 import { validate } from '../../middleware/validate.js';
+import { AppError } from '../../middleware/error.js';
 import {
   createStudentSchema,
   updateStudentSchema,
@@ -16,7 +17,8 @@ function canViewStudentProfile(req: Request, res: Response, next: NextFunction) 
   const user = req.user;
   const uid = req.params.uid as string;
 
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!user)
+    return next(new AppError({ code: 'AUTH_REQUIRED', message: 'Unauthorized', statusCode: 401 }));
   if (user.isAdmin || user.permissions.viewStudentDetails) return next();
   if (user.uid === uid && user.permissions.viewOwnRecords) return next();
   if (user.linkedStudentIds.includes(uid) && user.permissions.viewOwnRecords) return next();
