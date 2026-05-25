@@ -70,6 +70,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         )}
       >
         <input
+          aria-label={label || 'Upload file'}
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}

@@ -364,7 +364,7 @@ export const PerformancePage = () => {
           <div className="lg:col-span-2 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                   Average Score
                 </p>
                 <div className="flex items-baseline gap-2">
@@ -375,7 +375,7 @@ export const PerformancePage = () => {
                 </div>
               </div>
               <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                   Top Subject
                 </p>
                 <h3 className="text-4xl font-black text-indigo-600">
@@ -383,7 +383,7 @@ export const PerformancePage = () => {
                 </h3>
               </div>
               <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                   Global Rank
                 </p>
                 <h3 className="text-4xl font-black text-slate-900">#{globalRank}</h3>
@@ -452,13 +452,13 @@ export const PerformancePage = () => {
                 </div>
                 <div className="space-y-4">
                   <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">
                       Focus Area
                     </p>
                     <p className="text-sm font-medium">Advanced Calculus & Integration</p>
                   </div>
                   <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">
                       Suggested Goal
                     </p>
                     <p className="text-sm font-medium">Increase Chemistry score by 15%</p>
@@ -482,14 +482,14 @@ export const PerformancePage = () => {
                   { title: 'Math Olympiad', date: 'May 28', icon: Sparkles },
                 ].map((m, i) => (
                   <div key={i} className="flex items-center gap-4 group cursor-pointer">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
                       <m.icon size={20} />
                     </div>
                     <div>
                       <p className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
                         {m.title}
                       </p>
-                      <p className="text-xs text-slate-400 font-medium">{m.date}</p>
+                      <p className="text-xs text-slate-500 font-medium">{m.date}</p>
                     </div>
                     <ChevronRight size={16} className="ml-auto text-slate-300" />
                   </div>
@@ -504,7 +504,7 @@ export const PerformancePage = () => {
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
               <div className="space-y-3">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   <Users size={14} />
                   Select Class
                 </label>
@@ -529,13 +529,13 @@ export const PerformancePage = () => {
                   <span className="text-sm font-bold text-slate-600 group-hover:text-indigo-600">
                     Export Statistics
                   </span>
-                  <Download size={16} className="text-slate-400" />
+                  <Download size={16} className="text-slate-500" />
                 </button>
                 <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors group">
                   <span className="text-sm font-bold text-slate-600 group-hover:text-indigo-600">
                     View Reports
                   </span>
-                  <FileText size={16} className="text-slate-400" />
+                  <FileText size={16} className="text-slate-500" />
                 </button>
               </div>
             </div>
@@ -548,7 +548,7 @@ export const PerformancePage = () => {
                 </h4>
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">
+                    <p className="text-[10px] font-black text-slate-500 uppercase mb-1">
                       Class Average
                     </p>
                     <p className="text-xl font-black text-slate-900">{report.classAverage}%</p>
@@ -579,7 +579,7 @@ export const PerformancePage = () => {
                   </div>
                 </div>
                 {loading ? (
-                  <div className="p-20 text-center text-slate-400">Loading scores...</div>
+                  <div className="p-20 text-center text-slate-500">Loading scores...</div>
                 ) : (
                   <DataTable
                     columns={scoreColumns}
@@ -681,7 +681,7 @@ export const PerformancePage = () => {
                 </div>
                 <button
                   onClick={() => setIsUploadOpen(false)}
-                  className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
+                  className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
                 >
                   <X size={20} />
                 </button>
@@ -702,11 +702,12 @@ export const PerformancePage = () => {
               ) : (
                 <form onSubmit={handleUpload} className="space-y-6">
                   <div className="space-y-3">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                       <FileText size={14} />
                       Data Entry (CSV Format)
                     </label>
                     <textarea
+                      aria-label="Paste performance CSV records"
                       required
                       rows={8}
                       value={uploadText}
@@ -715,6 +716,7 @@ export const PerformancePage = () => {
                       className="w-full bg-slate-50 border border-slate-200 p-6 rounded-[32px] text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-mono text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     />
                     <input
+                      aria-label="Choose performance CSV file"
                       ref={fileInputRef}
                       type="file"
                       accept=".csv,text/csv"
@@ -770,7 +772,7 @@ export const PerformancePage = () => {
                       type="button"
                       onClick={() => setIsUploadOpen(false)}
                       disabled={loading}
-                      className="px-8 bg-slate-100 text-slate-500 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all disabled:opacity-50"
+                      className="px-8 bg-slate-100 text-slate-600 py-5 rounded-3xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all disabled:opacity-50"
                     >
                       Cancel
                     </button>
