@@ -18,7 +18,6 @@ import {
   UserPlus,
   Server,
   Database,
-  Wifi,
   WifiOff,
 } from 'lucide-react';
 
@@ -76,16 +75,12 @@ export const AdminApp = () => {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('all');
 
   // Health Check State
-  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [dbStatus, setDbStatus] = useState<'checking' | 'synced' | 'error'>('checking');
+  const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error'>(() => apiBase ? 'checking' : 'error');
+  const [dbStatus, setDbStatus] = useState<'checking' | 'synced' | 'error'>(() => apiBase ? 'checking' : 'error');
 
   useEffect(() => {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-    if (!apiBase) {
-      setApiStatus('error');
-      setDbStatus('error');
-      return;
-    }
+    if (!apiBase) return;
     fetch(`${apiBase}/api/health`, { signal: AbortSignal.timeout(5000) })
       .then((r) => {
         if (r.ok) setApiStatus('connected');
@@ -97,7 +92,7 @@ export const AdminApp = () => {
         setApiStatus('error');
         setDbStatus('error');
       });
-  }, []);
+  }, [apiBase]);
 
   // School Onboarding Form State
   const [showOnboardModal, setShowOnboardModal] = useState(false);
