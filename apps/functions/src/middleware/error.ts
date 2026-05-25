@@ -79,7 +79,13 @@ function normalizeError(err: unknown) {
     });
   }
 
-  if (err && typeof err === 'object' && 'name' in err && err.name === 'SyntaxError' && 'body' in err) {
+  if (
+    err &&
+    typeof err === 'object' &&
+    'name' in err &&
+    err.name === 'SyntaxError' &&
+    'body' in err
+  ) {
     return new AppError({
       code: 'INVALID_JSON',
       message: 'Request body must be valid JSON.',
@@ -89,7 +95,10 @@ function normalizeError(err: unknown) {
 
   if (err && typeof err === 'object') {
     const errorRecord = err as Record<string, unknown>;
-    if (errorRecord.code || (typeof errorRecord.message === 'string' && errorRecord.message.includes('Supabase'))) {
+    if (
+      errorRecord.code ||
+      (typeof errorRecord.message === 'string' && errorRecord.message.includes('Supabase'))
+    ) {
       return new AppError({
         code: 'SUPABASE_ERROR',
         message: 'The data service could not complete the request.',
@@ -112,7 +121,12 @@ function normalizeError(err: unknown) {
   });
 }
 
-export const globalErrorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
+export const globalErrorHandler = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+) => {
   const normalized = normalizeError(err);
   const status = normalized.statusCode;
   const correlationId =

@@ -76,7 +76,8 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       const context = getContext();
       context.user = req.user as UserContext;
     } catch (error: unknown) {
-      const errRecord = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+      const errRecord =
+        error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
       const providerStatus = Number(errRecord.status || errRecord.statusCode || 401);
       const message = String(errRecord.message || '').toLowerCase();
       const code = message.includes('expired') ? 'AUTH_EXPIRED' : 'AUTH_INVALID';

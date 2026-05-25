@@ -123,9 +123,8 @@ export function DashboardPage() {
   const userRole = (role as UserRole) || 'student';
   const copy = roleCopy[userRole] || roleCopy.student;
 
-  const trendData = attendanceTrend?.data && attendanceTrend.data.length > 0
-    ? attendanceTrend.data
-    : [];
+  const trendData =
+    attendanceTrend?.data && attendanceTrend.data.length > 0 ? attendanceTrend.data : [];
 
   return (
     <PageShell>
@@ -164,7 +163,10 @@ export function DashboardPage() {
         {statsLoading ? (
           <>
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
+              <div
+                key={i}
+                className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800"
+              />
             ))}
           </>
         ) : (

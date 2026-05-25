@@ -319,7 +319,7 @@ const AuthScreen = ({
     <SafeAreaView style={styles.container}>
       <View style={styles.loginContainer}>
         <View style={styles.brandBadge}>
-            <Text style={styles.brandBadgeText}>School</Text>
+          <Text style={styles.brandBadgeText}>School</Text>
         </View>
         <Text style={styles.title}>{titles[mode].title}</Text>
         <Text style={styles.subtitle}>{titles[mode].subtitle}</Text>

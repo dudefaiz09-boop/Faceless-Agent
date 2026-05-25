@@ -101,7 +101,9 @@ export const AttendancePage = () => {
   const { user, canManageAttendance, classId: userClassId, schoolId } = useAuth();
   const { toast } = useToast();
   const activeTenantId = getActiveTenantId(schoolId);
-  const [classOptions, setClassOptions] = React.useState<Array<{ id: string; label: string; section: string }>>([]);
+  const [classOptions, setClassOptions] = React.useState<
+    Array<{ id: string; label: string; section: string }>
+  >([]);
 
   const [view, setView] = useState<'marking' | 'history' | 'reports'>(
     canManageAttendance ? 'marking' : 'history'
@@ -142,9 +144,7 @@ export const AttendancePage = () => {
 
   useEffect(() => {
     if (classOptions.length > 0 && !classOptions.some((option) => option.id === selectedClass)) {
-      queueMicrotask(() =>
-        setSelectedClass(userClassId || classOptions[0]?.id || '')
-      );
+      queueMicrotask(() => setSelectedClass(userClassId || classOptions[0]?.id || ''));
     }
   }, [classOptions, selectedClass, userClassId]);
 

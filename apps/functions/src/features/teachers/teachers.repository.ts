@@ -3,7 +3,12 @@ import { createManagedUser, updateManagedUser } from '../../lib/user-management.
 type Actor = { uid: string; email?: string; schoolId?: string | null };
 
 function normalizeTeacherPayload<T extends Record<string, unknown>>(payload: T) {
-  return { ...payload, role: 'teacher', subjectIds: payload.subjectIds || payload.subjects || [], classIds: payload.classIds || payload.classes || [] };
+  return {
+    ...payload,
+    role: 'teacher',
+    subjectIds: payload.subjectIds || payload.subjects || [],
+    classIds: payload.classIds || payload.classes || [],
+  };
 }
 
 export class TeachersRepository {
@@ -18,7 +23,11 @@ export class TeachersRepository {
         const profile = await createManagedUser(normalizeTeacherPayload(teacher), actor);
         results.push({ success: true, uid: profile.uid, email: profile.email });
       } catch (error) {
-        results.push({ success: false, email: teacher.email, error: error instanceof Error ? error.message : String(error) });
+        results.push({
+          success: false,
+          email: teacher.email,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     return results;
@@ -29,6 +38,11 @@ export class TeachersRepository {
   }
 
   static async deactivate(uid: string, actor: Actor) {
-    return updateManagedUser(uid, { role: 'teacher', status: 'inactive' }, actor, 'teacher_deactivated');
+    return updateManagedUser(
+      uid,
+      { role: 'teacher', status: 'inactive' },
+      actor,
+      'teacher_deactivated'
+    );
   }
 }

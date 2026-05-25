@@ -18,23 +18,8 @@ export const auditLogsQuerySchema = z.object({
 });
 
 export const createManagedUserSchema = z.object({
-  body: z.object({
-    email: z.string().email(),
-    password: z.string().min(8),
-    displayName: z.string().min(1),
-    role: z.string().optional(),
-    roles: z.array(z.string()).optional(),
-    tenantId: z.string().optional(),
-    classId: z.string().optional(),
-    classIds: z.array(z.string()).optional(),
-    phone: z.string().optional(),
-    status: z.string().optional(),
-  }).strict(),
-});
-
-export const bulkManagedUsersSchema = z.object({
-  body: z.object({
-    users: z.array(z.object({
+  body: z
+    .object({
       email: z.string().email(),
       password: z.string().min(8),
       displayName: z.string().min(1),
@@ -45,21 +30,44 @@ export const bulkManagedUsersSchema = z.object({
       classIds: z.array(z.string()).optional(),
       phone: z.string().optional(),
       status: z.string().optional(),
-    })),
-  }).strict(),
+    })
+    .strict(),
+});
+
+export const bulkManagedUsersSchema = z.object({
+  body: z
+    .object({
+      users: z.array(
+        z.object({
+          email: z.string().email(),
+          password: z.string().min(8),
+          displayName: z.string().min(1),
+          role: z.string().optional(),
+          roles: z.array(z.string()).optional(),
+          tenantId: z.string().optional(),
+          classId: z.string().optional(),
+          classIds: z.array(z.string()).optional(),
+          phone: z.string().optional(),
+          status: z.string().optional(),
+        })
+      ),
+    })
+    .strict(),
 });
 
 export const updateManagedUserSchema = z.object({
-  body: z.object({
-    displayName: z.string().optional(),
-    role: z.string().optional(),
-    roles: z.array(z.string()).optional(),
-    tenantId: z.string().optional(),
-    classId: z.string().optional(),
-    classIds: z.array(z.string()).optional(),
-    phone: z.string().optional(),
-    status: z.string().optional(),
-  }).strict(),
+  body: z
+    .object({
+      displayName: z.string().optional(),
+      role: z.string().optional(),
+      roles: z.array(z.string()).optional(),
+      tenantId: z.string().optional(),
+      classId: z.string().optional(),
+      classIds: z.array(z.string()).optional(),
+      phone: z.string().optional(),
+      status: z.string().optional(),
+    })
+    .strict(),
 });
 
 export const userParamsSchema = z.object({
@@ -67,8 +75,10 @@ export const userParamsSchema = z.object({
 });
 
 export const updateOwnProfileSchema = z.object({
-  body: z.object({
-    displayName: z.string().min(1).optional(),
-    photoURL: z.string().optional(),
-  }).strict(),
+  body: z
+    .object({
+      displayName: z.string().min(1).optional(),
+      photoURL: z.string().optional(),
+    })
+    .strict(),
 });

@@ -15,11 +15,15 @@ export class AnnouncementsController {
 
   static async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await AnnouncementsRepository.create(req.body, {
-        uid: req.user!.uid,
-        email: req.user!.email,
-        schoolId: req.user!.schoolId,
-      }, req.tenantId!);
+      const result = await AnnouncementsRepository.create(
+        req.body,
+        {
+          uid: req.user!.uid,
+          email: req.user!.email,
+          schoolId: req.user!.schoolId,
+        },
+        req.tenantId!
+      );
       res.json(result);
     } catch (error) {
       next(error);

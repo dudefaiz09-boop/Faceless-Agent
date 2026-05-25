@@ -6,6 +6,11 @@ import { requireAnyRole } from '../../middleware/permissions.js';
 
 const router: Router = Router();
 
-router.post('/', requireAnyRole(['admin', 'super_admin']), validate(updateRoleSchema), RolesController.update);
+router.post(
+  '/',
+  requireAnyRole(['admin', 'super_admin']),
+  validate(updateRoleSchema),
+  RolesController.update
+);
 
 export default router;

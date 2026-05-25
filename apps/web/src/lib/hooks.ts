@@ -17,7 +17,9 @@ export function useDashboardStats() {
   return useQuery({
     queryKey: ['dashboard', 'stats'],
     queryFn: async () => {
-      const res = await apiClient.get<{ stats: unknown[]; trends: unknown[] }>('/api/dashboard/stats');
+      const res = await apiClient.get<{ stats: unknown[]; trends: unknown[] }>(
+        '/api/dashboard/stats'
+      );
       return res;
     },
     staleTime: 30_000,
@@ -29,9 +31,16 @@ export function useAttendanceTrend(page = 1) {
   return useQuery({
     queryKey: ['dashboard', 'attendance-trend', page],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: Array<{ label: string; value: number }>; pagination?: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }>(
-        `/api/dashboard/attendance-trend?page=${page}&limit=100`
-      );
+      const res = await apiClient.get<{
+        data: Array<{ label: string; value: number }>;
+        pagination?: {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+          hasMore: boolean;
+        };
+      }>(`/api/dashboard/attendance-trend?page=${page}&limit=100`);
       return { data: res.data, pagination: res.pagination };
     },
     staleTime: 60_000,
@@ -43,9 +52,16 @@ export function usePerformanceTrend(page = 1) {
   return useQuery({
     queryKey: ['dashboard', 'performance-trend', page],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: Array<{ label: string; value: number }>; pagination?: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }>(
-        `/api/dashboard/performance-trend?page=${page}&limit=100`
-      );
+      const res = await apiClient.get<{
+        data: Array<{ label: string; value: number }>;
+        pagination?: {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+          hasMore: boolean;
+        };
+      }>(`/api/dashboard/performance-trend?page=${page}&limit=100`);
       return { data: res.data, pagination: res.pagination };
     },
     staleTime: 60_000,

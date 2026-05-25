@@ -13,10 +13,34 @@ export class DashboardController {
       if (role === 'teacher') {
         return res.json({
           stats: [
-            { title: 'Classes Today', value: '5', detail: 'Two lab sessions', icon: 'CalendarDays', tone: 'blue' },
-            { title: 'Submissions', value: '28', detail: '7 need grading', icon: 'BookOpen', tone: 'violet' },
-            { title: 'Attendance', value: '94%', detail: 'Across assigned classes', icon: 'Activity', tone: 'emerald' },
-            { title: 'AI Drafts', value: '3', detail: 'Lesson ideas ready', icon: 'Brain', tone: 'cyan' },
+            {
+              title: 'Classes Today',
+              value: '5',
+              detail: 'Two lab sessions',
+              icon: 'CalendarDays',
+              tone: 'blue',
+            },
+            {
+              title: 'Submissions',
+              value: '28',
+              detail: '7 need grading',
+              icon: 'BookOpen',
+              tone: 'violet',
+            },
+            {
+              title: 'Attendance',
+              value: '94%',
+              detail: 'Across assigned classes',
+              icon: 'Activity',
+              tone: 'emerald',
+            },
+            {
+              title: 'AI Drafts',
+              value: '3',
+              detail: 'Lesson ideas ready',
+              icon: 'Brain',
+              tone: 'cyan',
+            },
           ],
           trends: [],
         });
@@ -38,10 +62,34 @@ export class DashboardController {
 
         return res.json({
           stats: [
-            { title: 'Attendance', value: `${attendanceRate}%`, detail: totalDays > 0 ? `${presentDays}/${totalDays} days` : 'Great consistency', icon: 'Activity', tone: 'emerald' },
-            { title: 'Assignments', value: String(assignmentCount || 4), detail: 'Due this week', icon: 'BookOpen', tone: 'blue' },
-            { title: 'Average', value: 'A-', detail: 'Up 4% this term', icon: 'GraduationCap', tone: 'violet' },
-            { title: 'Study Plan', value: '2h', detail: 'Recommended today', icon: 'Brain', tone: 'cyan' },
+            {
+              title: 'Attendance',
+              value: `${attendanceRate}%`,
+              detail: totalDays > 0 ? `${presentDays}/${totalDays} days` : 'Great consistency',
+              icon: 'Activity',
+              tone: 'emerald',
+            },
+            {
+              title: 'Assignments',
+              value: String(assignmentCount || 4),
+              detail: 'Due this week',
+              icon: 'BookOpen',
+              tone: 'blue',
+            },
+            {
+              title: 'Average',
+              value: 'A-',
+              detail: 'Up 4% this term',
+              icon: 'GraduationCap',
+              tone: 'violet',
+            },
+            {
+              title: 'Study Plan',
+              value: '2h',
+              detail: 'Recommended today',
+              icon: 'Brain',
+              tone: 'cyan',
+            },
           ],
           trends: [],
         });
@@ -66,7 +114,8 @@ export class DashboardController {
 
       const totalAttendance = attendanceData?.length || 0;
       const presentAttendance = attendanceData?.filter((a) => a.status === 'present').length || 0;
-      const attendanceRate = totalAttendance > 0 ? Math.round((presentAttendance / totalAttendance) * 100) : 0;
+      const attendanceRate =
+        totalAttendance > 0 ? Math.round((presentAttendance / totalAttendance) * 100) : 0;
 
       return res.json({
         stats: [
@@ -125,7 +174,10 @@ export class DashboardController {
           .range(pagination.offset, pagination.offset + pagination.limit - 1);
 
         if (!data || data.length === 0) {
-          return res.json({ data: [], pagination: { ...pagination, total: count || 0, totalPages: 0, hasMore: false } });
+          return res.json({
+            data: [],
+            pagination: { ...pagination, total: count || 0, totalPages: 0, hasMore: false },
+          });
         }
 
         const dayMap: Record<string, { present: number; total: number }> = {};

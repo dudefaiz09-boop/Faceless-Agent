@@ -117,9 +117,7 @@ export const FeesPage = () => {
 
   useEffect(() => {
     if (classOptions.length > 0 && !classOptions.some((option) => option.id === selectedClass)) {
-      queueMicrotask(() =>
-        setSelectedClass(userClassId || classOptions[0]?.id || '')
-      );
+      queueMicrotask(() => setSelectedClass(userClassId || classOptions[0]?.id || ''));
     }
   }, [classOptions, selectedClass, userClassId]);
 

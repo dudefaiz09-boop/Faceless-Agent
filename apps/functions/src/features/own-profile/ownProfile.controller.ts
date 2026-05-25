@@ -6,7 +6,12 @@ export class OwnProfileController {
     try {
       const uid = req.user!.uid;
       const { displayName, photoURL } = req.body;
-      const profile = await OwnProfileRepository.updateProfile(uid, req.user!.email, displayName, photoURL);
+      const profile = await OwnProfileRepository.updateProfile(
+        uid,
+        req.user!.email,
+        displayName,
+        photoURL
+      );
       res.json({ success: true, profile });
     } catch (error) {
       next(error);

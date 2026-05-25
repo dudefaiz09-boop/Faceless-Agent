@@ -179,11 +179,7 @@ export const UsersPage = ({ type }: { type: 'student' | 'teacher' | 'all' }) => 
     tenants.forEach((tenant) => tenantById.set(tenant.id, tenant));
 
     const allowedIds =
-      isSuperAdmin && managedTenantIds.length > 0
-        ? managedTenantIds
-        : schoolId
-          ? [schoolId]
-          : [];
+      isSuperAdmin && managedTenantIds.length > 0 ? managedTenantIds : schoolId ? [schoolId] : [];
 
     return allowedIds.map(
       (id) => tenantById.get(id) || { id, name: id.replaceAll('-', ' '), slug: id }

@@ -1,7 +1,12 @@
 import { auth, db } from '../../lib/documents.js';
 
 export class OwnProfileRepository {
-  static async updateProfile(uid: string, email: string | undefined, displayName?: string, photoURL?: string) {
+  static async updateProfile(
+    uid: string,
+    email: string | undefined,
+    displayName?: string,
+    photoURL?: string
+  ) {
     const supabaseAdmin = auth.getSupabaseAdmin();
     const now = new Date().toISOString();
 

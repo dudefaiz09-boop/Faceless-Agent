@@ -32,11 +32,15 @@ function canSeeAnnouncement(announcement: AnnouncementRecord, role: string, clas
   const targetRoles = announcement.targetRoles?.length ? announcement.targetRoles : ['all'];
   const targetClasses = announcement.targetClasses?.length ? announcement.targetClasses : ['all'];
   const roleMatch = targetRoles.includes('all') || targetRoles.includes(role);
-  const classMatch = targetClasses.includes('all') || classIds.some((classId) => targetClasses.includes(classId));
+  const classMatch =
+    targetClasses.includes('all') || classIds.some((classId) => targetClasses.includes(classId));
   return roleMatch && classMatch;
 }
 
-function isTenantAnnouncement(announcement: Pick<AnnouncementRecord, 'tenantId' | 'schoolId'>, tenantId?: string) {
+function isTenantAnnouncement(
+  announcement: Pick<AnnouncementRecord, 'tenantId' | 'schoolId'>,
+  tenantId?: string
+) {
   return announcement.tenantId === tenantId || announcement.schoolId === tenantId;
 }
 
@@ -57,19 +61,23 @@ export class AnnouncementsRepository {
       .filter((announcement) => canSeeAnnouncement(announcement, role, classIds));
   }
 
-  static async create(data: {
-    title: string;
-    content: string;
-    targetClasses?: string[];
-    targetRoles?: string[];
-    visibility?: string;
-    category?: string;
-    priority?: string;
-    pinned?: boolean;
-    attachments?: unknown[];
-    isScheduled?: boolean;
-    scheduledFor?: string | null;
-  }, actor: Actor, tenantId: string) {
+  static async create(
+    data: {
+      title: string;
+      content: string;
+      targetClasses?: string[];
+      targetRoles?: string[];
+      visibility?: string;
+      category?: string;
+      priority?: string;
+      pinned?: boolean;
+      attachments?: unknown[];
+      isScheduled?: boolean;
+      scheduledFor?: string | null;
+    },
+    actor: Actor,
+    tenantId: string
+  ) {
     const now = new Date().toISOString();
 
     const announcement = {
@@ -110,7 +118,10 @@ export class AnnouncementsRepository {
         metadata: { announcementId: docRef.id, priority: announcement.priority },
       });
     } catch (notificationError) {
-      logger.warn({ err: notificationError, title: announcement.title }, 'Announcement notification could not be created');
+      logger.warn(
+        { err: notificationError, title: announcement.title },
+        'Announcement notification could not be created'
+      );
     }
 
     return { id: docRef.id, ...announcement };

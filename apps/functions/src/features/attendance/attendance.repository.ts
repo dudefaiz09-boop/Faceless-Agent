@@ -5,15 +5,27 @@ import { AppError } from '../../middleware/error.js';
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 type AttendanceEntry = { studentId: string; studentName?: string; status: AttendanceStatus };
-type AttendanceDayRecord = { date?: string; classId?: string; records?: AttendanceEntry[]; tenantId?: string; schoolId?: string | null };
+type AttendanceDayRecord = {
+  date?: string;
+  classId?: string;
+  records?: AttendanceEntry[];
+  tenantId?: string;
+  schoolId?: string | null;
+};
 
-function isTenantAttendance(record: Pick<AttendanceDayRecord, 'tenantId' | 'schoolId'>, tenantId?: string) {
+function isTenantAttendance(
+  record: Pick<AttendanceDayRecord, 'tenantId' | 'schoolId'>,
+  tenantId?: string
+) {
   return record.tenantId === tenantId || record.schoolId === tenantId;
 }
 
 export class AttendanceRepository {
   static async getReport(classId: string, tenantId: string, startDate?: string, endDate?: string) {
-    let query = db.collection('attendance').where('tenantId', '==', tenantId).where('classId', '==', classId);
+    let query = db
+      .collection('attendance')
+      .where('tenantId', '==', tenantId)
+      .where('classId', '==', classId);
     if (startDate) query = query.where('date', '>=', startDate);
     if (endDate) query = query.where('date', '<=', endDate);
 
@@ -36,7 +48,11 @@ export class AttendanceRepository {
     const classId = userData.classId;
     if (!classId) return [];
 
-    const snapshot = await db.collection('attendance').where('tenantId', '==', tenantId).where('classId', '==', classId).get();
+    const snapshot = await db
+      .collection('attendance')
+      .where('tenantId', '==', tenantId)
+      .where('classId', '==', classId)
+      .get();
 
     return snapshot.docs
       .map((doc) => {
@@ -48,22 +64,39 @@ export class AttendanceRepository {
   }
 
   static async list(classId: string, tenantId: string, date?: string) {
-    let query = db.collection('attendance').where('tenantId', '==', tenantId).where('classId', '==', classId);
+    let query = db
+      .collection('attendance')
+      .where('tenantId', '==', tenantId)
+      .where('classId', '==', classId);
     if (date) query = query.where('date', '==', date);
 
     const snapshot = await query.get();
-    const days = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as AttendanceDayRecord) }));
+    const days = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as AttendanceDayRecord),
+    }));
 
     if (date) {
       const day = days[0];
       const records = day?.records || [];
-      return records.map((record) => ({ id: `${day.id}_${record.studentId}`, classId, date, ...record }));
+      return records.map((record) => ({
+        id: `${day.id}_${record.studentId}`,
+        classId,
+        date,
+        ...record,
+      }));
     }
 
     return days;
   }
 
-  static async mark(classId: string, date: string, records: AttendanceEntry[], tenantId: string, actorUid: string) {
+  static async mark(
+    classId: string,
+    date: string,
+    records: AttendanceEntry[],
+    tenantId: string,
+    actorUid: string
+  ) {
     const docId = `${classId}_${date}`;
     const attendanceRef = db.collection('attendance').doc(docId);
     const existing = await attendanceRef.get();
