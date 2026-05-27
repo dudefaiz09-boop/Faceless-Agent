@@ -15,12 +15,8 @@ import {
 import { cn } from '../lib/utils';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PageShell } from '../components/ui/PageShell';
-import {
-  StudentProfile,
-  AttendanceRecord,
-  Assignment,
-  Submission,
-} from '@educonnect/shared-education';
+import type { Assignment } from '@educonnect/shared-education';
+import type { AttendanceRecord, StudentProfile, Submission } from '@educonnect/shared';
 
 type StudentProfileResponse = StudentProfile | { success?: boolean; data?: StudentProfile };
 

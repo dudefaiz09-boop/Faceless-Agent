@@ -34,6 +34,7 @@ interface DocumentRow {
 
 class SupabaseDocumentSnapshot {
   constructor(
+    public readonly collectionName: string,
     public readonly id: string,
     public readonly value: DocumentData | null
   ) {}
@@ -44,6 +45,10 @@ class SupabaseDocumentSnapshot {
 
   data() {
     return this.value || undefined;
+  }
+
+  get ref() {
+    return new SupabaseDocumentReference(this.collectionName, this.id);
   }
 }
 
@@ -126,10 +131,10 @@ class SupabaseDocumentReference {
 
     // Safety check: ensure the document belongs to the current tenant if it has a tenantId
     if (data?.data && data.data.tenantId && data.data.tenantId !== tenantId) {
-      return new SupabaseDocumentSnapshot(this.id, null);
+      return new SupabaseDocumentSnapshot(this.collectionName, this.id, null);
     }
 
-    return new SupabaseDocumentSnapshot(this.id, data?.data || null);
+    return new SupabaseDocumentSnapshot(this.collectionName, this.id, data?.data || null);
   }
 
   async set(value: DocumentData) {
@@ -218,7 +223,7 @@ class SupabaseCollectionReference {
   private order: QueryOrder | null = null;
   private maxRows: number | null = null;
 
-  constructor(private readonly collectionName: string) {}
+  constructor(public readonly collectionName: string) {}
 
   doc(id: string) {
     return new SupabaseDocumentReference(this.collectionName, id);
@@ -282,14 +287,14 @@ class SupabaseCollectionReference {
       });
     }
 
-    const { data, error } = await withSupabaseRetry(() => query, {
+    const { data, error } = await withSupabaseRetry(() => Promise.resolve(query), {
       label: `documents.${this.collectionName}.get`,
     });
 
     if (error) throw error;
 
     let docs = ((data || []) as DocumentRow[])
-      .map((row) => new SupabaseDocumentSnapshot(row.id, row.data || {}))
+      .map((row) => new SupabaseDocumentSnapshot(this.collectionName, row.id, row.data || {}))
       .filter((doc) => this.filters.every((filter) => matchesFilter(doc.data() || {}, filter)));
 
     if (this.order) {

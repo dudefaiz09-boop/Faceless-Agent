@@ -42,6 +42,7 @@ interface Announcement {
   createdAt?: string;
   timestamp?: string;
   scheduledFor?: string | null;
+  attachments?: string[];
 }
 
 const priorities = {

@@ -2,6 +2,7 @@ import { db } from '../../lib/documents.js';
 import { logger } from '@educonnect/logger';
 import { generateSafeContent, isAiEnabled } from '../../lib/ai.js';
 import { AssignmentAnalytics } from '@educonnect/shared-analytics';
+import type { Assignment, AssignmentSubmission } from '@educonnect/shared-education';
 import { createNotification, type NotificationInput } from '../../lib/notifications.js';
 import { AppError } from '../../middleware/error.js';
 
@@ -33,6 +34,58 @@ type SubmissionRecord = {
   [key: string]: unknown;
 };
 type Actor = { uid: string; email?: string; schoolId?: string | null };
+
+function toAnalyticsAssignment(
+  assignment: AssignmentRecord,
+  tenantId: string
+): Assignment & { id: string } {
+  return {
+    id: assignment.id,
+    schoolId: assignment.schoolId || assignment.tenantId || tenantId,
+    title: assignment.title || 'Untitled Assignment',
+    description: assignment.description || '',
+    dueDate: assignment.dueDate || new Date(0).toISOString(),
+    classId: assignment.classId || undefined,
+    targetClasses: Array.isArray(assignment.targetClasses) ? assignment.targetClasses : [],
+    status:
+      assignment.status === 'draft' ||
+      assignment.status === 'scheduled' ||
+      assignment.status === 'archived'
+        ? assignment.status
+        : 'published',
+    attachments: [],
+    teacherId: assignment.createdBy || '',
+    pointsPossible: 100,
+    allowResubmissions: true,
+    isArchived: assignment.status === 'archived',
+  };
+}
+
+function toAnalyticsSubmission(
+  submission: SubmissionRecord,
+  tenantId: string
+): AssignmentSubmission {
+  return {
+    id: `${submission.assignmentId || 'assignment'}_${submission.studentId || 'student'}`,
+    schoolId: submission.schoolId || submission.tenantId || tenantId,
+    assignmentId: submission.assignmentId || '',
+    studentId: submission.studentId || '',
+    studentName: '',
+    status:
+      submission.status === 'graded' || submission.status === 'returned'
+        ? submission.status
+        : 'submitted',
+    content: '',
+    attachments: [],
+    submittedAt: typeof submission.submittedAt === 'string' ? submission.submittedAt : undefined,
+    grade: submission.grade == null ? null : String(submission.grade),
+    feedback: submission.feedback,
+    teacherComments: [],
+    checkedByAI: false,
+    recheckedByTeacher: false,
+    isArchived: false,
+  };
+}
 
 function isTenantAssignment(
   assignment: Pick<AssignmentRecord, 'tenantId' | 'schoolId'>,
@@ -75,7 +128,10 @@ export class AssignmentsRepository {
           .where('assignmentId', '==', assignment.id)
           .get();
         const submissions = submissionsSnap.docs.map((doc) => doc.data() as SubmissionRecord);
-        return AssignmentAnalytics.calculateStats(assignment, submissions);
+        return AssignmentAnalytics.calculateStats(
+          toAnalyticsAssignment(assignment, tenantId),
+          submissions.map((submission) => toAnalyticsSubmission(submission, tenantId))
+        );
       })
     );
   }
@@ -109,8 +165,8 @@ export class AssignmentsRepository {
     return snapshot.docs.map((doc) => {
       const data = doc.data() as AssignmentRecord;
       return {
-        id: doc.id,
         ...data,
+        id: doc.id,
         title: data.title || 'Untitled Assignment',
         dueDate: data.dueDate || null,
         classId: data.classId || null,

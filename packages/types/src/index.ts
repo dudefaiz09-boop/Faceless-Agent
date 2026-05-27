@@ -5,6 +5,8 @@ export interface UserContext {
   role: string;
   roles: string[];
   isAdmin: boolean;
+  isSuperAdmin?: boolean;
+  managedTenantIds?: string[];
   schoolId: string | null;
   classId: string | null;
   classIds: string[];

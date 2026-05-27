@@ -34,27 +34,31 @@ export const Card = ({
   className,
   ...props
 }: CardProps) => {
-  const Comp = hover ? motion.div : 'div';
-  const motionProps = hover
-    ? {
-        whileHover: { y: -3, scale: 1.005 },
-        transition: { type: 'spring', stiffness: 300, damping: 24 },
-      }
-    : {};
+  const cardClassName = cn(
+    'rounded-3xl overflow-hidden',
+    variantStyles[variant],
+    accent && accentBorders[accent],
+    className
+  );
+
+  if (hover) {
+    const motionProps = props as React.ComponentProps<typeof motion.div>;
+    return (
+      <motion.div
+        className={cardClassName}
+        whileHover={{ y: -3, scale: 1.005 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+        {...motionProps}
+      >
+        {children}
+      </motion.div>
+    );
+  }
 
   return (
-    <Comp
-      className={cn(
-        'rounded-3xl overflow-hidden',
-        variantStyles[variant],
-        accent && accentBorders[accent],
-        className
-      )}
-      {...motionProps}
-      {...props}
-    >
+    <div className={cardClassName} {...props}>
       {children}
-    </Comp>
+    </div>
   );
 };
 

@@ -11,6 +11,7 @@ import {
   Megaphone,
   Sparkles,
   Users,
+  type LucideIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatCard } from '../components/saas/StatCard';
@@ -95,7 +96,7 @@ const roleCopy: Record<UserRole, { title: string; subtitle: string; insight: str
   },
 };
 
-const iconMap: Record<string, React.ElementType> = {
+const iconMap: Record<string, LucideIcon> = {
   Users,
   GraduationCap,
   Activity,
@@ -170,17 +171,20 @@ export function DashboardPage() {
             ))}
           </>
         ) : (
-          dashboardStats?.stats?.map((stat: Record<string, unknown>) => (
-            <StatCard
-              key={String(stat.title)}
-              title={String(stat.title)}
-              value={String(stat.value)}
-              detail={String(stat.detail)}
-              icon={iconMap[String(stat.icon)] || Activity}
-              tone={(stat.tone as 'blue' | 'violet' | 'emerald' | 'cyan' | 'rose') || 'blue'}
-              trend={stat.trend as string | undefined}
-            />
-          ))
+          (Array.isArray(dashboardStats?.stats) ? dashboardStats.stats : []).map((stat) => {
+            const typedStat = stat as Record<string, unknown>;
+            return (
+              <StatCard
+                key={String(typedStat.title)}
+                title={String(typedStat.title)}
+                value={String(typedStat.value)}
+                detail={String(typedStat.detail)}
+                icon={iconMap[String(typedStat.icon)] || Activity}
+                tone={(typedStat.tone as 'blue' | 'violet' | 'emerald' | 'cyan' | 'rose') || 'blue'}
+                trend={typedStat.trend as string | undefined}
+              />
+            );
+          })
         )}
       </div>
 

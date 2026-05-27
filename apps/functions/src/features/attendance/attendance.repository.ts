@@ -1,5 +1,6 @@
 import { db } from '../../lib/documents.js';
 import { AttendanceAnalytics } from '@educonnect/shared-analytics';
+import type { AttendanceRecord } from '@educonnect/types';
 import { appEvents } from '../../lib/events.js';
 import { AppError } from '../../middleware/error.js';
 
@@ -33,7 +34,16 @@ export class AttendanceRepository {
     return snapshot.docs.map((doc) => {
       const data = (doc.data() || {}) as AttendanceDayRecord;
       const records = data.records || [];
-      return AttendanceAnalytics.calculateStats(records, tenantId, data.date);
+      const date = data.date || startDate || endDate || '';
+      const analyticsRecords: AttendanceRecord[] = records.map((record) => ({
+        studentId: record.studentId,
+        classId,
+        date,
+        status: record.status,
+        markedBy: '',
+        updatedAt: '',
+      }));
+      return AttendanceAnalytics.calculateStats(analyticsRecords, tenantId, date);
     });
   }
 

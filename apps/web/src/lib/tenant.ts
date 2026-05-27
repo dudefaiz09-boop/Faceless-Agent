@@ -5,7 +5,10 @@ function isBrowser() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
-export function isValidTenantId(value: string | null | undefined, allowedTenantIds?: string[]) {
+export function isValidTenantId(
+  value: string | null | undefined,
+  allowedTenantIds?: string[]
+): value is string {
   if (!value) return false;
   if (allowedTenantIds?.length) return allowedTenantIds.includes(value);
   return false;

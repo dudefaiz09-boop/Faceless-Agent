@@ -5,7 +5,8 @@ export type QaRole =
   | 'student'
   | 'parent'
   | 'librarian'
-  | 'accountant';
+  | 'accountant'
+  | 'staff';
 
 export type QaRoute = {
   name: string;
@@ -23,6 +24,7 @@ export const qaRoles: QaRole[] = [
   'parent',
   'librarian',
   'accountant',
+  'staff',
 ];
 
 export const publicRoutes: QaRoute[] = [
@@ -98,6 +100,7 @@ export const roleAccessMatrix: Record<QaRole, string[]> = {
   ],
   librarian: ['dashboard', 'announcements', 'chat', 'library'],
   accountant: ['dashboard', 'announcements', 'chat', 'fees'],
+  staff: ['dashboard', 'announcements', 'attendance', 'chat', 'students'],
 };
 
 export const smokeRoutes: QaRoute[] = publicRoutes.concat(protectedRoutes);

@@ -221,7 +221,9 @@ export const AssignmentsPage = () => {
         status: ASSIGNMENT_STATUS.PUBLISHED,
         targetClasses: [newAssignment.classId],
         subject: newAssignment.subject,
-        attachments: assignmentAttachmentUrl ? [assignmentAttachmentUrl] : [],
+        attachments: assignmentAttachmentUrl
+          ? [{ name: 'Reference file', url: assignmentAttachmentUrl, type: 'link' }]
+          : [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -554,18 +556,21 @@ export const AssignmentsPage = () => {
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">
                         Worksheet / Reference File
                       </span>
-                      {selectedAssignment.attachments.map((url, i) => (
-                        <a
-                          key={i}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 text-xs text-blue-600 font-bold hover:underline"
-                        >
-                          <ExternalLink size={12} /> Download Reference File{' '}
-                          {selectedAssignment.attachments.length > 1 ? i + 1 : ''}
-                        </a>
-                      ))}
+                      {selectedAssignment.attachments.map((attachment, i) => {
+                        const href = attachment.url;
+                        return (
+                          <a
+                            key={i}
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 text-xs text-blue-600 font-bold hover:underline"
+                          >
+                            <ExternalLink size={12} /> Download Reference File{' '}
+                            {selectedAssignment.attachments.length > 1 ? i + 1 : ''}
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -581,9 +586,9 @@ export const AssignmentsPage = () => {
                           <p className="text-sm text-emerald-800">
                             {mySubmissions[selectedAssignment.id].content}
                           </p>
-                          {mySubmissions[selectedAssignment.id].fileUrl && (
+                          {mySubmissions[selectedAssignment.id].attachments[0]?.url && (
                             <a
-                              href={mySubmissions[selectedAssignment.id].fileUrl!}
+                              href={mySubmissions[selectedAssignment.id].attachments[0].url}
                               target="_blank"
                               rel="noreferrer"
                               className="flex items-center gap-2 text-xs text-blue-600 font-bold mt-2"

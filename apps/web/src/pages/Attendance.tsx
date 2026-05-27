@@ -41,6 +41,7 @@ type StudentDocument = Student & {
   roles?: string[];
   schoolId?: string;
   tenantId?: string;
+  classIds?: string[];
 };
 
 type AttendanceStatus = 'present' | 'absent' | 'late';

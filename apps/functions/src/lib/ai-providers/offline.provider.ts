@@ -1,4 +1,4 @@
-import { AiProvider } from './base.provider.js';
+import { AiGenerationConfig, AiProvider } from './base.provider.js';
 
 export class OfflineAiProvider implements AiProvider {
   name = 'offline';
@@ -7,7 +7,11 @@ export class OfflineAiProvider implements AiProvider {
     return true;
   }
 
-  async generateContent(systemInstruction: string, userPrompt: string): Promise<string> {
+  async generateContent(
+    systemInstruction: string,
+    userPrompt: string,
+    _config?: AiGenerationConfig
+  ): Promise<string> {
     const trimmed = userPrompt.trim().replace(/\s+/g, ' ').slice(0, 100);
     return [
       'AI is currently running in offline-safe mode.',
