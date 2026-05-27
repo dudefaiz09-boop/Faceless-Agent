@@ -8,6 +8,7 @@
     "build": "node build.js",
     "dev": "node --watch dist/standalone.js",
     "lint": "eslint . --ext .ts",
+    "typecheck": "tsc --noEmit",
     "seed:supabase": "tsx scripts/seed-supabase.ts",
     "seed:demo-extras": "tsx scripts/seed-demo-extras.ts",
     "verify:demo-seed": "tsx scripts/verify-demo-seed.ts",

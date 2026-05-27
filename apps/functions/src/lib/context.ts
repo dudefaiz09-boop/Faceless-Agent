@@ -9,11 +9,18 @@ export interface UserContext {
   displayName?: string;
   role: string;
   roles: string[];
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  managedTenantIds?: string[];
   schoolId: string | null;
   classId?: string | null;
   classIds: string[];
+  subjectIds?: string[];
+  sectionIds?: string[];
   linkedStudentIds: string[];
+  assignedModules?: string[];
   permissions: Record<string, boolean>;
+  status?: 'active' | 'inactive';
 }
 
 export interface AppContext {

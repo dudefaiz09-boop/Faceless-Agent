@@ -1,6 +1,11 @@
 import { ApiClient } from '../client/base.js';
 import { Assignment, AssignmentSubmission } from '@educonnect/shared-education';
 
+type CreateAssignmentPayload = Partial<Assignment> & {
+  tenantId?: string;
+  subject?: string;
+};
+
 export class AssignmentsService {
   constructor(private client: ApiClient) {}
 
@@ -12,7 +17,7 @@ export class AssignmentsService {
     return this.getAssignments(classId);
   }
 
-  async createAssignment(data: Partial<Assignment>) {
+  async createAssignment(data: CreateAssignmentPayload) {
     return this.client.post<Assignment>('/assignments/create', data);
   }
 

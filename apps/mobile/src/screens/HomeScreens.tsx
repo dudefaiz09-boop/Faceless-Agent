@@ -357,7 +357,7 @@ export function DirectoryScreen({ type }: { type: 'student' | 'teacher' | 'all' 
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item.uid || item.id || item.email}
+          keyExtractor={(item, index) => item.uid || item.id || item.email || `user-${index}`}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             loading ? null : (

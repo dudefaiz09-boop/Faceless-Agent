@@ -156,7 +156,7 @@ export const AdminApp = () => {
         setSession(currentSession);
         setAuthError('');
         setLoading(false);
-        loadData();
+        void loadData();
         return;
       }
     } catch (err) {
@@ -204,46 +204,44 @@ export const AdminApp = () => {
     await supabase.auth.signOut();
   };
 
-  function loadData() {
+  async function loadData() {
     setDataLoading(true);
-    return supabase
-      .from('documents')
-      .select('id, data')
-      .eq('collection', 'schools')
-      .then(({ data: docSchools, error: schoolErr }) => {
-        if (schoolErr) throw schoolErr;
-        const loadedSchools = (docSchools || []).map((row) => ({
-          id: row.id,
-          name: String(row.data?.name || ''),
-          slug: String(row.data?.slug || ''),
-          status: (row.data?.status === 'inactive' ? 'inactive' : 'active') as
-            | 'active'
-            | 'inactive',
-          createdAt: String(row.data?.createdAt || ''),
-        }));
-        setSchools(loadedSchools);
-        return supabase.from('documents').select('id, data').eq('collection', 'users');
-      })
-      .then(({ data: docUsers, error: userErr }) => {
-        if (userErr) throw userErr;
-        const loadedUsers = (docUsers || []).map((row) => ({
-          id: row.id,
-          email: String(row.data?.email || ''),
-          displayName: String(row.data?.displayName || ''),
-          role: String(row.data?.role || ''),
-          roles: Array.isArray(row.data?.roles) ? row.data.roles : [],
-          schoolId: String(row.data?.schoolId || row.data?.tenantId || ''),
-          status: String(row.data?.status || 'active'),
-          assignedModules: Array.isArray(row.data?.assignedModules) ? row.data.assignedModules : [],
-        }));
-        setUsers(loadedUsers);
-      })
-      .catch((err) => {
-        console.error('Failed to load portal data:', err);
-      })
-      .finally(() => {
-        setDataLoading(false);
-      });
+    try {
+      const { data: docSchools, error: schoolErr } = await supabase
+        .from('documents')
+        .select('id, data')
+        .eq('collection', 'schools');
+      if (schoolErr) throw schoolErr;
+      const loadedSchools = (docSchools || []).map((row) => ({
+        id: row.id,
+        name: String(row.data?.name || ''),
+        slug: String(row.data?.slug || ''),
+        status: (row.data?.status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
+        createdAt: String(row.data?.createdAt || ''),
+      }));
+      setSchools(loadedSchools);
+
+      const { data: docUsers, error: userErr } = await supabase
+        .from('documents')
+        .select('id, data')
+        .eq('collection', 'users');
+      if (userErr) throw userErr;
+      const loadedUsers = (docUsers || []).map((row) => ({
+        id: row.id,
+        email: String(row.data?.email || ''),
+        displayName: String(row.data?.displayName || ''),
+        role: String(row.data?.role || ''),
+        roles: Array.isArray(row.data?.roles) ? row.data.roles : [],
+        schoolId: String(row.data?.schoolId || row.data?.tenantId || ''),
+        status: String(row.data?.status || 'active'),
+        assignedModules: Array.isArray(row.data?.assignedModules) ? row.data.assignedModules : [],
+      }));
+      setUsers(loadedUsers);
+    } catch (err) {
+      console.error('Failed to load portal data:', err);
+    } finally {
+      setDataLoading(false);
+    }
   }
 
   const handleOnboardSchool = async (e: React.FormEvent) => {
@@ -953,11 +951,11 @@ export const AdminApp = () => {
                           {user.schoolId || 'N/A'}
                         </span>
                       </div>
-                      {user.assignedModules.length > 0 && (
+                      {(user.assignedModules || []).length > 0 && (
                         <div className="flex flex-col gap-1 mt-1">
                           <span className="text-slate-500">Modules:</span>
                           <div className="flex flex-wrap gap-1">
-                            {user.assignedModules.map((mod) => (
+                            {(user.assignedModules || []).map((mod) => (
                               <span
                                 key={mod}
                                 className="px-1.5 py-0.5 bg-slate-800 rounded text-[9px] font-medium text-slate-300"

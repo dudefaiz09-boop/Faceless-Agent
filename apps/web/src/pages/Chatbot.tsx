@@ -81,7 +81,7 @@ function getFriendlyAiError(err: unknown, aiStatus: AiStatus | null) {
     return 'AI request failed because the web app could not reach the API. Check your connection or the API server status.';
   }
 
-  if (status >= 400) {
+  if (typeof status === 'number' && status >= 400) {
     return `AI request failed (Status: ${status}). ${message}`;
   }
 

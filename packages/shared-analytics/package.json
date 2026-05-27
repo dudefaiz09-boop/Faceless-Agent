@@ -6,7 +6,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "node ../../scripts/build-package.js && tsc --emitDeclarationOnly"
+    "build": "node ../../scripts/build-package.js && tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "^3.24.2",

@@ -126,6 +126,10 @@ type UserProfileData = {
   linked_student_ids?: string[];
 };
 
+type UserProfileRow = {
+  data: UserProfileData | null;
+};
+
 const AuthContext = createContext<AuthContextType>({
   user: null,
   role: null,
@@ -192,12 +196,12 @@ function resolveRoles(profile: UserProfileData, appMetadata: Record<string, unkn
 }
 
 async function getProfile(uid: string) {
-  const { data, error } = await supabase
+  const { data, error } = (await supabase
     .from('documents')
     .select('data')
     .eq('collection', 'users')
     .eq('id', uid)
-    .maybeSingle();
+    .maybeSingle()) as { data: UserProfileRow | null; error: Error | null };
 
   if (error) throw error;
   return (data?.data || {}) as UserProfileData;

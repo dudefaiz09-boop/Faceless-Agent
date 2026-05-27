@@ -12,4 +12,7 @@ export const toastMessages = {
   info(toast: ToastFn, title: string, description?: string) {
     toast({ tone: 'info', title, description });
   },
+  warning(toast: ToastFn, title: string, description?: string) {
+    toast({ tone: 'warning', title, description });
+  },
 };

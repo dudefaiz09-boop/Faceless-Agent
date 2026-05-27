@@ -33,16 +33,18 @@ type UserRecord = {
   role?: string;
   roles?: string[];
   status?: 'active' | 'inactive';
-  classId?: string;
+  classId?: string | null;
   classIds?: string[];
   linkedStudentIds?: string[];
   tenantId?: string;
   schoolId?: string | null;
 };
+type ChatUser = UserRecord & { uid: string; isAdmin?: boolean };
+
 function directConversationId(left: string, right: string) {
   return `direct_${[left, right].sort().join('_')}`;
 }
-function displayName(user: any) {
+function displayName(user: Pick<UserRecord, 'displayName' | 'email'>) {
   return user.displayName || user.email || 'EduConnect user';
 }
 function isTenantRecord(
@@ -51,12 +53,12 @@ function isTenantRecord(
 ) {
   return record.tenantId === tenantId || record.schoolId === tenantId;
 }
-function getClassIds(user: any) {
+function getClassIds(user: Pick<UserRecord, 'classId' | 'classIds'>): string[] {
   return user.classIds || (user.classId ? [user.classId] : []);
 }
 
 async function canMessageUser(
-  currentUser: any,
+  currentUser: ChatUser,
   targetUserId: string,
   tenantId?: string
 ): Promise<{ allowed: boolean; reason?: string }> {
@@ -114,7 +116,11 @@ async function canMessageUser(
   return { allowed: false, reason: 'Not authorized to message this user' };
 }
 
-function assertConversationAccess(conversation: ConversationRecord, user: any, tenantId?: string) {
+function assertConversationAccess(
+  conversation: ConversationRecord,
+  user: Pick<ChatUser, 'uid'>,
+  tenantId?: string
+) {
   if (!isTenantRecord(conversation, tenantId))
     return { allowed: false, error: 'Tenant access denied' };
   if (!conversation.participants?.includes(user.uid))
@@ -123,7 +129,7 @@ function assertConversationAccess(conversation: ConversationRecord, user: any, t
 }
 
 export class ChatRepository {
-  static async listRooms(user: any, tenantId: string) {
+  static async listRooms(user: ChatUser, tenantId: string) {
     const snapshot = await db.collection('conversations').where('tenantId', '==', tenantId).get();
     return snapshot.docs
       .map((doc) => ({ id: doc.id, ...(doc.data() as ConversationRecord) }))
@@ -135,7 +141,7 @@ export class ChatRepository {
       );
   }
 
-  static async listContacts(user: any, tenantId: string) {
+  static async listContacts(user: ChatUser, tenantId: string) {
     const snapshot = await db.collection('users').where('tenantId', '==', tenantId).get();
     const contacts = await Promise.all(
       snapshot.docs.map(async (doc) => {
@@ -167,7 +173,7 @@ export class ChatRepository {
       );
   }
 
-  static async getMessages(conversationId: string, user: any, tenantId: string) {
+  static async getMessages(conversationId: string, user: ChatUser, tenantId: string) {
     const roomSnapshot = await db.collection('conversations').doc(conversationId).get();
     if (!roomSnapshot.exists) throw new AppError('Conversation not found', 404);
     const conversation = (roomSnapshot.data() || {}) as ConversationRecord;
@@ -185,11 +191,12 @@ export class ChatRepository {
     }));
   }
 
-  static async createConversation(data: any, user: any, tenantId: string) {
+  static async createConversation(data: any, user: ChatUser, tenantId: string) {
     const now = new Date().toISOString();
     if (data.type === 'direct') {
       const recipientId: string | undefined = data.recipientId;
-      if (recipientId === user.uid) throw new AppError('A valid recipientId is required', 400);
+      if (!recipientId || recipientId === user.uid)
+        throw new AppError('A valid recipientId is required', 400);
       const eligibility = await canMessageUser(user, recipientId, tenantId);
       if (!eligibility.allowed) throw new AppError(eligibility.reason || 'Not authorized', 403);
       const id = directConversationId(user.uid, recipientId);
@@ -244,7 +251,7 @@ export class ChatRepository {
 
   static async sendMessage(
     data: { conversationId?: string; recipientId?: string; text: string },
-    user: any,
+    user: ChatUser,
     tenantId: string
   ) {
     const now = new Date().toISOString();
@@ -259,7 +266,7 @@ export class ChatRepository {
       if (!access.allowed) throw new AppError(access.error!, 403);
     } else {
       const targetRecipientId = data.recipientId!;
-      if (targetRecipientId === user.uid)
+      if (!targetRecipientId || targetRecipientId === user.uid)
         throw new AppError('recipientId is required for a new direct message', 400);
       const eligibility = await canMessageUser(user, targetRecipientId, tenantId);
       if (!eligibility.allowed) throw new AppError(eligibility.reason || 'Not authorized', 403);
@@ -331,7 +338,7 @@ export class ChatRepository {
     };
   }
 
-  static async markRead(conversationId: string, user: any, tenantId: string) {
+  static async markRead(conversationId: string, user: ChatUser, tenantId: string) {
     const roomSnapshot = await db.collection('conversations').doc(conversationId).get();
     if (!roomSnapshot.exists) throw new AppError('Conversation not found', 404);
     const conversation = (roomSnapshot.data() || {}) as ConversationRecord;

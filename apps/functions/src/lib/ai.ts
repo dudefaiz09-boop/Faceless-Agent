@@ -7,6 +7,22 @@ const geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 type AiProviderPreference = 'auto' | 'openrouter' | 'gemini' | 'offline';
 
+type GeminiGenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+};
+
+type OpenRouterChatResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+};
+
 /**
  * Prioritized list of approved free OpenRouter models for startup/demo mode.
  * Keep this list conservative: only free models should be accepted by OPENROUTER_MODEL.
@@ -159,7 +175,7 @@ async function callGeminiModel(
     throw new Error(`Gemini error: ${response.status}`);
   }
 
-  const payload = await response.json();
+  const payload = (await response.json()) as GeminiGenerateContentResponse;
   const parts = payload?.candidates?.[0]?.content?.parts || [];
   return parts
     .map((part: { text?: string }) => part.text || '')
@@ -202,7 +218,7 @@ async function callOpenRouterFreeModel(
     throw new Error(`OpenRouter error: ${response.status}`);
   }
 
-  const payload = await response.json();
+  const payload = (await response.json()) as OpenRouterChatResponse;
   return payload?.choices?.[0]?.message?.content || '';
 }
 

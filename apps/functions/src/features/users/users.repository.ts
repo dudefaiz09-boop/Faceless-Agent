@@ -85,14 +85,23 @@ export class UsersRepository {
         updatedAt: new Date().toISOString(),
       };
       await userRef.update(after);
+      const displayName = typeof after.displayName === 'string' ? after.displayName : undefined;
+      const updatedAt =
+        typeof after.updatedAt === 'string' ? after.updatedAt : new Date().toISOString();
       await supabaseAdmin
         .from('profiles')
-        .upsert({ id: uid, display_name: after.displayName, updated_at: after.updatedAt });
+        .upsert({ id: uid, display_name: displayName, updated_at: updatedAt });
     }
   }
 
   static async create(data: Record<string, unknown>, actor: Actor) {
-    return createManagedUser({ ...data, tenantId: data.tenantId }, actor);
+    return createManagedUser(
+      {
+        ...data,
+        tenantId: typeof data.tenantId === 'string' ? data.tenantId : undefined,
+      },
+      actor
+    );
   }
 
   static async bulkImport(users: any[], req: Request, actor: Actor) {

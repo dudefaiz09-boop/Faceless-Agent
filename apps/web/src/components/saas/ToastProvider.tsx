@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { CheckCircle2, Info, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
-type ToastTone = 'success' | 'error' | 'info';
+type ToastTone = 'success' | 'error' | 'info' | 'warning';
 
 interface Toast {
   id: string;
@@ -36,6 +36,11 @@ const toneStyles = {
     icon: Info,
     className:
       'border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-cyan-200',
+  },
+  warning: {
+    icon: AlertTriangle,
+    className:
+      'border-amber-100 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200',
   },
 } satisfies Record<ToastTone, { icon: React.ElementType; className: string }>;
 

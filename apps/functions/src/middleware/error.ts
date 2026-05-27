@@ -160,7 +160,9 @@ export const globalErrorHandler = (
     message: safeMessage,
     details: normalized.details || {},
     correlationId,
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    ...(process.env.NODE_ENV !== 'production' && {
+      stack: err instanceof Error ? err.stack : undefined,
+    }),
   };
 
   res.setHeader('x-correlation-id', correlationId);
