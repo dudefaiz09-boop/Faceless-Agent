@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileText, Sparkles, Loader2 } from "lucide-react";
 
 export default function ScriptEditorPage() {
+  return (
+    <Suspense fallback={<p className="text-gray-500">Loading...</p>}>
+      <ScriptEditorContent />
+    </Suspense>
+  );
+}
+
+function ScriptEditorContent() {
   const searchParams = useSearchParams();
   const preselectedIdeaId = searchParams.get("idea_id");
 

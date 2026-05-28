@@ -19,7 +19,7 @@ Free-tier rules and card requirements can change. Confirm the current limits in 
 3. Use the async SQLAlchemy driver format in the backend environment:
 
    ```bash
-   DATABASE_URL=postgresql+asyncpg://postgres:<SUPABASE_DB_PASSWORD>@aws-0-your-region.pooler.supabase.com:6543/postgres
+   DATABASE_URL=postgresql+asyncpg://postgres.<SUPABASE_PROJECT_REF>:<SUPABASE_DB_PASSWORD>@aws-0-<SUPABASE_REGION>.pooler.supabase.com:6543/postgres
    ```
 
 4. Optional: create a Supabase Storage bucket for generated assets.
@@ -77,12 +77,13 @@ Keep provider keys blank in committed files and configure them only in provider 
 
 1. Create a new Hugging Face Space.
 2. Choose Docker as the Space SDK.
-3. Point the Space at this repository or upload the backend files with `backend/Dockerfile` as the Docker build definition.
-4. Set the Space port to `7860` if the UI asks for an app port.
-5. Add backend secrets in the Space settings:
+3. Point the Space at this repository. The root `README.md` includes `sdk: docker` and `app_port: 7860`, and the root `Dockerfile` builds the backend from the `backend/` directory.
+4. If you upload only the backend directory instead, use `backend/Dockerfile` as the Docker build definition and set the Space port to `7860`.
+5. Set the Space port to `7860` if the UI asks for an app port.
+6. Add backend secrets in the Space settings:
 
    ```bash
-   DATABASE_URL=postgresql+asyncpg://postgres:<SUPABASE_DB_PASSWORD>@aws-0-your-region.pooler.supabase.com:6543/postgres
+   DATABASE_URL=postgresql+asyncpg://postgres.<SUPABASE_PROJECT_REF>:<SUPABASE_DB_PASSWORD>@aws-0-<SUPABASE_REGION>.pooler.supabase.com:6543/postgres
    REDIS_URL=rediss://default:<UPSTASH_REDIS_PASSWORD>@your-upstash-host.upstash.io:6379
    CELERY_BROKER_URL=rediss://default:<UPSTASH_REDIS_PASSWORD>@your-upstash-host.upstash.io:6379
    CELERY_RESULT_BACKEND=rediss://default:<UPSTASH_REDIS_PASSWORD>@your-upstash-host.upstash.io:6379
@@ -129,11 +130,11 @@ python -m py_compile backend/app/config.py backend/app/providers/llm.py
 bash -n backend/entrypoint.sh
 ```
 
-Optional Docker smoke test from the backend directory:
+Optional Docker smoke test from the repository root:
 
 ```bash
 docker build -t faceless-agent-backend .
-docker run --rm -p 7860:7860 --env-file ../.env.example faceless-agent-backend
+docker run --rm -p 7860:7860 --env-file .env.example faceless-agent-backend
 ```
 
 For a real smoke test, replace placeholder secrets with provider dashboard values outside git, then open:
