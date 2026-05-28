@@ -15,6 +15,19 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   SUPABASE_UPLOADS_BUCKET: z.string().default('educonnect-uploads'),
 
+  // Storage provider configuration.
+  // "firebase" = Firebase Storage for new uploads (recommended).
+  // "supabase" = legacy Supabase Storage (backward compat reads only).
+  STORAGE_PROVIDER: z.enum(['firebase', 'supabase']).default('supabase'),
+
+  // Firebase Storage (required when STORAGE_PROVIDER=firebase).
+  FIREBASE_PROJECT_ID: z.string().optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().optional(),
+  FIREBASE_PRIVATE_KEY: z.string().optional(),
+  FIREBASE_STORAGE_BUCKET: z.string().optional(),
+  FIREBASE_SIGNED_URL_TTL_SECONDS: z.string().transform(Number).default('900'),
+  MAX_UPLOAD_BYTES: z.string().transform(Number).default('52428800'),
+
   // Free AI provider keys. Keep these server-side only.
   OPENROUTER_API_KEY: z.string().optional(),
   OPENROUTER_MODEL: z.string().optional(),

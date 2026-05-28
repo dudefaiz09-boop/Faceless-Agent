@@ -1,14 +1,62 @@
 import React, { useState, useRef } from 'react';
-import { supabase, uploadsBucket } from '../lib/supabase';
 import { UploadCloud, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { getSupabaseAccessToken } from '../lib/supabase';
+import { env } from '../lib/env';
+import { getActiveTenantId } from '../lib/tenant';
 
 interface FileUploadProps {
   onUploadComplete: (url: string) => void;
+  /**
+   * Legacy path string used to derive module/entityId.
+   * Format: "{module}/{entityId}", e.g. "submissions/assignment-123/user-456"
+   * or "library/resources" or "announcements/user-id"
+   */
   path: string;
   label?: string;
   accept?: string;
 }
+
+/**
+ * Parse the legacy `path` prop into module/entityId for the new backend API.
+ * - "submissions/{assignmentId}/{userId}" → module=assignments, entityId={assignmentId}
+ * - "library/resources"                  → module=library,      entityId=general
+ * - "announcements/{userId}"             → module=announcements, entityId=general
+ * - fallback                             → module=documents,    entityId=general
+ */
+function parsePath(path: string): { module: string; entityId: string } {
+  const segments = path.split('/').filter(Boolean);
+  const first = segments[0] || 'documents';
+  const second = segments[1] || 'general';
+
+  if (first === 'submissions') {
+    // submissions/{assignmentId}/{userId}
+    return { module: 'assignments', entityId: second };
+  }
+  if (first === 'library') {
+    return { module: 'library', entityId: 'general' };
+  }
+  if (first === 'announcements') {
+    return { module: 'announcements', entityId: 'general' };
+  }
+  return { module: first, entityId: second === 'general' ? 'general' : second };
+}
+
+const MAX_FILE_SIZE_BYTES = 52428800; // 50 MB
+
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'text/plain',
+  'application/zip',
+]);
 
 export const FileUpload: React.FC<FileUploadProps> = ({
   onUploadComplete,
@@ -29,24 +77,96 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setUploading(true);
     setError(null);
     setFileName(file.name);
-
-    const objectPath = `${path}/${Date.now()}_${file.name}`;
+    setProgress(5);
 
     try {
-      setProgress(25);
-      const { error } = await supabase.storage.from(uploadsBucket).upload(objectPath, file, {
-        cacheControl: '3600',
-        upsert: false,
+      // Client-side validation
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        throw new Error(`File is too large. Maximum allowed size is ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.`);
+      }
+
+      const { module, entityId } = parsePath(path);
+      const baseUrl = env.VITE_API_BASE_URL;
+      const token = await getSupabaseAccessToken();
+      const tenantId = getActiveTenantId();
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (tenantId) headers['X-Tenant-ID'] = tenantId;
+
+      // Step 1: Request a presigned upload URL from the backend
+      setProgress(15);
+      const presignRes = await fetch(`${baseUrl}/documents/presign-upload`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          module,
+          entityId,
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+          sizeBytes: file.size,
+        }),
       });
 
-      if (error) throw error;
+      if (!presignRes.ok) {
+        const errBody = await presignRes.json().catch(() => ({})) as { message?: string };
+        throw new Error(errBody.message || `Presign request failed (${presignRes.status})`);
+      }
+
+      const presignData = await presignRes.json() as { data: { uploadUrl: string; bucket: string; key: string } };
+      const { uploadUrl, bucket, key } = presignData.data;
+
+      setProgress(30);
+
+      // Step 2: Upload the binary file directly to Firebase Storage via the signed URL
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error(`Storage upload failed (${uploadRes.status}). Please try again.`);
+      }
+
+      setProgress(80);
+
+      // Step 3: Notify the backend to save metadata in Supabase
+      const completeRes = await fetch(`${baseUrl}/documents/complete-upload`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          provider: 'firebase',
+          bucket,
+          key,
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+          sizeBytes: file.size,
+          module,
+          entityId,
+        }),
+      });
+
+      if (!completeRes.ok) {
+        const errBody = await completeRes.json().catch(() => ({})) as { message?: string };
+        throw new Error(errBody.message || `Complete upload request failed (${completeRes.status})`);
+      }
+
+      const completeData = await completeRes.json() as { data: { id: string } };
+      const documentId = completeData.data?.id;
 
       setProgress(100);
-      const { data } = supabase.storage.from(uploadsBucket).getPublicUrl(objectPath);
-      onUploadComplete(data.publicUrl);
+
+      // Return a backend-resolvable download URL for the document
+      // The caller stores this reference; actual download is via the backend
+      onUploadComplete(documentId ? `${baseUrl}/documents/${documentId}/download-url` : key);
     } catch (err) {
       console.error('[Upload Error]', err);
-      setError('Upload failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -85,7 +205,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </div>
             <div className="text-center">
               <p className="text-sm font-bold text-slate-700">Click to upload</p>
-              <p className="text-xs text-slate-400 mt-1">PDF, Word, or Images up to 10MB</p>
+              <p className="text-xs text-slate-400 mt-1">PDF, Word, or Images up to 50MB</p>
             </div>
           </>
         )}
@@ -112,7 +232,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               <CheckCircle2 size={24} />
             </div>
             <div className="text-center">
-              <p className="text-sm font-bold text-slate-700">File Selected</p>
+              <p className="text-sm font-bold text-slate-700">File Uploaded</p>
               <p className="text-xs text-slate-400 mt-1 truncate max-w-[200px]">{fileName}</p>
             </div>
           </div>
@@ -123,7 +243,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-600">
               <XCircle size={24} />
             </div>
-            <p className="text-xs font-bold text-red-600">{error}</p>
+            <p className="text-xs font-bold text-red-600 text-center max-w-[220px]">{error}</p>
+            <p className="text-[10px] text-slate-400">Click to try again</p>
           </div>
         )}
       </div>

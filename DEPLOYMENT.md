@@ -9,12 +9,13 @@ For the production checklist, see [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md).
 
 ## Deployable Targets
 
-| Target                | Technology        | Hosting                        | Notes                          |
-| --------------------- | ----------------- | ------------------------------ | ------------------------------ |
-| Web                   | React + Vite      | Vercel Hobby                   | Builds apps/web                |
-| Backend API           | Node.js + Express | Vercel Hobby Functions         | Served from /api               |
-| Database/Auth/Storage | Supabase          | Supabase Free                  | Uses supabase/migrations/\*    |
-| Mobile                | React Native      | Local / App Store / Play Store | Uses the same Supabase backend |
+| Target                | Technology        | Hosting                        | Notes                               |
+| --------------------- | ----------------- | ------------------------------ | ----------------------------------- |
+| Web                   | React + Vite      | Vercel Hobby                   | Builds apps/web                     |
+| Backend API           | Node.js + Express | Vercel Hobby Functions         | Served from /api                    |
+| Database/Auth         | Supabase          | Supabase Free                  | Uses supabase/migrations/\*         |
+| File Storage          | Firebase Storage  | Firebase Spark (free tier)     | New file uploads; Supabase for meta |
+| Mobile                | React Native      | Local / App Store / Play Store | Uses the same Supabase backend      |
 
 ## Vercel Projects
 
@@ -69,6 +70,15 @@ CORS_ORIGINS=https://your-web-project.vercel.app
 OPENROUTER_API_KEY=your_openrouter_key
 OPENROUTER_MODEL=google/gemma-3-4b-it:free
 PUBLIC_APP_URL=https://your-web-project.vercel.app
+
+# Firebase Storage (new uploads — backend only)
+STORAGE_PROVIDER=firebase
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"
+FIREBASE_STORAGE_BUCKET=your-firebase-project.appspot.com
+FIREBASE_SIGNED_URL_TTL_SECONDS=900
+MAX_UPLOAD_BYTES=52428800
 ```
 
 **Note:** Ensure `OPENROUTER_API_KEY` is set correctly to enable live AI responses. If missing, the assistant will run in offline mode. The default model is `google/gemma-3-4b-it:free`. The system enforces strict free-model usage with automatic fallback.
@@ -100,6 +110,22 @@ pnpm seed:supabase
 
 Keep `SUPABASE_SERVICE_ROLE_KEY` only in local backend `.env` files or backend hosting secrets.
 
+## Firebase Storage Setup
+
+New file uploads go to Firebase Storage. Supabase Storage is kept only for backward compatibility with existing files.
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) and create a new project.
+2. Enable **Firebase Storage** (Spark free plan).
+3. In Project Settings → Service Accounts, click **Generate new private key**. Download the JSON file.
+4. Extract `project_id`, `client_email`, and `private_key` from the JSON.
+5. Add them as secrets to your `educonnect-api` Vercel project (see env vars above).
+6. Set `STORAGE_PROVIDER=firebase` in the API project.
+7. Deploy the API, then test by uploading a file from the web UI.
+8. Confirm the file appears in Firebase Console → Storage → Files.
+9. Confirm metadata appears in Supabase `documents` table with `storage_provider='firebase'`.
+
+> **Security:** Firebase credentials are backend-only secrets. Never add them to the web project or commit them to version control.
+
 ## Local Development
 
 Create `apps/web/.env.local`:
@@ -130,14 +156,15 @@ OPENROUTER_MODEL=google/gemma-3-4b-it:free
 ## Deployment Order
 
 1. Create Supabase project.
-2. Apply migrations.
-3. Create `educonnect-uploads` storage bucket.
-4. Deploy API project to Vercel.
-5. Test `https://your-api-project.vercel.app/api/health`.
-6. Deploy web project to Vercel.
-7. Set `VITE_API_BASE_URL` to the API URL.
-8. Add the final web URL to `CORS_ORIGINS` in the API project.
-9. Test auth, API calls, uploads, AI features, and role-based access.
+2. Apply migrations (`supabase db push`).
+3. Create Firebase project and enable Storage.
+4. Generate Firebase service account private key.
+5. Deploy API project to Vercel with all env vars including Firebase credentials.
+6. Test `https://your-api-project.vercel.app/api/health`.
+7. Deploy web project to Vercel (no Firebase credentials needed).
+8. Set `VITE_API_BASE_URL` to the API URL.
+9. Add the final web URL to `CORS_ORIGINS` in the API project.
+10. Test auth, uploads (verify file lands in Firebase Storage), downloads, and role-based access.
 
 ## Rollback
 

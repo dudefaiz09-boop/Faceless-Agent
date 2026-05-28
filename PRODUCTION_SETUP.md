@@ -75,6 +75,15 @@ SUPABASE_UPLOADS_BUCKET=educonnect-uploads
 CORS_ORIGINS=https://your-web-project.vercel.app
 OPENROUTER_API_KEY=your_openrouter_key_if_using_ai
 OPENROUTER_MODEL=google/gemma-3-4b-it:free
+
+# Firebase Storage (new uploads — backend only)
+STORAGE_PROVIDER=firebase
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"
+FIREBASE_STORAGE_BUCKET=your-firebase-project.appspot.com
+FIREBASE_SIGNED_URL_TTL_SECONDS=900
+MAX_UPLOAD_BYTES=52428800
 ```
 
 `OPENROUTER_API_KEY` is optional and must stay server-side in the API project.
@@ -128,5 +137,19 @@ In the browser:
 
 - Sign in.
 - Open announcements, users, teachers, students, attendance, and chat.
-- Upload one file to confirm Supabase Storage policies work.
+- Upload a file and confirm it appears in **Firebase Console → Storage → Files**.
+- Confirm the metadata row in Supabase `documents` table has `storage_provider = 'firebase'`.
+- Download the uploaded file to confirm signed URLs work.
+- Open any old file and confirm backward compatibility (old Supabase Storage files still open).
 - Create one announcement and confirm it appears.
+
+## 5. Firebase Storage Setup
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com).
+2. Create a new project (or reuse an existing one).
+3. Enable **Storage** from the Firebase console.
+4. In **Project Settings → Service Accounts**, click **Generate new private key** → download JSON.
+5. Copy `project_id`, `client_email`, and `private_key` from the JSON into your API env vars.
+6. Set `STORAGE_PROVIDER=firebase` in the `educonnect-api` Vercel project.
+7. Redeploy the API.
+8. Test by uploading a document from the EduConnect web UI.

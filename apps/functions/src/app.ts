@@ -37,6 +37,7 @@ import chatRouter from './features/chat/chat.routes.js';
 import rolesRouter from './features/roles/roles.routes.js';
 import usersRouter from './features/users/users.routes.js';
 import notificationsRouter from './features/notifications/notifications.routes.js';
+import documentsRouter from './features/documents/documents.routes.js';
 
 const app: Express = express();
 app.set('trust proxy', 1);
@@ -239,6 +240,7 @@ protectedRouter.use('/chat', chatRouter);
 protectedRouter.use('/roles', rolesRouter);
 protectedRouter.use('/users', usersRouter);
 protectedRouter.use('/notifications', notificationsRouter);
+protectedRouter.use('/documents', documentsRouter);
 
 app.use('/api', protectedRouter);
 
