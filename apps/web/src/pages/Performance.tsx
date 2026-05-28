@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiClient } from '../lib/api-client';
+import { apiClient, parentPortalService } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   TrendingUp,
@@ -35,6 +35,7 @@ import { SearchBar } from '../components/saas/SearchBar';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
+import { getPerformanceCopy } from '../lib/role-ui';
 
 interface PerformanceRecord {
   id: string;
@@ -52,10 +53,40 @@ interface PerformanceReport {
   records: PerformanceRecord[];
 }
 
+type ChildProfile = {
+  uid?: string;
+  id?: string;
+  displayName?: string;
+};
+
+type StudentProfileResponse = ChildProfile | { success?: boolean; data?: ChildProfile };
+
+function unwrapStudentProfile(response: StudentProfileResponse): ChildProfile {
+  return 'data' in response && response.data ? response.data : (response as ChildProfile);
+}
+
 export const PerformancePage = () => {
-  const { user, isStudent, canManagePerformance, classId: userClassId, schoolId } = useAuth();
+  const {
+    user,
+    role,
+    isStudent,
+    canManagePerformance,
+    classId: userClassId,
+    classIds,
+    linkedStudentIds,
+    schoolId,
+  } = useAuth();
   const { toast } = useToast();
-  const [classOptions] = React.useState<Array<{ id: string; label: string; section: string }>>([]);
+  const classOptions = React.useMemo(
+    () =>
+      Array.from(new Set(classIds.length ? classIds : userClassId ? [userClassId] : [])).map(
+        (id) => ({ id, label: `Class ${id}`, section: '' })
+      ),
+    [classIds, userClassId]
+  );
+  const isParent = role === 'parent';
+  const isLearnerView = isStudent || isParent;
+  const copy = getPerformanceCopy(role, canManagePerformance);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [records, setRecords] = useState<PerformanceRecord[]>([]);
   const [report, setReport] = useState<PerformanceReport | null>(null);
@@ -68,6 +99,8 @@ export const PerformancePage = () => {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadText, setUploadText] = useState('');
   const [selectedClass, setSelectedClass] = useState(userClassId || '');
+  const [selectedStudentId, setSelectedStudentId] = useState(linkedStudentIds[0] || '');
+  const [linkedStudents, setLinkedStudents] = useState<ChildProfile[]>([]);
   const [scoreSearch, setScoreSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -78,16 +111,50 @@ export const PerformancePage = () => {
     }
   }, [classOptions, selectedClass, userClassId]);
 
+  useEffect(() => {
+    if (!isParent) return;
+    let mounted = true;
+    void Promise.all(
+      linkedStudentIds.map(async (studentId) => {
+        const response = (await parentPortalService.studentProfile(
+          studentId
+        )) as StudentProfileResponse;
+        return { ...unwrapStudentProfile(response), uid: studentId };
+      })
+    )
+      .then((profiles) => {
+        if (!mounted) return;
+        setLinkedStudents(profiles);
+        if (!selectedStudentId && profiles[0]) {
+          setSelectedStudentId(profiles[0].uid || profiles[0].id || '');
+        }
+      })
+      .catch(() => {
+        if (mounted) setLinkedStudents([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isParent, linkedStudentIds, selectedStudentId]);
+
   const loadStudentData = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await apiClient.request<PerformanceRecord[]>(`/api/performance/${user?.uid}`);
+      const targetStudentId = isParent ? selectedStudentId : user?.uid;
+      if (!targetStudentId) {
+        setRecords([]);
+        return;
+      }
+      const data = await apiClient.request<PerformanceRecord[]>(
+        `/api/performance/${targetStudentId}`
+      );
       setRecords(data);
     } catch (error) {
       console.error('Failed to load performance data:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isParent, selectedStudentId, user]);
 
   const loadClassReport = useCallback(async () => {
     try {
@@ -104,13 +171,13 @@ export const PerformancePage = () => {
   }, [selectedClass, view]);
 
   useEffect(() => {
-    if (isStudent) {
+    if (isLearnerView) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       loadStudentData();
-    } else {
+    } else if (canManagePerformance) {
       loadClassReport();
     }
-  }, [isStudent, loadStudentData, loadClassReport]);
+  }, [isLearnerView, canManagePerformance, loadStudentData, loadClassReport]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -313,16 +380,9 @@ export const PerformancePage = () => {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Performance Analytics"
-        description={
-          isStudent
-            ? 'Visualize your academic growth and AI study tips.'
-            : 'Track class performance and subject trends.'
-        }
-      >
+      <PageHeader title={copy.title} description={copy.description}>
         <div className="flex items-center gap-3">
-          {!isStudent && (
+          {canManagePerformance && (
             <div className="flex bg-slate-100 p-1.5 rounded-2xl mr-2 dark:bg-slate-900">
               <button
                 onClick={() => handleViewChange('analytics')}
@@ -361,8 +421,33 @@ export const PerformancePage = () => {
         </div>
       </PageHeader>
 
-      {isStudent ? (
+      {isLearnerView ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {isParent && (
+            <div className="lg:col-span-3">
+              <label className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">
+                {copy.selector}
+              </label>
+              <select
+                aria-label="Select child for performance records"
+                value={selectedStudentId}
+                onChange={(event) => {
+                  setSelectedStudentId(event.target.value);
+                  setLoading(true);
+                }}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                {linkedStudents.map((student) => {
+                  const id = student.uid || student.id || '';
+                  return (
+                    <option key={id} value={id}>
+                      {student.displayName || id}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
           {/* Individual Charts */}
           <div className="lg:col-span-2 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -445,34 +530,36 @@ export const PerformancePage = () => {
 
           {/* AI Insights Sidebar */}
           <div className="space-y-6">
-            <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
-              <div className="relative z-10 space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
-                    <Brain className="text-indigo-400" size={20} />
+            {!isParent && (
+              <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
+                <div className="relative z-10 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+                      <Brain className="text-indigo-400" size={20} />
+                    </div>
+                    <h3 className="text-lg font-bold">AI Study Plan</h3>
                   </div>
-                  <h3 className="text-lg font-bold">AI Study Plan</h3>
+                  <div className="space-y-4">
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">
+                        Focus Area
+                      </p>
+                      <p className="text-sm font-medium">Advanced Calculus & Integration</p>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">
+                        Suggested Goal
+                      </p>
+                      <p className="text-sm font-medium">Increase Chemistry score by 15%</p>
+                    </div>
+                  </div>
+                  <button className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20">
+                    Generate New Plan
+                  </button>
                 </div>
-                <div className="space-y-4">
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">
-                      Focus Area
-                    </p>
-                    <p className="text-sm font-medium">Advanced Calculus & Integration</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">
-                      Suggested Goal
-                    </p>
-                    <p className="text-sm font-medium">Increase Chemistry score by 15%</p>
-                  </div>
-                </div>
-                <button className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20">
-                  Generate New Plan
-                </button>
+                <Sparkles className="absolute -bottom-8 -right-8 w-40 h-40 text-indigo-500 opacity-20 rotate-12" />
               </div>
-              <Sparkles className="absolute -bottom-8 -right-8 w-40 h-40 text-indigo-500 opacity-20 rotate-12" />
-            </div>
+            )}
 
             <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm space-y-6">
               <h3 className="font-bold text-slate-900 flex items-center gap-2">
@@ -501,7 +588,7 @@ export const PerformancePage = () => {
             </div>
           </div>
         </div>
-      ) : (
+      ) : canManagePerformance ? (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Staff Filters */}
           <div className="lg:col-span-1 space-y-6">
@@ -652,6 +739,15 @@ export const PerformancePage = () => {
               </div>
             )}
           </div>
+        </div>
+      ) : (
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="text-xl font-black text-slate-900 dark:text-white">
+            Performance is not available
+          </h3>
+          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+            Your role does not include access to class performance analytics.
+          </p>
         </div>
       )}
 

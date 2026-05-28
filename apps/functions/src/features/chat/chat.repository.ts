@@ -2,6 +2,7 @@ import { db } from '../../lib/documents.js';
 import { createNotification } from '../../lib/notifications.js';
 import { logger } from '@educonnect/logger';
 import { AppError } from '../../middleware/error.js';
+import { getLinkedChildClassIds, getStudentClassIds } from '../../lib/authorization.js';
 
 type ConversationRecord = {
   participants?: string[];
@@ -83,6 +84,9 @@ async function canMessageUser(
   if (currentRole === 'parent') {
     if (targetRole === 'teacher' && targetClassIds.some((c) => currentClassIds.includes(c)))
       return { allowed: true, reason: "Child's Teacher" };
+    const childClassIds = await getLinkedChildClassIds(currentUser, tenantId || '');
+    if (targetRole === 'teacher' && targetClassIds.some((c) => childClassIds.includes(c)))
+      return { allowed: true, reason: "Child's Teacher" };
     if (targetRole === 'principal' || targetRole === 'admin')
       return { allowed: true, reason: 'Administration' };
     return { allowed: false, reason: 'Not authorized to message this user' };
@@ -91,8 +95,14 @@ async function canMessageUser(
     if (targetRole === 'student' && targetClassIds.some((c) => currentClassIds.includes(c)))
       return { allowed: true, reason: 'Your Student' };
     if (targetRole === 'parent') {
-      const hasLinked =
-        (targetData.linkedStudentIds || []).length > 0 && currentClassIds.length > 0;
+      const linkedStudentClassIds = (
+        await Promise.all(
+          (targetData.linkedStudentIds || []).map((studentId) =>
+            getStudentClassIds(studentId, tenantId || '')
+          )
+        )
+      ).flat();
+      const hasLinked = linkedStudentClassIds.some((classId) => currentClassIds.includes(classId));
       if (hasLinked) return { allowed: true, reason: "Student's Parent" };
     }
     if (['principal', 'admin', 'teacher'].includes(targetRole))

@@ -25,6 +25,7 @@ import { useDocuments } from '../lib/documents';
 import { SearchBar } from '../components/saas/SearchBar';
 import { StatCard } from '../components/saas/StatCard';
 import { useToast } from '../components/saas/ToastProvider';
+import { getAttendanceCopy } from '../lib/role-ui';
 import {
   BarChart,
   Bar,
@@ -99,10 +100,25 @@ function exportCsv(filename: string, rows: Array<Record<string, unknown>>) {
 }
 
 export const AttendancePage = () => {
-  const { user, canManageAttendance, classId: userClassId, schoolId } = useAuth();
+  const {
+    user,
+    role,
+    canManageAttendance,
+    classId: userClassId,
+    classIds,
+    linkedStudentIds,
+    schoolId,
+  } = useAuth();
   const { toast } = useToast();
   const activeTenantId = getActiveTenantId(schoolId);
-  const [classOptions] = React.useState<Array<{ id: string; label: string; section: string }>>([]);
+  const classOptions = React.useMemo(
+    () =>
+      Array.from(new Set(classIds.length ? classIds : userClassId ? [userClassId] : [])).map(
+        (id) => ({ id, label: `Class ${id}`, section: '' })
+      ),
+    [classIds, userClassId]
+  );
+  const copy = getAttendanceCopy(role, canManageAttendance);
 
   const [view, setView] = useState<'marking' | 'history' | 'reports'>(
     canManageAttendance ? 'marking' : 'history'
@@ -111,6 +127,7 @@ export const AttendancePage = () => {
   // Shared state
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedClass, setSelectedClass] = useState(userClassId || '');
+  const [selectedStudentId, setSelectedStudentId] = useState(linkedStudentIds[0] || '');
   const [loading, setLoading] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
@@ -141,11 +158,24 @@ export const AttendancePage = () => {
     });
   }, [userDocuments, selectedClass, activeTenantId]);
 
+  const linkedStudents = React.useMemo(() => {
+    return userDocuments.filter((profile) => {
+      const studentId = profile.uid || profile.id;
+      return !!studentId && linkedStudentIds.includes(studentId);
+    });
+  }, [linkedStudentIds, userDocuments]);
+
   useEffect(() => {
     if (classOptions.length > 0 && !classOptions.some((option) => option.id === selectedClass)) {
       queueMicrotask(() => setSelectedClass(userClassId || classOptions[0]?.id || ''));
     }
   }, [classOptions, selectedClass, userClassId]);
+
+  useEffect(() => {
+    if (role === 'parent' && linkedStudentIds.length > 0 && !selectedStudentId) {
+      queueMicrotask(() => setSelectedStudentId(linkedStudentIds[0]));
+    }
+  }, [linkedStudentIds, role, selectedStudentId]);
 
   const loadMarkingData = useCallback(async () => {
     setLoading(true);
@@ -168,11 +198,12 @@ export const AttendancePage = () => {
   }, [selectedClass, selectedDate]);
 
   const loadHistory = useCallback(async () => {
-    if (!user?.uid) return;
+    const targetStudentId = role === 'parent' ? selectedStudentId : user?.uid;
+    if (!targetStudentId) return;
     setLoading(true);
     try {
       const data = await apiClient.request<AttendanceRecord[]>(
-        `/api/attendance/history/${user?.uid}`,
+        `/api/attendance/history/${targetStudentId}`,
         {}
       );
       setHistory(data);
@@ -181,7 +212,7 @@ export const AttendancePage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [role, selectedStudentId, user]);
 
   const loadReports = useCallback(async () => {
     setLoading(true);
@@ -322,14 +353,7 @@ export const AttendancePage = () => {
 
   return (
     <PageShell maxWidth="max-w-6xl">
-      <PageHeader
-        title="Attendance"
-        description={
-          canManageAttendance
-            ? 'Track student attendance and review history.'
-            : 'View your attendance record.'
-        }
-      >
+      <PageHeader title={copy.title} description={copy.description}>
         <div className="flex items-center gap-4">
           <button
             onClick={handleRefresh}
@@ -581,7 +605,31 @@ export const AttendancePage = () => {
           </div>
         ) : view === 'history' ? (
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-slate-900">Attendance History</h3>
+            <h3 className="text-xl font-bold text-slate-900">{copy.historyTitle}</h3>
+            {role === 'parent' && linkedStudentIds.length > 0 && (
+              <div className="max-w-sm space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  {copy.selector}
+                </label>
+                <select
+                  aria-label="Select child attendance"
+                  value={selectedStudentId}
+                  onChange={(event) => setSelectedStudentId(event.target.value)}
+                  className="w-full bg-white border border-slate-200 px-4 py-3 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  {linkedStudentIds.map((studentId) => {
+                    const profile = linkedStudents.find(
+                      (student) => (student.uid || student.id) === studentId
+                    );
+                    return (
+                      <option key={studentId} value={studentId}>
+                        {profile?.displayName || `Student ${studentId.slice(0, 4)}`}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {history.map((record) => (
                 <Card key={record.id} className="p-6">

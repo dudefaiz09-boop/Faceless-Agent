@@ -10,6 +10,7 @@ import {
   bulkImportSchema,
 } from './student.validation.js';
 import { checkAdmin, checkPermission } from '../../middleware/auth.js';
+import { actorHasRole } from '../../lib/authorization.js';
 
 const router: Router = Router();
 
@@ -21,6 +22,7 @@ function canViewStudentProfile(req: Request, res: Response, next: NextFunction) 
     return next(new AppError({ code: 'AUTH_REQUIRED', message: 'Unauthorized', statusCode: 401 }));
   if (user.isAdmin || user.permissions.viewStudentDetails) return next();
   if (user.uid === uid && user.permissions.viewOwnRecords) return next();
+  if (actorHasRole(user, 'parent') && user.linkedStudentIds.includes(uid)) return next();
   if (user.linkedStudentIds.includes(uid) && user.permissions.viewOwnRecords) return next();
 
   return checkPermission('viewStudentDetails')(req, res, next);

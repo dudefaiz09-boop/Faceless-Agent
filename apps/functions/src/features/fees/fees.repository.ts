@@ -2,6 +2,12 @@ import { db } from '../../lib/documents.js';
 import { createNotification } from '../../lib/notifications.js';
 import { logger } from '@educonnect/logger';
 import { AppError } from '../../middleware/error.js';
+import {
+  actorHasRole,
+  assertCanAccessStudent,
+  isSchoolAdmin,
+  type ActorContext,
+} from '../../lib/authorization.js';
 
 type FeeRecord = {
   studentId: string;
@@ -14,7 +20,7 @@ type FeeRecord = {
   schoolId?: string | null;
   createdAt?: string;
 };
-type Actor = { uid: string; email?: string; schoolId?: string | null };
+type Actor = ActorContext;
 
 const CURRENCY = process.env.CURRENCY || 'INR';
 const CURRENCY_SYMBOL = CURRENCY === 'INR' ? '₹' : '$';
@@ -141,6 +147,11 @@ export class FeesRepository {
     if (!feeSnapshot.exists) throw new AppError('Fee record not found', 404);
     const fee = feeSnapshot.data() as FeeRecord;
     if (!isTenantFee(fee, tenantId)) throw new AppError('Tenant access denied', 403);
+    const canRecordAnyPayment =
+      isSchoolAdmin(actor) || actor.permissions?.manageFees || actorHasRole(actor, 'accountant');
+    if (!canRecordAnyPayment) {
+      await assertCanAccessStudent(actor, fee.studentId, tenantId);
+    }
 
     const now = new Date().toISOString();
     const currentPaid = Number(fee.amountPaid || 0);

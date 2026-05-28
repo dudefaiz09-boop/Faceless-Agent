@@ -53,6 +53,24 @@ interface UserProfile {
   linkedStudentIds?: string[];
 }
 
+function profileUid(profile: UserProfile) {
+  return profile.uid || profile.id;
+}
+
+function getProfileClassIds(profile: UserProfile) {
+  return profile.classIds || (profile.classId ? [profile.classId] : []);
+}
+
+function getLinkedStudentClassIds(linkedStudentIds: string[], profiles: UserProfile[]) {
+  const linkedIds = new Set(linkedStudentIds);
+  return profiles
+    .filter((profile) => {
+      const uid = profileUid(profile);
+      return uid ? linkedIds.has(uid) : false;
+    })
+    .flatMap(getProfileClassIds);
+}
+
 /**
  * Determines if the current user can message a target user based on role eligibility rules.
  */
@@ -60,17 +78,18 @@ function canMessageUser(
   currentRole: string | null,
   currentClassIds: string[],
   currentLinkedStudentIds: string[],
-  targetProfile: UserProfile
+  targetProfile: UserProfile,
+  allProfiles: UserProfile[]
 ): { allowed: boolean; reason?: string } {
   if (!currentRole) return { allowed: false };
 
   // Safety defaults for potential undefined context values
   const safeClassIds = currentClassIds || [];
   const safeLinkedIds = currentLinkedStudentIds || [];
+  const currentChildClassIds = getLinkedStudentClassIds(safeLinkedIds, allProfiles);
 
   const targetRole = targetProfile.role || targetProfile.roles?.[0] || '';
-  const targetClassIds =
-    targetProfile.classIds || (targetProfile.classId ? [targetProfile.classId] : []);
+  const targetClassIds = getProfileClassIds(targetProfile);
 
   // Admin and Principal can message anyone
   if (currentRole === 'admin' || currentRole === 'principal') {
@@ -97,7 +116,7 @@ function canMessageUser(
     if (targetRole === 'teacher') {
       // Check if teacher teaches any of the linked students' classes
       const hasLinkedStudentClass = targetClassIds.some((classId) =>
-        safeClassIds.includes(classId)
+        currentChildClassIds.includes(classId)
       );
       if (hasLinkedStudentClass) return { allowed: true, reason: "Child's Teacher" };
     }
@@ -117,10 +136,14 @@ function canMessageUser(
     }
     // Can message parents of assigned students
     if (targetRole === 'parent') {
-      const hasLinkedStudent = (targetProfile.linkedStudentIds || []).some((studentId) =>
-        safeLinkedIds.includes(studentId)
+      const targetChildClassIds = getLinkedStudentClassIds(
+        targetProfile.linkedStudentIds || [],
+        allProfiles
       );
-      if (hasLinkedStudent) return { allowed: true, reason: "Student's Parent" };
+      const hasLinkedStudentClass = targetChildClassIds.some((classId) =>
+        safeClassIds.includes(classId)
+      );
+      if (hasLinkedStudentClass) return { allowed: true, reason: "Student's Parent" };
     }
     // Can message principal/admin
     if (targetRole === 'principal' || targetRole === 'admin') {
@@ -199,7 +222,7 @@ export const ChatPage = () => {
       if (!uid || uid === user?.uid || profile.status === 'inactive') return false;
 
       // Check eligibility
-      const eligibility = canMessageUser(role, classIds, linkedStudentIds, profile);
+      const eligibility = canMessageUser(role, classIds, linkedStudentIds, profile, userProfiles);
       if (!eligibility.allowed) return false;
 
       // Apply search filter
@@ -329,7 +352,7 @@ export const ChatPage = () => {
   }
 
   function getContactReason(profile: UserProfile) {
-    const eligibility = canMessageUser(role, classIds, linkedStudentIds, profile);
+    const eligibility = canMessageUser(role, classIds, linkedStudentIds, profile, userProfiles);
     return eligibility.reason || '';
   }
 

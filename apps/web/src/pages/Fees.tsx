@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { feesService } from '../lib/api-client';
+import { feesService, parentPortalService } from '../lib/api-client';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   CreditCard,
@@ -33,6 +33,7 @@ import { SearchBar } from '../components/saas/SearchBar';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
+import { getFeesCopy } from '../lib/role-ui';
 
 interface FeeRecord {
   id: string;
@@ -71,6 +72,18 @@ interface FeeAccountResponse {
   payments?: PaymentRecord[];
 }
 
+type ChildProfile = {
+  uid?: string;
+  id?: string;
+  displayName?: string;
+};
+
+type StudentProfileResponse = ChildProfile | { success?: boolean; data?: ChildProfile };
+
+function unwrapStudentProfile(response: StudentProfileResponse): ChildProfile {
+  return 'data' in response && response.data ? response.data : (response as ChildProfile);
+}
+
 function formatDate(value: PaymentRecord['paidAt']) {
   const date =
     typeof value === 'object' && value !== null && 'toDate' in value
@@ -92,9 +105,27 @@ function createIdempotencyKey(prefix: string, id: string) {
 }
 
 export const FeesPage = () => {
-  const { user, isStudent, canManageFees, classId: userClassId, schoolId } = useAuth();
+  const {
+    user,
+    role,
+    isStudent,
+    canManageFees,
+    classId: userClassId,
+    classIds,
+    linkedStudentIds,
+    schoolId,
+  } = useAuth();
   const { toast } = useToast();
-  const [classOptions] = React.useState<Array<{ id: string; label: string; section: string }>>([]);
+  const classOptions = React.useMemo(
+    () =>
+      Array.from(new Set(classIds.length ? classIds : userClassId ? [userClassId] : [])).map(
+        (id) => ({ id, label: `Class ${id}`, section: '' })
+      ),
+    [classIds, userClassId]
+  );
+  const isParent = role === 'parent';
+  const isAccountHolder = isStudent || isParent;
+  const copy = getFeesCopy(role, canManageFees);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fees, setFees] = useState<FeeRecord[]>([]);
@@ -112,6 +143,8 @@ export const FeesPage = () => {
   const [feeSearch, setFeeSearch] = useState('');
   const [uploadError, setUploadError] = useState<CSVValidationError[] | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState(linkedStudentIds[0] || '');
+  const [linkedStudents, setLinkedStudents] = useState<ChildProfile[]>([]);
 
   useEffect(() => {
     if (classOptions.length > 0 && !classOptions.some((option) => option.id === selectedClass)) {
@@ -119,10 +152,43 @@ export const FeesPage = () => {
     }
   }, [classOptions, selectedClass, userClassId]);
 
+  useEffect(() => {
+    if (!isParent) return;
+    let mounted = true;
+    void Promise.all(
+      linkedStudentIds.map(async (studentId) => {
+        const response = (await parentPortalService.studentProfile(
+          studentId
+        )) as StudentProfileResponse;
+        return { ...unwrapStudentProfile(response), uid: studentId };
+      })
+    )
+      .then((profiles) => {
+        if (!mounted) return;
+        setLinkedStudents(profiles);
+        if (!selectedStudentId && profiles[0])
+          setSelectedStudentId(profiles[0].uid || profiles[0].id || '');
+      })
+      .catch(() => {
+        if (mounted) setLinkedStudents([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isParent, linkedStudentIds, selectedStudentId]);
+
   const loadStudentData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = (await feesService.getStudentAccount(String(user?.uid))) as FeeAccountResponse;
+      const targetStudentId = isParent ? selectedStudentId : user?.uid;
+      if (!targetStudentId) {
+        setFees([]);
+        setPayments([]);
+        return;
+      }
+      const data = (await feesService.getStudentAccount(
+        String(targetStudentId)
+      )) as FeeAccountResponse;
       setFees(data.fees || []);
       setPayments(data.payments || []);
     } catch (error) {
@@ -130,7 +196,7 @@ export const FeesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isParent, selectedStudentId, user]);
 
   const loadReport = React.useCallback(async () => {
     setLoading(true);
@@ -146,14 +212,14 @@ export const FeesPage = () => {
 
   useEffect(() => {
     const init = async () => {
-      if (isStudent) {
+      if (isAccountHolder) {
         await loadStudentData();
       } else if (canManageFees) {
         await loadReport();
       }
     };
     init();
-  }, [isStudent, canManageFees, loadStudentData, loadReport]);
+  }, [isAccountHolder, canManageFees, loadStudentData, loadReport]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -361,14 +427,7 @@ export const FeesPage = () => {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Financial Management"
-        description={
-          isStudent
-            ? 'Track your fee status and make secure payments.'
-            : 'Monitor academy revenue and manage student dues.'
-        }
-      >
+      <PageHeader title={copy.title} description={copy.description}>
         <div className="flex items-center gap-3">
           {canManageFees && (
             <div className="flex bg-slate-100 p-1 rounded-xl dark:bg-slate-900">
@@ -408,7 +467,7 @@ export const FeesPage = () => {
         </div>
       </PageHeader>
 
-      {isStudent ? (
+      {isAccountHolder ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Student Sidebar: Quick Summary */}
           <div className="space-y-6">
@@ -433,6 +492,23 @@ export const FeesPage = () => {
                 <button className="w-full bg-white text-blue-600 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-50 transition-colors">
                   Pay Now
                 </button>
+                {isParent && linkedStudentIds.length > 0 && (
+                  <select
+                    aria-label="Select child fees"
+                    value={selectedStudentId}
+                    onChange={(event) => setSelectedStudentId(event.target.value)}
+                    className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-black text-white outline-none"
+                  >
+                    {linkedStudentIds.map((studentId) => {
+                      const profile = linkedStudents.find((student) => student.uid === studentId);
+                      return (
+                        <option className="text-slate-900" key={studentId} value={studentId}>
+                          {profile?.displayName || `Student ${studentId.slice(0, 4)}`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
               </div>
               <CreditCard className="absolute -bottom-6 -right-6 w-32 h-32 text-blue-500 opacity-20 rotate-12" />
             </div>

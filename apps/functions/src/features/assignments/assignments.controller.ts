@@ -1,6 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { AssignmentsRepository } from './assignments.repository.js';
 import { AppError } from '../../middleware/error.js';
+import {
+  actorHasRole,
+  assertCanAccessClass,
+  assertCanAccessStudent,
+  assertCanManageClass,
+  getVisibleClassIdsForActor,
+  isLeadership,
+} from '../../lib/authorization.js';
 
 function canViewStudentAssignments(user: NonNullable<Express.Request['user']>, studentId: string) {
   return (
@@ -8,6 +16,7 @@ function canViewStudentAssignments(user: NonNullable<Express.Request['user']>, s
     user.isAdmin ||
     user.permissions?.manageAssignments ||
     user.permissions?.viewReports ||
+    (actorHasRole(user, 'parent') && user.linkedStudentIds?.includes(studentId)) ||
     (user.permissions?.viewOwnRecords && user.linkedStudentIds?.includes(studentId))
   );
 }
@@ -15,6 +24,7 @@ function canViewStudentAssignments(user: NonNullable<Express.Request['user']>, s
 export class AssignmentsController {
   static async getClassReport(req: Request, res: Response, next: NextFunction) {
     try {
+      await assertCanAccessClass(req.user!, req.params.classId, req.tenantId!);
       const report = await AssignmentsRepository.getClassReport(req.params.classId, req.tenantId!);
       res.json(report);
     } catch (error) {
@@ -26,6 +36,7 @@ export class AssignmentsController {
     try {
       const { uid } = req.params;
       if (!canViewStudentAssignments(req.user!, uid)) throw new AppError('Forbidden', 403);
+      await assertCanAccessStudent(req.user!, uid, req.tenantId!);
       const history = await AssignmentsRepository.getHistory(uid, req.tenantId!);
       res.json(history);
     } catch (error) {
@@ -37,7 +48,8 @@ export class AssignmentsController {
     try {
       const submissions = await AssignmentsRepository.getSubmissions(
         req.params.assignmentId,
-        req.tenantId!
+        req.tenantId!,
+        req.user!
       );
       res.json(submissions);
     } catch (error) {
@@ -48,7 +60,11 @@ export class AssignmentsController {
   static async list(req: Request, res: Response, next: NextFunction) {
     try {
       const classId = req.params.classId || (req.query.classId as string);
-      const assignments = await AssignmentsRepository.list(classId, req.tenantId!);
+      if (classId) await assertCanAccessClass(req.user!, classId, req.tenantId!);
+      const visibleClassIds = isLeadership(req.user!)
+        ? undefined
+        : await getVisibleClassIdsForActor(req.user!, req.tenantId!);
+      const assignments = await AssignmentsRepository.list(classId, req.tenantId!, visibleClassIds);
       res.json(assignments);
     } catch (error) {
       next(error);
@@ -57,6 +73,14 @@ export class AssignmentsController {
 
   static async create(req: Request, res: Response, next: NextFunction) {
     try {
+      const targetClasses = req.body.targetClasses?.length
+        ? req.body.targetClasses
+        : [req.body.classId].filter(Boolean);
+      await Promise.all(
+        targetClasses.map((classId: string) =>
+          assertCanManageClass(req.user!, classId, req.tenantId!)
+        )
+      );
       const result = await AssignmentsRepository.create(
         req.body,
         { uid: req.user!.uid, email: req.user!.email, schoolId: req.user!.schoolId },
@@ -70,7 +94,7 @@ export class AssignmentsController {
 
   static async archive(req: Request, res: Response, next: NextFunction) {
     try {
-      await AssignmentsRepository.archive(req.params.id, req.tenantId!, req.user!.uid);
+      await AssignmentsRepository.archive(req.params.id, req.tenantId!, req.user!);
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -94,6 +118,7 @@ export class AssignmentsController {
 
   static async recheck(req: Request, res: Response, next: NextFunction) {
     try {
+      await assertCanAccessStudent(req.user!, req.body.studentId, req.tenantId!);
       await AssignmentsRepository.recheck(
         req.body,
         { uid: req.user!.uid, email: req.user!.email, schoolId: req.user!.schoolId },

@@ -100,6 +100,14 @@ const studentPermissions = {
   submitAssignments: true,
 };
 
+const parentPermissions = {
+  viewLinkedStudentRecords: true,
+  viewAssignments: true,
+  viewAttendance: true,
+  viewFees: true,
+  viewPerformance: true,
+};
+
 const teacherPermissions = {
   viewStudents: true,
   viewAssignments: true,
@@ -274,7 +282,7 @@ const seedUsers: SeedUser[] = [
     tenantId: 'tenant-a',
     displayName: 'Parent A',
     linkedStudentIds: ['student.a.demo1@educonnect.test', 'student.b.demo1@educonnect.test'], // Will resolve to IDs
-    permissions: studentPermissions,
+    permissions: parentPermissions,
   },
 
   // Tenant B
@@ -360,7 +368,7 @@ const seedUsers: SeedUser[] = [
     tenantId: 'tenant-b',
     displayName: 'Parent B',
     linkedStudentIds: ['student.a.demo2@educonnect.test', 'student.b.demo2@educonnect.test'],
-    permissions: studentPermissions,
+    permissions: parentPermissions,
   },
 
   // Global Admin

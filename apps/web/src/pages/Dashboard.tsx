@@ -8,7 +8,6 @@ import {
   Brain,
   CalendarDays,
   GraduationCap,
-  Megaphone,
   Sparkles,
   Users,
   type LucideIcon,
@@ -22,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDocuments } from '../lib/documents';
 import { useDashboardStats, useAttendanceTrend, usePerformanceTrend } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { getRoleDashboardActions } from '../lib/role-ui';
 
 const performanceTrend = [
   { label: 'Math', value: 82 },
@@ -107,7 +107,15 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 export function DashboardPage() {
-  const { role } = useAuth();
+  const {
+    role,
+    canManageAttendance,
+    canManageAssignments,
+    canManageFees,
+    canManageLibrary,
+    isAdmin,
+    isTeacher,
+  } = useAuth();
   const {
     data: announcements,
     error: announcementsError,
@@ -123,6 +131,15 @@ export function DashboardPage() {
 
   const userRole = (role as UserRole) || 'student';
   const copy = roleCopy[userRole] || roleCopy.student;
+  const quickActions = getRoleDashboardActions({
+    role,
+    canManageAttendance,
+    canManageAssignments,
+    canManageFees,
+    canManageLibrary,
+    isAdmin,
+    isTeacher,
+  });
 
   const trendData =
     attendanceTrend?.data && attendanceTrend.data.length > 0 ? attendanceTrend.data : [];
@@ -221,23 +238,13 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              ['Ask AI', 'Generate lessons, reports, or study help.', '/chatbot', Brain],
-              [
-                'Post update',
-                'Publish a targeted school announcement.',
-                '/announcements',
-                Megaphone,
-              ],
-              ['Mark attendance', 'Record daily attendance faster.', '/attendance', Activity],
-              ['Create assignment', 'Draft and publish class work.', '/assignments', BookOpen],
-            ].map(([label, description, path, Icon]) => (
+            {quickActions.map(({ title, description, to, icon: Icon }) => (
               <QuickActionCard
-                key={String(label)}
-                title={String(label)}
-                description={String(description)}
-                to={String(path)}
-                icon={Icon as React.ElementType}
+                key={title}
+                title={title}
+                description={description}
+                to={to}
+                icon={Icon}
               />
             ))}
           </div>

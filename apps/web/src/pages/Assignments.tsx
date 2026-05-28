@@ -23,7 +23,7 @@ import {
   AssignmentSubmission as Submission,
 } from '@educonnect/shared-education';
 import { ApiRequestError } from '@educonnect/shared-api';
-import { assignmentsService } from '../lib/api-client';
+import { assignmentsService, parentPortalService } from '../lib/api-client';
 import { getApiBaseUrlDiagnostic } from '../lib/env';
 import { FileUpload } from '../components/FileUpload';
 import { EmptyState } from '../components/saas/EmptyState';
@@ -32,6 +32,7 @@ import { StatCard } from '../components/saas/StatCard';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PageShell } from '../components/ui/PageShell';
 import { useToast } from '../components/saas/ToastProvider';
+import { getAssignmentsCopy } from '../lib/role-ui';
 
 type AssignmentDisplay = Assignment & {
   subject?: string;
@@ -49,6 +50,20 @@ type AssignmentErrorState = {
   kind?: string;
 };
 
+type ChildProfile = {
+  uid?: string;
+  id?: string;
+  displayName?: string;
+  classId?: string;
+  classIds?: string[];
+};
+
+type StudentProfileResponse = ChildProfile | { success?: boolean; data?: ChildProfile };
+
+function unwrapStudentProfile(response: StudentProfileResponse): ChildProfile {
+  return 'data' in response && response.data ? response.data : (response as ChildProfile);
+}
+
 function toAssignmentErrorState(error: unknown): AssignmentErrorState {
   if (error instanceof ApiRequestError) {
     return {
@@ -65,12 +80,33 @@ function toAssignmentErrorState(error: unknown): AssignmentErrorState {
 }
 
 export const AssignmentsPage = () => {
-  const { user, isStudent, canManageAssignments, classId: userClassId, schoolId } = useAuth();
+  const {
+    user,
+    role,
+    isStudent,
+    canManageAssignments,
+    classId: userClassId,
+    classIds,
+    linkedStudentIds,
+    schoolId,
+  } = useAuth();
   const { toast } = useToast();
   const uid = user?.uid;
-  const [classOptions] = useState<Array<{ id: string; label: string; section: string }>>([]);
+  const classOptions = useMemo(
+    () =>
+      Array.from(new Set(classIds.length ? classIds : userClassId ? [userClassId] : [])).map(
+        (id) => ({ id, label: `Class ${id}`, section: '' })
+      ),
+    [classIds, userClassId]
+  );
+  const copy = getAssignmentsCopy(role, canManageAssignments);
+  const isParent = role === 'parent';
+  const isLearnerView = isStudent || isParent;
+  const canSubmitAssignment = isStudent;
 
   const [selectedClass, setSelectedClass] = useState(userClassId || '');
+  const [selectedStudentId, setSelectedStudentId] = useState(linkedStudentIds[0] || '');
+  const [linkedStudents, setLinkedStudents] = useState<ChildProfile[]>([]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(() => Date.now());
@@ -135,6 +171,35 @@ export const AssignmentsPage = () => {
   }, [classOptions, selectedClass, userClassId]);
 
   useEffect(() => {
+    if (!isParent) return;
+    let mounted = true;
+    void Promise.all(
+      linkedStudentIds.map(async (studentId) => {
+        const response = (await parentPortalService.studentProfile(
+          studentId
+        )) as StudentProfileResponse;
+        return { ...unwrapStudentProfile(response), uid: studentId };
+      })
+    )
+      .then((profiles) => {
+        if (!mounted) return;
+        setLinkedStudents(profiles);
+        const selected =
+          profiles.find((profile) => profile.uid === selectedStudentId) || profiles[0];
+        if (selected) {
+          setSelectedStudentId(selected.uid || selected.id || '');
+          setSelectedClass(selected.classId || selected.classIds?.[0] || '');
+        }
+      })
+      .catch(() => {
+        if (mounted) setLinkedStudents([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isParent, linkedStudentIds, selectedStudentId]);
+
+  useEffect(() => {
     queueMicrotask(() =>
       setNewAssignment((current) => ({
         ...current,
@@ -192,9 +257,10 @@ export const AssignmentsPage = () => {
   const [mySubmissions, setMySubmissions] = useState<Record<string, Submission>>({});
 
   const loadMyHistory = useCallback(async () => {
-    if (!uid) return;
+    const historyUid = isParent ? selectedStudentId : uid;
+    if (!historyUid) return;
     try {
-      const data = await assignmentsService.getMyHistory(uid);
+      const data = await assignmentsService.getMyHistory(historyUid);
       const map: Record<string, Submission> = {};
       if (Array.isArray(data)) {
         data.forEach((s: Submission) => (map[s.assignmentId] = s));
@@ -203,14 +269,14 @@ export const AssignmentsPage = () => {
     } catch (err) {
       console.error(err);
     }
-  }, [uid]);
+  }, [isParent, selectedStudentId, uid]);
 
   useEffect(() => {
-    if (isStudent) {
+    if (isLearnerView) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadMyHistory();
     }
-  }, [loadMyHistory, isStudent]);
+  }, [loadMyHistory, isLearnerView]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,16 +404,31 @@ export const AssignmentsPage = () => {
 
   return (
     <PageShell maxWidth="max-w-6xl">
-      <PageHeader
-        title="Assignments"
-        description={
-          isStudent
-            ? 'Track your coursework and submit your work.'
-            : 'Manage assignments and grade student submissions.'
-        }
-      >
+      <PageHeader title={copy.title} description={copy.description}>
         <div className="flex items-center gap-4">
-          {!isStudent && (
+          {isParent && linkedStudentIds.length > 0 && (
+            <select
+              aria-label="Select child assignments"
+              value={selectedStudentId}
+              onChange={(event) => {
+                const studentId = event.target.value;
+                setSelectedStudentId(studentId);
+                const profile = linkedStudents.find((student) => student.uid === studentId);
+                setSelectedClass(profile?.classId || profile?.classIds?.[0] || '');
+              }}
+              className="bg-white border border-slate-200 px-4 py-3 rounded-2xl font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-100 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+            >
+              {linkedStudentIds.map((studentId) => {
+                const profile = linkedStudents.find((student) => student.uid === studentId);
+                return (
+                  <option key={studentId} value={studentId}>
+                    {profile?.displayName || `Student ${studentId.slice(0, 4)}`}
+                  </option>
+                );
+              })}
+            </select>
+          )}
+          {canManageAssignments && (
             <select
               aria-label="Select assignment class"
               value={selectedClass}
@@ -377,14 +458,14 @@ export const AssignmentsPage = () => {
         <StatCard
           title="Published"
           value={String(assignments.length)}
-          detail={`Class ${selectedClass}`}
+          detail={isParent ? copy.publishedDetail : `Class ${selectedClass}`}
           icon={FileText}
           tone="blue"
         />
         <StatCard
-          title={isStudent ? 'Submitted' : 'Submissions'}
-          value={String(isStudent ? submittedCount : submissions.length)}
-          detail={isStudent ? 'Completed by you' : 'For selected assignment'}
+          title={isLearnerView ? 'Submitted' : 'Submissions'}
+          value={String(isLearnerView ? submittedCount : submissions.length)}
+          detail={isLearnerView ? 'Completed' : 'For selected assignment'}
           icon={CheckCircle2}
           tone="emerald"
         />
@@ -445,11 +526,7 @@ export const AssignmentsPage = () => {
               </button>
             </div>
           ) : filteredAssignments.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="No assignments found"
-              description="Try a different search term or create a new assignment for this class."
-            />
+            <EmptyState icon={FileText} title="No assignments found" description={copy.empty} />
           ) : (
             <div className="grid gap-4">
               {filteredAssignments.map((assignment) => {
@@ -481,7 +558,7 @@ export const AssignmentsPage = () => {
                           <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors dark:text-white">
                             {assignment.title || 'Untitled Assignment'}
                           </h3>
-                          {isStudent && mySub && (
+                          {isLearnerView && mySub && (
                             <span
                               className={cn(
                                 'text-[10px] font-black uppercase px-2 py-0.5 rounded-full',
@@ -534,7 +611,12 @@ export const AssignmentsPage = () => {
                 </div>
                 <p className="text-slate-500 font-medium max-w-[200px]">
                   Select an assignment to view details and{' '}
-                  {isStudent ? 'submit work' : 'grade submissions'}.
+                  {canSubmitAssignment
+                    ? 'submit work'
+                    : canManageAssignments
+                      ? 'grade submissions'
+                      : 'review status'}
+                  .
                 </p>
               </motion.div>
             ) : (
@@ -575,7 +657,7 @@ export const AssignmentsPage = () => {
                   )}
                 </div>
 
-                {isStudent ? (
+                {isLearnerView ? (
                   <div className="space-y-4 pt-4 border-t border-slate-50">
                     {mySubmissions[selectedAssignment.id] ? (
                       <div className="space-y-4">
@@ -636,7 +718,7 @@ export const AssignmentsPage = () => {
                           </div>
                         )}
                       </div>
-                    ) : (
+                    ) : canSubmitAssignment ? (
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
@@ -680,9 +762,13 @@ export const AssignmentsPage = () => {
                           )}
                         </button>
                       </div>
+                    ) : (
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+                        No submission has been recorded for this child yet.
+                      </div>
                     )}
                   </div>
-                ) : (
+                ) : canManageAssignments ? (
                   <div className="space-y-6 pt-4 border-t border-slate-50">
                     <h4 className="font-bold text-slate-900 flex items-center gap-2">
                       <Users size={18} className="text-blue-600" />
@@ -829,7 +915,7 @@ export const AssignmentsPage = () => {
                       </div>
                     )}
                   </div>
-                )}
+                ) : null}
               </motion.div>
             )}
           </AnimatePresence>

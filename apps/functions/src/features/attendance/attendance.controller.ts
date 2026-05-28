@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { AttendanceRepository } from './attendance.repository.js';
 import { AppError } from '../../middleware/error.js';
+import {
+  actorHasRole,
+  assertCanAccessClass,
+  assertCanAccessStudent,
+  assertCanManageClass,
+  assertStudentsBelongToClass,
+} from '../../lib/authorization.js';
 
 function canViewAttendance(user: NonNullable<Express.Request['user']>) {
   return (
@@ -17,6 +24,7 @@ function canViewStudentAttendance(user: NonNullable<Express.Request['user']>, st
   return (
     studentId === user.uid ||
     canViewAttendance(user) ||
+    (actorHasRole(user, 'parent') && user.linkedStudentIds?.includes(studentId)) ||
     (user.permissions?.viewOwnRecords && user.linkedStudentIds?.includes(studentId))
   );
 }
@@ -26,6 +34,7 @@ export class AttendanceController {
     try {
       const { classId } = req.params;
       const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      await assertCanAccessClass(req.user!, classId, req.tenantId!);
       const stats = await AttendanceRepository.getReport(
         classId,
         req.tenantId!,
@@ -44,6 +53,7 @@ export class AttendanceController {
       if (!canViewStudentAttendance(req.user!, uid)) {
         throw new AppError('Forbidden', 403);
       }
+      await assertCanAccessStudent(req.user!, uid, req.tenantId!);
       const history = await AttendanceRepository.getHistory(uid, req.tenantId!);
       res.json(history);
     } catch (error) {
@@ -55,6 +65,7 @@ export class AttendanceController {
     try {
       const classId = req.params.classId || (req.query.classId as string);
       if (!classId) throw new AppError('classId is required', 400);
+      await assertCanAccessClass(req.user!, classId, req.tenantId!);
       const date = req.query.date as string | undefined;
       const result = await AttendanceRepository.list(classId, req.tenantId!, date);
       res.json(result);
@@ -66,6 +77,12 @@ export class AttendanceController {
   static async mark(req: Request, res: Response, next: NextFunction) {
     try {
       const { classId, date, records } = req.body;
+      await assertCanManageClass(req.user!, classId, req.tenantId!);
+      await assertStudentsBelongToClass(
+        records.map((record: { studentId: string }) => record.studentId),
+        classId,
+        req.tenantId!
+      );
       const result = await AttendanceRepository.mark(
         classId,
         date,

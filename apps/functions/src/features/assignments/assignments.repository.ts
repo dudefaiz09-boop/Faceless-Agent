@@ -5,6 +5,7 @@ import { AssignmentAnalytics } from '@educonnect/shared-analytics';
 import type { Assignment, AssignmentSubmission } from '@educonnect/shared-education';
 import { createNotification, type NotificationInput } from '../../lib/notifications.js';
 import { AppError } from '../../middleware/error.js';
+import { assertCanAccessClass, assertCanManageClass } from '../../lib/authorization.js';
 
 type AssignmentRecord = {
   id: string;
@@ -145,11 +146,23 @@ export class AssignmentsRepository {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
-  static async getSubmissions(assignmentId: string, tenantId: string) {
+  static async getSubmissions(
+    assignmentId: string,
+    tenantId: string,
+    actor?: NonNullable<Express.Request['user']>
+  ) {
     const assignmentDoc = await db.collection('assignments').doc(assignmentId).get();
     const assignment = assignmentDoc.exists ? (assignmentDoc.data() as AssignmentRecord) : null;
     if (!assignment) throw new AppError('Assignment not found', 404);
     if (!isTenantAssignment(assignment, tenantId)) throw new AppError('Tenant access denied', 403);
+
+    if (actor) {
+      const classes = assignment.targetClasses?.length
+        ? assignment.targetClasses
+        : [assignment.classId].filter(Boolean);
+      await Promise.all(classes.map((classId) => assertCanAccessClass(actor, classId!, tenantId)));
+    }
+
     const snapshot = await db
       .collection('submissions')
       .where('tenantId', '==', tenantId)
@@ -158,22 +171,30 @@ export class AssignmentsRepository {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
-  static async list(classId: string | undefined, tenantId: string) {
+  static async list(classId: string | undefined, tenantId: string, visibleClassIds?: string[]) {
     let query = db.collection('assignments').where('tenantId', '==', tenantId);
     if (classId) query = query.where('targetClasses', 'array-contains', classId);
     const snapshot = await query.get();
-    return snapshot.docs.map((doc) => {
-      const data = doc.data() as AssignmentRecord;
-      return {
-        ...data,
-        id: doc.id,
-        title: data.title || 'Untitled Assignment',
-        dueDate: data.dueDate || null,
-        classId: data.classId || null,
-        targetClasses: Array.isArray(data.targetClasses) ? data.targetClasses : [],
-        attachments: Array.isArray(data.attachments) ? data.attachments : [],
-      };
-    });
+    return snapshot.docs
+      .map((doc) => {
+        const data = doc.data() as AssignmentRecord;
+        return {
+          ...data,
+          id: doc.id,
+          title: data.title || 'Untitled Assignment',
+          dueDate: data.dueDate || null,
+          classId: data.classId || null,
+          targetClasses: Array.isArray(data.targetClasses) ? data.targetClasses : [],
+          attachments: Array.isArray(data.attachments) ? data.attachments : [],
+        };
+      })
+      .filter((assignment) => {
+        if (!visibleClassIds) return true;
+        const classes = assignment.targetClasses?.length
+          ? assignment.targetClasses
+          : [assignment.classId].filter(Boolean);
+        return classes.some((targetClass) => visibleClassIds.includes(targetClass!));
+      });
   }
 
   static async create(data: any, actor: Actor, tenantId: string) {
@@ -218,18 +239,22 @@ export class AssignmentsRepository {
     return { id: docRef.id, ...assignment };
   }
 
-  static async archive(id: string, tenantId: string, actorUid: string) {
+  static async archive(id: string, tenantId: string, actor: NonNullable<Express.Request['user']>) {
     const assignmentRef = db.collection('assignments').doc(id);
     const snapshot = await assignmentRef.get();
     if (!snapshot.exists) throw new AppError('Assignment not found', 404);
     const assignment = snapshot.data() as AssignmentRecord;
     if (!isTenantAssignment(assignment, tenantId)) throw new AppError('Tenant access denied', 403);
+    const classes = assignment.targetClasses?.length
+      ? assignment.targetClasses
+      : [assignment.classId].filter(Boolean);
+    await Promise.all(classes.map((classId) => assertCanManageClass(actor, classId!, tenantId)));
     const now = new Date().toISOString();
     await assignmentRef.update({
       status: 'archived',
       deletedAt: now,
       updatedAt: now,
-      updatedBy: actorUid,
+      updatedBy: actor.uid,
     });
   }
 
