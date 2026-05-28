@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.1:8b"
     OPENAI_API_KEY: Optional[str] = None
+    OPENAI_BASE_URL: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4o-mini"
 
     TTS_PROVIDER: str = "edge"  # edge, elevenlabs, gtts
@@ -47,8 +48,8 @@ class Settings(BaseSettings):
     JWT_REFRESH_EXPIRATION_DAYS: int = 30
 
     HUMAN_REVIEW_REQUIRED: bool = True
-    MAX_POSTS_PER_DAY_YOUTUBE: int = 3
-    MAX_POSTS_PER_DAY_INSTAGRAM: int = 3
+    MAX_POSTS_PER_DAY_YOUTUBE: int = 1
+    MAX_POSTS_PER_DAY_INSTAGRAM: int = 1
     MIN_QUALITY_SCORE: int = 80
     MIN_COMPLIANCE_SCORE: int = 95
 
@@ -65,8 +66,8 @@ class Settings(BaseSettings):
     DEFAULT_TTS_VOICE: str = "en-US-JennyNeural"
     VIDEO_OUTPUT_WIDTH: int = 1080
     VIDEO_OUTPUT_HEIGHT: int = 1920
-    VIDEO_OUTPUT_FPS: int = 30
-    VIDEO_OUTPUT_BITRATE: str = "8M"
+    VIDEO_OUTPUT_FPS: int = 24
+    VIDEO_OUTPUT_BITRATE: str = "3M"
     CAPTION_FONT_SIZE: int = 48
     CAPTION_LINE_HEIGHT: float = 1.5
     STOCK_FOOTAGE_DURATION: int = 5
