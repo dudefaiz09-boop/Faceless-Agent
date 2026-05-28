@@ -1,0 +1,72 @@
+2026-05-27 05:14:13,701 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-27 05:14:13,702 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("users")
+2026-05-27 05:14:13,704 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,714 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("platform_credentials")
+2026-05-27 05:14:13,715 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,718 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("niches")
+2026-05-27 05:14:13,719 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,722 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("trends")
+2026-05-27 05:14:13,723 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,726 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("ideas")
+2026-05-27 05:14:13,727 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,730 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("scripts")
+2026-05-27 05:14:13,730 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,732 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("assets")
+2026-05-27 05:14:13,733 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,736 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("videos")
+2026-05-27 05:14:13,736 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,738 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("quality_scores")
+2026-05-27 05:14:13,738 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,740 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("compliance_reports")
+2026-05-27 05:14:13,741 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,744 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("publishing_jobs")
+2026-05-27 05:14:13,745 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,747 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("published_posts")
+2026-05-27 05:14:13,748 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,751 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("analytics_snapshots")
+2026-05-27 05:14:13,752 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,754 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("experiments")
+2026-05-27 05:14:13,755 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,758 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("revenue_records")
+2026-05-27 05:14:13,759 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,762 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("logs")
+2026-05-27 05:14:13,763 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,766 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("settings")
+2026-05-27 05:14:13,767 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,770 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("brand_kits")
+2026-05-27 05:14:13,770 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,773 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("accounts")
+2026-05-27 05:14:13,774 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,778 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("agent_logs")
+2026-05-27 05:14:13,779 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,783 INFO sqlalchemy.engine.Engine SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite~_%' ESCAPE '~' ORDER BY name
+2026-05-27 05:14:13,783 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,786 INFO sqlalchemy.engine.Engine PRAGMA main.table_xinfo("niches")
+2026-05-27 05:14:13,787 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-05-27 05:14:13,789 INFO sqlalchemy.engine.Engine COMMIT
+2026-05-27 05:14:13,796 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-27 05:14:13,887 INFO sqlalchemy.engine.Engine SELECT niches.user_id, niches.name, niches.description, niches.is_active, niches.priority, niches.pipeline_status, niches.last_agent_action, niches.last_agent_action_at, niches.content_pillars, niches.audience_persona, niches.hook_formulas, niches.visual_style_guide, niches.caption_style, niches.hashtag_style, niches.monetization_angle, niches.content_safety_rules, niches.id, niches.created_at, niches.updated_at 
+FROM niches 
+WHERE niches.is_active = 1 ORDER BY niches.priority DESC
+2026-05-27 05:14:13,888 INFO sqlalchemy.engine.Engine [generated in 0.00093s] ()
+2026-05-27 05:14:13,893 INFO sqlalchemy.engine.Engine SELECT trends.user_id, trends.niche_id, trends.trend_name, trends.category, trends.reason, trends.audience_emotion, trends.virality_score, trends.competition_score, trends.originality_angle, trends.suggested_hook, trends.suggested_title, trends.suggested_hashtags, trends.risk_notes, trends.source, trends.is_used, trends.is_active, trends.id, trends.created_at, trends.updated_at 
+FROM trends 
+WHERE trends.niche_id = ? AND trends.is_active = 1
+2026-05-27 05:14:13,894 INFO sqlalchemy.engine.Engine [generated in 0.00118s] ('41bb131ac20f43beb5ab3cf1cfc326a2',)
+2026-05-27 05:14:13,898 INFO sqlalchemy.engine.Engine SELECT trends.user_id, trends.niche_id, trends.trend_name, trends.category, trends.reason, trends.audience_emotion, trends.virality_score, trends.competition_score, trends.originality_angle, trends.suggested_hook, trends.suggested_title, trends.suggested_hashtags, trends.risk_notes, trends.source, trends.is_used, trends.is_active, trends.id, trends.created_at, trends.updated_at 
+FROM trends 
+WHERE trends.niche_id = ? AND trends.is_active = 1 AND trends.is_used = 0
+2026-05-27 05:14:13,899 INFO sqlalchemy.engine.Engine [generated in 0.00073s] ('41bb131ac20f43beb5ab3cf1cfc326a2',)
+2026-05-27 05:14:13,909 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-27 05:14:13,911 INFO sqlalchemy.engine.Engine SELECT niches.user_id, niches.name, niches.description, niches.is_active, niches.priority, niches.pipeline_status, niches.last_agent_action, niches.last_agent_action_at, niches.content_pillars, niches.audience_persona, niches.hook_formulas, niches.visual_style_guide, niches.caption_style, niches.hashtag_style, niches.monetization_angle, niches.content_safety_rules, niches.id, niches.created_at, niches.updated_at 
+FROM niches 
+WHERE niches.id = ?
+2026-05-27 05:14:13,912 INFO sqlalchemy.engine.Engine [generated in 0.00073s] ('41bb131ac20f43beb5ab3cf1cfc326a2',)
+2026-05-27 05:14:13,917 INFO sqlalchemy.engine.Engine UPDATE niches SET last_agent_action_at=?, updated_at=? WHERE niches.id = ?
+2026-05-27 05:14:13,918 INFO sqlalchemy.engine.Engine [generated in 0.00096s] ('2026-05-26T23:44:13.914910+00:00', '2026-05-26 23:44:13.917469', '41bb131ac20f43beb5ab3cf1cfc326a2')
+2026-05-27 05:14:13,922 INFO sqlalchemy.engine.Engine COMMIT
+2026-05-27 05:14:14,611 INFO sqlalchemy.engine.Engine SELECT trends.user_id, trends.niche_id, trends.trend_name, trends.category, trends.reason, trends.audience_emotion, trends.virality_score, trends.competition_score, trends.originality_angle, trends.suggested_hook, trends.suggested_title, trends.suggested_hashtags, trends.risk_notes, trends.source, trends.is_used, trends.is_active, trends.id, trends.created_at, trends.updated_at 
+FROM trends 
+WHERE trends.is_used = 0 AND trends.is_active = 1 AND trends.user_id = ? AND trends.niche_id = ?
+2026-05-27 05:14:14,612 INFO sqlalchemy.engine.Engine [generated in 0.00087s] ('e5da4573b9474c09aed0730757b3b920', '41bb131ac20f43beb5ab3cf1cfc326a2')
+INFO:     127.0.0.1:51990 - "GET /health HTTP/1.1" 200 OK
